@@ -1,0 +1,143 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/calendario",
+      "regex": "^/dashboard/calendario(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/calendario(?:/)?$"
+    },
+    {
+      "page": "/dashboard/chat",
+      "regex": "^/dashboard/chat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/chat(?:/)?$"
+    },
+    {
+      "page": "/dashboard/comercial",
+      "regex": "^/dashboard/comercial(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/comercial(?:/)?$"
+    },
+    {
+      "page": "/dashboard/cronograma",
+      "regex": "^/dashboard/cronograma(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/cronograma(?:/)?$"
+    },
+    {
+      "page": "/dashboard/equipe",
+      "regex": "^/dashboard/equipe(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/equipe(?:/)?$"
+    },
+    {
+      "page": "/dashboard/ferramentas",
+      "regex": "^/dashboard/ferramentas(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/ferramentas(?:/)?$"
+    },
+    {
+      "page": "/dashboard/financeiro",
+      "regex": "^/dashboard/financeiro(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/financeiro(?:/)?$"
+    },
+    {
+      "page": "/dashboard/juridico",
+      "regex": "^/dashboard/juridico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/juridico(?:/)?$"
+    },
+    {
+      "page": "/dashboard/memorial",
+      "regex": "^/dashboard/memorial(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/memorial(?:/)?$"
+    },
+    {
+      "page": "/dashboard/obra",
+      "regex": "^/dashboard/obra(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/obra(?:/)?$"
+    },
+    {
+      "page": "/dashboard/tarefas",
+      "regex": "^/dashboard/tarefas(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/tarefas(?:/)?$"
+    },
+    {
+      "page": "/fora-horario",
+      "regex": "^/fora\\-horario(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/fora\\-horario(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/primeiro-acesso",
+      "regex": "^/primeiro\\-acesso(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/primeiro\\-acesso(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
