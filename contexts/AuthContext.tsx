@@ -55,14 +55,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error loading user profile:', error)
+        // Se o perfil não existe, tentar criar
+        await createMissingProfile(userId)
+        return
+      }
+
+      if (!data) {
+        // Perfil não existe, criar
+        await createMissingProfile(userId)
+        return
+      }
+
       setUser(data as User)
     } catch (error) {
       console.error('Error loading user profile:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const createMissingProfile = async (userId: string) => {
+    try {
+      // Buscar dados do usuário auth
+      const { data: authUser } = await supabase.auth.getUser()
+
+      if (!authUser?.user) {
+        throw new Error('User not found')
+      }
+
+      // Criar perfil
+      const { data: newProfile, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: authUser.user.email!,
+          name: authUser.user.user_metadata?.name || authUser.user.email!.split('@')[0],
+          role: authUser.user.user_metadata?.role || 'colaborador',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setUser(newProfile as User)
+    } catch (error) {
+      console.error('Error creating profile:', error)
+      // Fazer logout se não conseguir criar perfil
+      await signOut()
     }
   }
 
