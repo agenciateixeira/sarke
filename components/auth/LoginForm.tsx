@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -39,11 +40,18 @@ export const LoginForm = () => {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Bem-vindo ao Sarke</CardTitle>
-        <CardDescription className="text-center">
-          Entre com suas credenciais para acessar o sistema
-        </CardDescription>
+      <div className="flex justify-center pt-8 pb-4">
+        <Image
+          src="/logo.png"
+          alt="Sarke"
+          width={180}
+          height={60}
+          className="object-contain"
+          priority
+        />
+      </div>
+      <CardHeader className="space-y-1 pt-0">
+        <CardTitle className="text-2xl font-bold text-center">Bem-vindo</CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">

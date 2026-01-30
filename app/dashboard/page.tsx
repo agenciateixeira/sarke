@@ -2,155 +2,233 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
-  CheckSquare,
-  DollarSign,
   Users,
-  Building,
+  Building2,
+  TrendingUp,
+  Calendar,
+  Plus,
+  ArrowUpRight,
+  FileText,
 } from 'lucide-react'
+import Link from 'next/link'
 
 export default function DashboardPage() {
   const { user } = useAuth()
 
+  // Stats cards para CRM de Arquitetura
   const stats = [
     {
-      title: 'Tarefas Ativas',
-      value: '12',
-      icon: <CheckSquare className="h-4 w-4 text-muted-foreground" />,
-      description: '+2 desde ontem',
+      title: 'Clientes Ativos',
+      value: '-',
+      icon: <Users className="h-5 w-5" />,
+      description: 'Carregando...',
+      href: '/dashboard/comercial',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-950',
     },
     {
-      title: 'Projetos',
-      value: '5',
-      icon: <Building className="h-4 w-4 text-muted-foreground" />,
-      description: '3 em andamento',
+      title: 'Projetos em Andamento',
+      value: '-',
+      icon: <Building2 className="h-5 w-5" />,
+      description: 'Carregando...',
+      href: '/dashboard/obra',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50 dark:bg-green-950',
     },
     {
-      title: 'Equipe',
-      value: '28',
-      icon: <Users className="h-4 w-4 text-muted-foreground" />,
-      description: '24 ativos',
+      title: 'Pipeline',
+      value: '-',
+      icon: <TrendingUp className="h-5 w-5" />,
+      description: 'Carregando...',
+      href: '/dashboard/comercial',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-950',
     },
     {
-      title: 'Receita Mensal',
-      value: 'R$ 45.2k',
-      icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
-      description: '+12% vs mês anterior',
+      title: 'Próximas Atividades',
+      value: '-',
+      icon: <Calendar className="h-5 w-5" />,
+      description: 'Carregando...',
+      href: '/dashboard/calendario',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-950',
+    },
+  ]
+
+  const quickActions = [
+    {
+      title: 'Novo Cliente',
+      description: 'Cadastrar novo cliente',
+      icon: <Users className="h-5 w-5" />,
+      href: '/dashboard/comercial',
+      color: 'bg-blue-600 hover:bg-blue-700',
+    },
+    {
+      title: 'Novo Projeto',
+      description: 'Iniciar projeto de arquitetura',
+      icon: <Building2 className="h-5 w-5" />,
+      href: '/dashboard/obra',
+      color: 'bg-green-600 hover:bg-green-700',
+    },
+    {
+      title: 'Nova Tarefa',
+      description: 'Criar tarefa para a equipe',
+      icon: <FileText className="h-5 w-5" />,
+      href: '/dashboard/tarefas',
+      color: 'bg-purple-600 hover:bg-purple-700',
+    },
+    {
+      title: 'Agendar Reunião',
+      description: 'Marcar reunião com cliente',
+      icon: <Calendar className="h-5 w-5" />,
+      href: '/dashboard/calendario',
+      color: 'bg-orange-600 hover:bg-orange-700',
     },
   ]
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Olá, {user?.name?.split(' ')[0] || 'Usuário'} 👋
+        </h1>
         <p className="text-muted-foreground">
-          Bem-vindo, {user?.name}! Aqui está um resumo das suas atividades.
+          Bem-vindo ao seu painel de controle. Aqui está uma visão geral dos seus projetos e atividades.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              {stat.icon}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
+          <Link key={stat.title} href={stat.href}>
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${stat.bgColor} ${stat.color}`}>
+                  {stat.icon}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  {stat.description}
+                  <ArrowUpRight className="h-3 w-3" />
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Ações Rápidas</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((action) => (
+            <Link key={action.title} href={action.href}>
+              <Card className="hover:border-primary/50 transition-all cursor-pointer group">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-lg ${action.color} text-white transition-transform group-hover:scale-110`}>
+                      {action.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm mb-1">{action.title}</h3>
+                      <p className="text-xs text-muted-foreground">{action.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Empty States - Incentivando a usar o sistema */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
-            <CardTitle>Atividades Recentes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Últimos Projetos
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Nova tarefa criada</p>
-                  <p className="text-xs text-muted-foreground">Há 2 horas</p>
-                </div>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="rounded-full bg-muted p-3 mb-4">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Projeto aprovado</p>
-                  <p className="text-xs text-muted-foreground">Há 5 horas</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Reunião agendada</p>
-                  <p className="text-xs text-muted-foreground">Há 1 dia</p>
-                </div>
-              </div>
+              <h3 className="font-semibold mb-1">Nenhum projeto ainda</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                Comece cadastrando seus projetos de arquitetura para acompanhar o andamento de cada obra.
+              </p>
+              <Button asChild>
+                <Link href="/dashboard/obra">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Primeiro Projeto
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="col-span-3">
+        <Card>
           <CardHeader>
-            <CardTitle>Tarefas Pendentes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Clientes Recentes
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <input type="checkbox" className="mt-1" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Revisar documentos do projeto X</p>
-                  <p className="text-xs text-muted-foreground">Vence em 2 dias</p>
-                </div>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="rounded-full bg-muted p-3 mb-4">
+                <Users className="h-8 w-8 text-muted-foreground" />
               </div>
-              <div className="flex items-start gap-3">
-                <input type="checkbox" className="mt-1" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Reunião com cliente Y</p>
-                  <p className="text-xs text-muted-foreground">Amanhã às 14h</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <input type="checkbox" className="mt-1" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium">Atualizar planilha de custos</p>
-                  <p className="text-xs text-muted-foreground">Vence hoje</p>
-                </div>
-              </div>
+              <h3 className="font-semibold mb-1">Nenhum cliente cadastrado</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                Cadastre seus clientes para gerenciar contatos, projetos e documentos em um só lugar.
+              </p>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/comercial">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Cliente
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      {user?.role === 'admin' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações Rápidas - Administrador</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">
-                Adicionar Colaborador
-              </button>
-              <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/90">
-                Gerar Relatório
-              </button>
-              <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/90">
-                Configurar Permissões
-              </button>
+      {/* Dica de Início */}
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <TrendingUp className="h-5 w-5 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">Comece a usar o Sarke CRM</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Para aproveitar ao máximo o sistema, recomendamos começar cadastrando seus clientes e projetos existentes.
+                Isso permitirá acompanhar todo o ciclo de vendas e execução das obras.
+              </p>
+              <div className="flex gap-2">
+                <Button asChild size="sm">
+                  <Link href="/dashboard/comercial">Começar Agora</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard/calendario">Ver Calendário</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

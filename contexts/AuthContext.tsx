@@ -13,6 +13,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error?: string }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<User>) => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -173,6 +174,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
+  const refreshUser = async () => {
+    if (!user) return
+    await loadUserProfile(user.id)
+  }
+
   const value = {
     user,
     supabaseUser,
@@ -181,6 +187,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     updateProfile,
+    refreshUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
