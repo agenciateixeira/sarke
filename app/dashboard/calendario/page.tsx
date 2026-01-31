@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format, isToday, isWithinInterval, subDays, startOfDay, endOfDay } from 'date-fns'
+import { format, isToday, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { DayDetailPanel } from '@/components/calendar/DayDetailPanel'

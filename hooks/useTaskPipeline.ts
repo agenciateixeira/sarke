@@ -162,16 +162,22 @@ export function useTaskPipeline() {
 
   const deleteColumn = async (columnId: string): Promise<boolean> => {
     try {
+      // Update otimista - remove da UI imediatamente
+      setColumns(prevCols => prevCols.filter(c => c.id !== columnId))
+      setTasks(prevTasks => prevTasks.filter(t => t.column_id !== columnId))
+
       const { error } = await supabase
         .from('pipeline_columns')
         .delete()
         .eq('id', columnId)
 
-      if (error) throw error
+      if (error) {
+        // Se der erro, recarrega para restaurar
+        await Promise.all([fetchColumns(), fetchTasks()])
+        throw error
+      }
 
-      toast.success('Coluna excluída com sucesso!')
-      await fetchColumns()
-      await fetchTasks()
+      toast.success('Coluna excluída!')
       return true
     } catch (err) {
       console.error('Error deleting column:', err)
@@ -211,14 +217,22 @@ export function useTaskPipeline() {
 
   const updateTask = async (taskId: string, data: UpdateTaskData): Promise<boolean> => {
     try {
+      // Update otimista - atualiza na UI imediatamente
+      setTasks(prevTasks =>
+        prevTasks.map(t => (t.id === taskId ? { ...t, ...data } : t))
+      )
+
       const { error } = await supabase
         .from('tasks')
         .update(data)
         .eq('id', taskId)
 
-      if (error) throw error
+      if (error) {
+        // Se der erro, recarrega para restaurar
+        await fetchTasks()
+        throw error
+      }
 
-      await fetchTasks()
       return true
     } catch (err) {
       console.error('Error updating task:', err)
@@ -229,15 +243,21 @@ export function useTaskPipeline() {
 
   const deleteTask = async (taskId: string): Promise<boolean> => {
     try {
+      // Update otimista - remove da UI imediatamente
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId))
+
       const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId)
 
-      if (error) throw error
+      if (error) {
+        // Se der erro, recarrega para restaurar
+        await fetchTasks()
+        throw error
+      }
 
-      toast.success('Tarefa excluída com sucesso!')
-      await fetchTasks()
+      toast.success('Tarefa excluída!')
       return true
     } catch (err) {
       console.error('Error deleting task:', err)
@@ -435,6 +455,43 @@ export function useTaskPipeline() {
     }
 
     loadData()
+
+    // Configurar Realtime para atualização automática de tarefas
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+        },
+        () => {
+          fetchTasks()
+        }
+      )
+      .subscribe()
+
+    // Realtime para colunas
+    const columnsChannel = supabase
+      .channel('columns-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pipeline_columns',
+        },
+        () => {
+          fetchColumns()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(tasksChannel)
+      supabase.removeChannel(columnsChannel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

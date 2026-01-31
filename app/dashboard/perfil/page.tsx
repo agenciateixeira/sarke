@@ -40,7 +40,7 @@ export default function PerfilPage() {
     }
   }
 
-  const handleAvatarUploadComplete = async (url: string) => {
+  const handleAvatarUploadComplete = async (_url: string) => {
     await refreshUser()
   }
 

@@ -1,110 +1,55 @@
-# Scripts SQL do Sarke - Ordem de Execução
+# 🗄️ Scripts SQL do Sarke
 
-Execute os scripts SQL no Supabase SQL Editor **EXATAMENTE nesta ordem**:
+Execute estes scripts no **Supabase Dashboard → SQL Editor** na ordem indicada.
 
-## 1. Primeiro: Corrigir tabela de clientes (se necessário)
+## 📋 Ordem de Execução
 
-**Arquivo:** `fix-clients-table.sql`
+### ✅ Scripts Já Executados (você confirmou):
+1. ✅ `chat-schema.sql` - Tabelas de chat (mensagens, grupos, etc)
+2. ✅ `chat-storage.sql` - Bucket de mídia para chat
 
-Este script adiciona a coluna `status` na tabela `clients` caso ela não exista.
+### ⏳ Scripts Pendentes:
 
-```sql
--- Execute este primeiro se você receber erro "column status does not exist"
-```
+#### 3. **team-invites.sql** ⚠️ **EXECUTE ESTE AGORA**
 
-## 2. Segundo: Schema CRM completo
+**O que faz:**
+- Cria tabela `team_invites` para convites de equipe
+- Cria função `accept_team_invite()` para aceitar convites
+- Cria função `cleanup_expired_invites()` para limpar convites expirados
+- Configura RLS (Row Level Security) para segurança
 
-**Arquivo:** `crm-schema-safe.sql`
+**Quando executar:**
+- AGORA! Sem isso, o sistema de convites não funciona
 
-Este script cria todas as tabelas do CRM:
-- `clients` - Clientes
-- `architecture_projects` - Projetos de arquitetura
-- `pipeline_stages` - Etapas do pipeline
-- `deals` - Negociações
-- `activities` - Atividades
-- `documents` - Documentos
+**Como executar:**
+1. Abra Supabase Dashboard
+2. Vá em **SQL Editor**
+3. Clique em **New Query**
+4. Cole TODO o conteúdo do arquivo `team-invites.sql`
+5. Clique em **Run** (ou F5)
+6. Aguarde a mensagem de sucesso
 
-```sql
--- Cria toda a estrutura do CRM
--- Pode ser executado múltiplas vezes sem erro (IF NOT EXISTS)
-```
+---
 
-## 3. Terceiro: Schema do Calendário
+## 🚨 Erros Comuns
 
-**Arquivo:** `calendar-schema.sql`
+### "relation 'team_invites' does not exist"
+**Solução:** Execute o `team-invites.sql`
 
-Este script cria as tabelas do calendário profissional:
-- `calendar_events` - Eventos do calendário
-- `calendar_participants` - Participantes dos eventos
-- `calendar_attachments` - Anexos dos eventos
+### "function accept_team_invite() does not exist"
+**Solução:** Execute o `team-invites.sql` completo
 
-**IMPORTANTE:** Este script depende das tabelas criadas no passo 2!
+---
 
-```sql
--- Cria o sistema de calendário corporativo
--- DEPENDE das tabelas: clients, architecture_projects, profiles, activities
-```
+## 🎯 Depois de Executar
 
-## Verificação Rápida
+Teste o sistema:
 
-Após executar todos os scripts, verifique se as tabelas foram criadas:
+1. **Criar Convite:**
+   /dashboard/equipe → Convidar Membro
 
-```sql
--- Listar todas as tabelas
-SELECT table_name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-ORDER BY table_name;
+2. **Aceitar Convite:**
+   Abra o link do convite em aba anônima
 
--- Deve retornar:
--- activities
--- architecture_projects
--- calendar_attachments
--- calendar_events
--- calendar_participants
--- clients
--- deals
--- documents
--- pipeline_stages
--- profiles
-```
-
-## Erros Comuns
-
-### "column status does not exist"
-**Solução:** Execute `fix-clients-table.sql` primeiro
-
-### "relation clients does not exist"
-**Solução:** Execute `crm-schema-safe.sql` antes de `calendar-schema.sql`
-
-### "relation profiles does not exist"
-**Solução:** A tabela `profiles` deve ter sido criada no setup inicial de autenticação
-
-## Próximos Passos
-
-Após executar os scripts com sucesso:
-
-1. ✅ Banco de dados configurado
-2. ✅ Todos os componentes criados
-3. ✅ Sistema pronto para testar
-
-Acesse: **http://localhost:3000/dashboard/calendario**
-
-## Funcionalidades Disponíveis
-
-- ✅ Visualização mensal estilo Apple
-- ✅ Painel lateral com detalhes do dia
-- ✅ 5 tipos de eventos: Reunião, Tarefa, Lembrete, Marco de Projeto, Compromisso com Cliente
-- ✅ Integração com clientes e projetos
-- ✅ Cores personalizadas
-- ✅ Horários e localização
-- ⏳ Google Meet (preparado, aguardando implementação futura)
-
-## Estrutura Preparada para Futuro
-
-O banco já está preparado para:
-- Eventos recorrentes
-- Participantes múltiplos
-- Anexos de arquivos
-- Sincronização com Google Calendar
-- Notificações automáticas
+3. **Testar Chat:**
+   /dashboard/chat → + → Nova Conversa

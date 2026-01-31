@@ -9,7 +9,6 @@ import { Separator } from '@/components/ui/separator'
 import { CalendarEvent, useCalendarEvents } from '@/hooks/useCalendarEvents'
 import {
   Calendar,
-  Clock,
   MapPin,
   Users,
   FileText,

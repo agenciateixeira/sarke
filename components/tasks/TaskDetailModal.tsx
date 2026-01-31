@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   CheckCircle2,
   Circle,
@@ -31,6 +32,8 @@ import { useTaskPipeline } from '@/hooks/useTaskPipeline'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { TaskTimeTracking } from './TaskTimeTracking'
+import { TaskAttachmentsTab } from './TaskAttachmentsTab'
 
 interface TaskDetailModalProps {
   open: boolean
@@ -223,6 +226,26 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
           {/* Body com scroll */}
           <ScrollArea className="flex-1 px-6">
             <div className="space-y-6 py-6">
+              {/* Tabs para organizar conteúdo */}
+              <Tabs defaultValue="details" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="details">Detalhes</TabsTrigger>
+                  <TabsTrigger value="time">
+                    <Clock className="h-4 w-4 mr-2" />
+                    Tempo
+                  </TabsTrigger>
+                  <TabsTrigger value="attachments">
+                    <Paperclip className="h-4 w-4 mr-2" />
+                    Anexos ({currentTask.attachments_count || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="comments">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Comentários ({currentTask.comments_count || 0})
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Tab: Detalhes */}
+                <TabsContent value="details" className="space-y-6 mt-6">
               {/* Metadados rápidos (inline) */}
               <div className="grid grid-cols-4 gap-4">
                 {/* Status */}
@@ -456,6 +479,26 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
                   </span>
                 </div>
               </div>
+                </TabsContent>
+
+                {/* Tab: Time Tracking */}
+                <TabsContent value="time" className="mt-6">
+                  <TaskTimeTracking taskId={currentTask.id} />
+                </TabsContent>
+
+                {/* Tab: Anexos */}
+                <TabsContent value="attachments" className="mt-6">
+                  <TaskAttachmentsTab taskId={currentTask.id} />
+                </TabsContent>
+
+                {/* Tab: Comentários */}
+                <TabsContent value="comments" className="mt-6">
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Sistema de comentários em breve</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </ScrollArea>
 
