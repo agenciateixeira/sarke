@@ -707,8 +707,16 @@ export function useWebRTC() {
             if (incomingCall?.id === updatedCall.id) {
               setIncomingCall(null)
             }
+          } else if (updatedCall.status === 'accepted') {
+            // Quando a chamada for aceita, parar áudios nas duas pontas
+            stopAllAudio()
+
+            if (activeCall?.id === updatedCall.id) {
+              setCallStatus('accepted')
+              toast.success('Chamada conectada!')
+            }
           } else if (activeCall?.id === updatedCall.id) {
-            // Atualizar status se não for finalização
+            // Atualizar status para outros casos
             setCallStatus(updatedCall.status)
           }
         }
