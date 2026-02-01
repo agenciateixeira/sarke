@@ -434,7 +434,13 @@ export function useChat() {
 
       const { data: unreadMessages, error: fetchError } = await query
 
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        // Se a tabela messages não existe, ignorar silenciosamente
+        if (fetchError.code === '42P01' || fetchError.message?.includes('does not exist')) {
+          return
+        }
+        throw fetchError
+      }
 
       if (unreadMessages && unreadMessages.length > 0) {
         const { error: insertError } = await supabase
@@ -447,10 +453,20 @@ export function useChat() {
             { onConflict: 'message_id,user_id' }
           )
 
-        if (insertError) throw insertError
+        if (insertError) {
+          // Se a tabela message_reads não existe, ignorar silenciosamente
+          if (insertError.code === '42P01' || insertError.message?.includes('does not exist')) {
+            console.warn('Tabela message_reads não existe. Execute o SQL: supabase/chat-schema.sql')
+            return
+          }
+          throw insertError
+        }
       }
-    } catch (err) {
-      console.error('Error marking messages as read:', err)
+    } catch (err: any) {
+      // Não logar erro se as tabelas não existem
+      if (err.code !== '42P01' && !err.message?.includes('does not exist')) {
+        console.error('Error marking messages as read:', err)
+      }
     }
   }
 
