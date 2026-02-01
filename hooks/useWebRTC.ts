@@ -461,10 +461,10 @@ export function useWebRTC() {
     if (!activeCall) return
 
     try {
-      // Parar TODOS os áudios
+      // Parar TODOS os áudios imediatamente
       stopAllAudio()
 
-      // Finalizar chamada no banco via RPC
+      // Finalizar chamada no banco via RPC (isso vai disparar o UPDATE realtime para ambos)
       const { data: result } = await supabase.rpc('end_call', {
         p_call_id: activeCall.id,
         p_user_id: currentUserId,
@@ -473,26 +473,34 @@ export function useWebRTC() {
       // Criar mensagem automática no chat sobre a chamada
       await createCallMessage(activeCall, result?.duration || 0)
 
-      // Parar tracks locais
-      if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => track.stop())
-        localStream.current = null
-      }
+      // Limpar recursos locais (o realtime vai cuidar do cleanup para o outro usuário)
+      cleanupCallResources()
 
-      // Fechar peer connection
-      if (peerConnection.current) {
-        peerConnection.current.close()
-        peerConnection.current = null
-      }
-
-      setActiveCall(null)
-      setCallStatus(null)
-
-      toast.info('Chamada finalizada')
+      // Toast será exibido via realtime handler para consistência
     } catch (err) {
       console.error('Error ending call:', err)
       toast.error('Erro ao finalizar chamada')
     }
+  }
+
+  // Função separada para limpar recursos sem fazer chamadas ao banco
+  const cleanupCallResources = () => {
+    // Parar tracks locais
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((track) => track.stop())
+      localStream.current = null
+    }
+
+    // Fechar peer connection
+    if (peerConnection.current) {
+      peerConnection.current.close()
+      peerConnection.current = null
+    }
+
+    // Limpar estados
+    setActiveCall(null)
+    setCallStatus(null)
+    setIncomingCall(null)
   }
 
   // =============================================
@@ -679,23 +687,29 @@ export function useWebRTC() {
         (payload) => {
           const updatedCall = payload.new as Call
 
-          // Se a chamada for atualizada (rejected, ended, missed), parar áudios
+          // Se a chamada for atualizada (rejected, ended, missed), parar áudios e limpar recursos
           if (updatedCall.status === 'rejected' || updatedCall.status === 'ended' || updatedCall.status === 'missed') {
             stopAllAudio()
-          }
 
-          if (activeCall?.id === updatedCall.id) {
-            setCallStatus(updatedCall.status)
-            if (updatedCall.status === 'rejected' || updatedCall.status === 'ended') {
-              endCall()
+            // Se é minha chamada ativa, limpar recursos
+            if (activeCall?.id === updatedCall.id) {
+              cleanupCallResources()
+              toast.info(
+                updatedCall.status === 'rejected'
+                  ? 'Chamada recusada'
+                  : updatedCall.status === 'missed'
+                  ? 'Chamada não atendida'
+                  : 'Chamada finalizada'
+              )
             }
-          }
 
-          // Se for incomingCall que foi rejeitada/finalizada, limpar
-          if (incomingCall?.id === updatedCall.id) {
-            if (updatedCall.status === 'rejected' || updatedCall.status === 'ended' || updatedCall.status === 'missed') {
+            // Se é uma chamada que estou recebendo, limpar
+            if (incomingCall?.id === updatedCall.id) {
               setIncomingCall(null)
             }
+          } else if (activeCall?.id === updatedCall.id) {
+            // Atualizar status se não for finalização
+            setCallStatus(updatedCall.status)
           }
         }
       )
