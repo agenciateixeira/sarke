@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useChat } from '@/hooks/useChat'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import { ConversationList } from '@/components/chat/ConversationList'
@@ -132,8 +131,7 @@ export default function ChatPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
+    <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
         {/* Conversations Sidebar */}
         <div className="w-80 flex-shrink-0">
           <Card className="h-full overflow-hidden">
@@ -312,6 +310,5 @@ export default function ChatPage() {
           />
         )}
       </div>
-    </ProtectedRoute>
   )
 }

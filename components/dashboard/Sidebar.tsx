@@ -39,7 +39,10 @@ import {
   FileText,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/auth/ThemeToggle'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { AccessRequestsDialog } from '@/components/notifications/AccessRequestsDialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useNotifications } from '@/hooks/useNotifications'
 
 interface MenuItem {
   title: string
@@ -127,6 +130,8 @@ export const Sidebar = () => {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const [isExpanded, setIsExpanded] = useState(true)
+  const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
+  const { accessRequests, isAdmin } = useNotifications()
 
   // Carregar preferência do localStorage
   useEffect(() => {
@@ -253,16 +258,40 @@ export const Sidebar = () => {
 
       {/* Footer - Configurações e Usuário */}
       <div className="border-t p-3 space-y-2">
-        {/* Theme Toggle */}
+        {/* Actions: Notifications, Access Requests, Theme */}
         <div className={cn(
-          'flex items-center rounded-lg px-3 py-2 hover:bg-accent',
-          !isExpanded && 'justify-center px-2'
+          'flex items-center gap-2 rounded-lg px-3 py-2',
+          !isExpanded && 'justify-center px-2 flex-col gap-1'
         )}>
-          {isExpanded && <span className="text-sm font-medium mr-auto">Tema</span>}
+          {isExpanded && <span className="text-sm font-medium mr-auto">Ações</span>}
+
+          <NotificationBell />
+
+          {isAdmin && accessRequests.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setAccessRequestsOpen(true)}
+              className="relative"
+              title="Solicitações de acesso"
+            >
+              <Users className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-semibold">
+                {accessRequests.length}
+              </span>
+            </Button>
+          )}
+
           <ThemeToggle />
         </div>
 
         <Separator />
+
+        {/* Access Requests Dialog */}
+        <AccessRequestsDialog
+          open={accessRequestsOpen}
+          onOpenChange={setAccessRequestsOpen}
+        />
 
         {/* Menu do Usuário */}
         <DropdownMenu>

@@ -24,6 +24,53 @@ const ICE_SERVERS: RTCConfiguration = {
   ],
 }
 
+// Função auxiliar para converter AudioBuffer para WAV
+function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+  const length = buffer.length * buffer.numberOfChannels * 2 + 44
+  const arrayBuffer = new ArrayBuffer(length)
+  const view = new DataView(arrayBuffer)
+  const channels: Float32Array[] = []
+  let pos = 0
+
+  const setUint16 = (data: number) => {
+    view.setUint16(pos, data, true)
+    pos += 2
+  }
+  const setUint32 = (data: number) => {
+    view.setUint32(pos, data, true)
+    pos += 4
+  }
+
+  setUint32(0x46464952) // "RIFF"
+  setUint32(length - 8)
+  setUint32(0x45564157) // "WAVE"
+  setUint32(0x20746d66) // "fmt "
+  setUint32(16)
+  setUint16(1)
+  setUint16(buffer.numberOfChannels)
+  setUint32(buffer.sampleRate)
+  setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels)
+  setUint16(buffer.numberOfChannels * 2)
+  setUint16(16)
+  setUint32(0x61746164) // "data"
+  setUint32(length - pos - 4)
+
+  for (let i = 0; i < buffer.numberOfChannels; i++) {
+    channels.push(buffer.getChannelData(i))
+  }
+
+  let offset = pos
+  for (let i = 0; i < buffer.length; i++) {
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      const sample = Math.max(-1, Math.min(1, channels[channel][i]))
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
+      offset += 2
+    }
+  }
+
+  return arrayBuffer
+}
+
 export function useWebRTC() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [activeCall, setActiveCall] = useState<Call | null>(null)
@@ -46,6 +93,15 @@ export function useWebRTC() {
   // Audio de toque para chamada recebida
   const ringtoneRef = useRef<HTMLAudioElement | null>(null)
 
+  // Audio de ringback (som para quem está ligando)
+  const ringbackRef = useRef<HTMLAudioElement | null>(null)
+
+  // Timeout para chamadas não atendidas (30 segundos)
+  const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Flag para controlar se os áudios já foram criados
+  const [audioInitialized, setAudioInitialized] = useState(false)
+
   // =============================================
   // GET CURRENT USER
   // =============================================
@@ -57,11 +113,8 @@ export function useWebRTC() {
     }
     getCurrentUser()
 
-    // Criar elemento de áudio para toque (ringtone)
-    // Usa um beep simples via Data URL
-    const ringtone = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NXbXp66hWFQpGn+DyvmwhBTGH0fPTgjMGHm7A7+OZ')
-    ringtone.loop = true
-    ringtoneRef.current = ringtone
+    // Não criar áudios no mount - criar apenas quando necessário
+    // para evitar loops e problemas de reprodução
   }, [])
 
   // =============================================
@@ -195,6 +248,89 @@ export function useWebRTC() {
         signal_data: offer,
       })
 
+      // Criar e tocar ringback (som de "chamando...") para quem está ligando
+      // Tom simples: beep curto a cada 3 segundos
+      if (!ringbackRef.current) {
+        // Criar contexto de áudio para gerar tom simples
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+          const sampleRate = audioContext.sampleRate
+          const duration = 3 // 3 segundos: beep + pausa
+          const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate)
+          const data = buffer.getChannelData(0)
+
+          // Gerar beep de 0.5s no início
+          for (let i = 0; i < sampleRate * 0.5; i++) {
+            const t = i / sampleRate
+            data[i] = Math.sin(2 * Math.PI * 440 * t) * 0.2 // 440Hz, volume 20%
+          }
+
+          // Resto é silêncio (já está zerado)
+
+          // Converter para áudio
+          const offlineContext = new OfflineAudioContext(1, buffer.length, sampleRate)
+          const source = offlineContext.createBufferSource()
+          source.buffer = buffer
+          source.connect(offlineContext.destination)
+          source.start()
+
+          offlineContext.startRendering().then((renderedBuffer) => {
+            const wav = audioBufferToWav(renderedBuffer)
+            const blob = new Blob([wav], { type: 'audio/wav' })
+            const url = URL.createObjectURL(blob)
+            const audio = new Audio(url)
+            audio.loop = true
+            ringbackRef.current = audio
+
+            audio.play().catch((err) => {
+              console.log('Não foi possível tocar o ringback:', err)
+            })
+          })
+        } catch (err) {
+          console.error('Erro ao criar ringback:', err)
+        }
+      } else {
+        // Se já existe, apenas tocar
+        ringbackRef.current.currentTime = 0
+        ringbackRef.current.play().catch((err) => {
+          console.log('Não foi possível tocar o ringback:', err)
+        })
+      }
+
+      // Timeout de 30 segundos - marcar como "missed" se não atender
+      callTimeoutRef.current = setTimeout(async () => {
+        if (activeCall?.id === newCall.id && activeCall.status === 'calling') {
+          // Parar ringback
+          if (ringbackRef.current) {
+            ringbackRef.current.pause()
+            ringbackRef.current.currentTime = 0
+          }
+
+          // Buscar nome do usuário que não atendeu
+          const { data: receiverProfile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', data.receiver_id)
+            .single()
+
+          const receiverName = receiverProfile?.name || 'o usuário'
+
+          // Marcar como missed
+          await supabase
+            .from('calls')
+            .update({ status: 'missed', ended_at: new Date().toISOString() })
+            .eq('id', newCall.id)
+
+          endCall()
+
+          // Mensagem personalizada
+          toast.error('Chamada não concluída', {
+            description: `Sua ligação não pode ser concluída, ${receiverName} está offline. Tente mais tarde.`,
+            duration: 5000,
+          })
+        }
+      }, 30000) // 30 segundos
+
       toast.success('Chamando...')
       return newCall
     } catch (err) {
@@ -212,10 +348,20 @@ export function useWebRTC() {
     if (!currentUserId) return
 
     try {
-      // Parar ringtone
+      // Parar ringtone e ringback
       if (ringtoneRef.current) {
         ringtoneRef.current.pause()
         ringtoneRef.current.currentTime = 0
+      }
+      if (ringbackRef.current) {
+        ringbackRef.current.pause()
+        ringbackRef.current.currentTime = 0
+      }
+
+      // Cancelar timeout se houver
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current)
+        callTimeoutRef.current = null
       }
 
       // Obter mídia local
@@ -280,10 +426,20 @@ export function useWebRTC() {
 
   const rejectCall = async (call: Call) => {
     try {
-      // Parar ringtone
+      // Parar ringtone e ringback
       if (ringtoneRef.current) {
         ringtoneRef.current.pause()
         ringtoneRef.current.currentTime = 0
+      }
+      if (ringbackRef.current) {
+        ringbackRef.current.pause()
+        ringbackRef.current.currentTime = 0
+      }
+
+      // Cancelar timeout se houver
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current)
+        callTimeoutRef.current = null
       }
 
       await supabase
@@ -309,6 +465,22 @@ export function useWebRTC() {
     if (!activeCall) return
 
     try {
+      // Parar sons
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause()
+        ringtoneRef.current.currentTime = 0
+      }
+      if (ringbackRef.current) {
+        ringbackRef.current.pause()
+        ringbackRef.current.currentTime = 0
+      }
+
+      // Cancelar timeout se houver
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current)
+        callTimeoutRef.current = null
+      }
+
       // Finalizar chamada no banco via RPC
       const { data: result } = await supabase.rpc('end_call', {
         p_call_id: activeCall.id,
@@ -444,8 +616,60 @@ export function useWebRTC() {
           const newCall = payload.new as Call
           setIncomingCall(newCall)
 
-          // Tocar ringtone
-          if (ringtoneRef.current) {
+          // Criar e tocar ringtone (se não existir)
+          if (!ringtoneRef.current) {
+            try {
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+              const sampleRate = audioContext.sampleRate
+              const duration = 2 // 2 segundos: ring curto + pausa
+              const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate)
+              const data = buffer.getChannelData(0)
+
+              // Gerar 2 rings curtos (0.2s cada) com pausa entre eles
+              // Ring 1: 0 a 0.2s
+              for (let i = 0; i < sampleRate * 0.2; i++) {
+                const t = i / sampleRate
+                const wave1 = Math.sin(2 * Math.PI * 480 * t)
+                const wave2 = Math.sin(2 * Math.PI * 620 * t)
+                data[i] = (wave1 + wave2) * 0.15 // Dual tone, volume 15%
+              }
+
+              // Pausa: 0.2s a 0.4s (já está zerado)
+
+              // Ring 2: 0.4s a 0.6s
+              for (let i = sampleRate * 0.4; i < sampleRate * 0.6; i++) {
+                const t = (i - sampleRate * 0.4) / sampleRate
+                const wave1 = Math.sin(2 * Math.PI * 480 * t)
+                const wave2 = Math.sin(2 * Math.PI * 620 * t)
+                data[i] = (wave1 + wave2) * 0.15
+              }
+
+              // Resto é silêncio
+
+              const offlineContext = new OfflineAudioContext(1, buffer.length, sampleRate)
+              const source = offlineContext.createBufferSource()
+              source.buffer = buffer
+              source.connect(offlineContext.destination)
+              source.start()
+
+              offlineContext.startRendering().then((renderedBuffer) => {
+                const wav = audioBufferToWav(renderedBuffer)
+                const blob = new Blob([wav], { type: 'audio/wav' })
+                const url = URL.createObjectURL(blob)
+                const audio = new Audio(url)
+                audio.loop = true
+                ringtoneRef.current = audio
+
+                audio.play().catch((err) => {
+                  console.log('Não foi possível tocar o ringtone:', err)
+                })
+              })
+            } catch (err) {
+              console.error('Erro ao criar ringtone:', err)
+            }
+          } else {
+            // Se já existe, apenas tocar
+            ringtoneRef.current.currentTime = 0
             ringtoneRef.current.play().catch((err) => {
               console.log('Não foi possível tocar o ringtone:', err)
             })

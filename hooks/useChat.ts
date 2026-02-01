@@ -261,6 +261,67 @@ export function useChat() {
         prev.map((m) => (m.id === optimisticMessage.id ? { ...newMessage, sender_name: 'Você' } : m))
       )
 
+      // CRIAR NOTIFICAÇÃO PARA O DESTINATÁRIO (mensagem direta)
+      if (data.recipient_id && data.recipient_id !== currentUserId) {
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', currentUserId)
+          .single()
+
+        const senderName = senderProfile?.name || 'Alguém'
+
+        await supabase.from('notifications').insert({
+          user_id: data.recipient_id,
+          type: 'message',
+          title: `Nova mensagem de ${senderName}`,
+          description: data.content.length > 100
+            ? data.content.substring(0, 100) + '...'
+            : data.content,
+          reference_type: 'message',
+          reference_id: newMessage.id,
+        })
+      }
+
+      // CRIAR NOTIFICAÇÃO PARA MEMBROS DO GRUPO (exceto o sender)
+      if (data.group_id) {
+        const { data: groupMembers } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .eq('group_id', data.group_id)
+          .neq('user_id', currentUserId)
+
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', currentUserId)
+          .single()
+
+        const { data: groupInfo } = await supabase
+          .from('chat_groups')
+          .select('name')
+          .eq('id', data.group_id)
+          .single()
+
+        const senderName = senderProfile?.name || 'Alguém'
+        const groupName = groupInfo?.name || 'Grupo'
+
+        if (groupMembers && groupMembers.length > 0) {
+          await supabase.from('notifications').insert(
+            groupMembers.map((member) => ({
+              user_id: member.user_id,
+              type: 'message',
+              title: `${senderName} em ${groupName}`,
+              description: data.content.length > 100
+                ? data.content.substring(0, 100) + '...'
+                : data.content,
+              reference_type: 'message',
+              reference_id: newMessage.id,
+            }))
+          )
+        }
+      }
+
       // Atualizar lista de conversas
       await fetchConversations()
 

@@ -1,0 +1,9 @@
+# Placeholder - Replace with actual ringback tone MP3
+# This file needs to be replaced with a real MP3 audio file
+# Ringback is the sound the caller hears while waiting for answer
+# You can download free sounds from sites like:
+# - https://www.zapsplat.com
+# - https://freesound.org
+# - https://www.soundjay.com
+
+# For now, the application will use a fallback beep sound

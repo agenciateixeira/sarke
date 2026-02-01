@@ -124,7 +124,56 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =============================================
--- 6. RLS (ROW LEVEL SECURITY)
+-- 6. TRIGGER PARA CHAMADAS PERDIDAS
+-- =============================================
+
+-- Função para detectar chamadas perdidas e criar mensagem automática
+CREATE OR REPLACE FUNCTION check_missed_call()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_caller_name TEXT;
+  v_time_text TEXT;
+BEGIN
+  -- Detecta se a chamada foi marcada como "missed"
+  IF NEW.status = 'missed' THEN
+    -- Buscar nome do caller
+    SELECT name INTO v_caller_name
+    FROM profiles
+    WHERE id = NEW.caller_id;
+
+    -- Formatar horário
+    v_time_text := to_char(NEW.created_at, 'HH24:MI');
+
+    -- Criar mensagem automática para o receiver
+    INSERT INTO messages (sender_id, recipient_id, content, group_id)
+    VALUES (
+      NEW.caller_id,
+      NEW.receiver_id,
+      '📞 Chamada perdida de ' || COALESCE(v_caller_name, 'Desconhecido') || ' às ' || v_time_text || ' (' ||
+      CASE
+        WHEN NEW.type = 'audio' THEN 'Áudio'
+        WHEN NEW.type = 'video' THEN 'Vídeo'
+        WHEN NEW.type = 'screen' THEN 'Compartilhamento de tela'
+        ELSE 'Desconhecido'
+      END || ')',
+      NULL
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger para chamadas perdidas
+DROP TRIGGER IF EXISTS trigger_check_missed_call ON calls;
+CREATE TRIGGER trigger_check_missed_call
+  AFTER UPDATE ON calls
+  FOR EACH ROW
+  WHEN (NEW.status = 'missed' AND OLD.status != 'missed')
+  EXECUTE FUNCTION check_missed_call();
+
+-- =============================================
+-- 7. RLS (ROW LEVEL SECURITY)
 -- =============================================
 
 ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
@@ -158,7 +207,7 @@ CREATE POLICY "webrtc_signals_insert_policy"
   WITH CHECK (from_user_id = auth.uid());
 
 -- =============================================
--- 7. HABILITAR REALTIME
+-- 8. HABILITAR REALTIME
 -- =============================================
 
 -- Garantir que as tabelas estão no Realtime
