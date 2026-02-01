@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { MessageWithSender, TypingUser } from '@/types/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import { format, isSameDay, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,8 @@ import { File, Image, Video, Music, Download, Check, CheckCheck } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { UserProfileDialog } from './UserProfileDialog'
 import { useMessageReads } from '@/hooks/useMessageReads'
+import { supabase } from '@/lib/supabase'
+import type { UserTag } from '@/types/chat-enhancements'
 
 interface MessageAreaProps {
   messages: MessageWithSender[]
@@ -26,12 +29,41 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+  const [userTags, setUserTags] = useState<Map<string, UserTag>>(new Map())
 
   // IDs das mensagens para buscar status de leitura
   const messageIds = useMemo(() => messages.map((m) => m.id), [messages])
 
   // Hook para buscar status de leitura
   const messageReads = useMessageReads(messageIds)
+
+  // Buscar tags dos usuários que aparecem nas mensagens
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) return
+
+    const fetchUserTags = async () => {
+      // IDs únicos dos senders (exceto eu mesmo)
+      const senderIds = [...new Set(messages.map(m => m.sender_id))].filter(id => id !== currentUserId)
+
+      if (senderIds.length === 0) return
+
+      const { data } = await supabase
+        .from('user_tags')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .in('tagged_user_id', senderIds)
+
+      if (data) {
+        const tagsMap = new Map<string, UserTag>()
+        data.forEach(tag => {
+          tagsMap.set(tag.tagged_user_id, tag)
+        })
+        setUserTags(tagsMap)
+      }
+    }
+
+    fetchUserTags()
+  }, [messages, currentUserId])
 
   // Auto-scroll para última mensagem
   useEffect(() => {
@@ -60,6 +92,23 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
   const isMessageRead = (messageId: string) => {
     const reads = messageReads.get(messageId)
     return reads && reads.length > 0
+  }
+
+  // Função para calcular luminância e escolher cor de texto
+  const getTextColor = (hexColor: string) => {
+    // Remove # se existir
+    const hex = hexColor.replace('#', '')
+
+    // Converte para RGB
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+
+    // Calcula luminância
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+    // Se luminância > 0.5, usa texto escuro, senão usa texto claro
+    return luminance > 0.5 ? '#000000' : '#ffffff'
   }
 
   const getInitials = (name: string) => {
@@ -167,14 +216,27 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
 
                 {/* Message Content */}
                 <div className={cn('flex flex-col gap-1 max-w-[70%]', isOwn && 'items-end')}>
-                  {/* Sender Name - só mostra se não for própria mensagem */}
+                  {/* Sender Name com Tag - só mostra se não for própria mensagem */}
                   {!isOwn && (
-                    <span
-                      className="text-xs font-medium text-muted-foreground cursor-pointer hover:underline"
-                      onClick={() => handleUserClick(message.sender_id)}
-                    >
-                      {message.sender_name}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-xs font-medium text-muted-foreground cursor-pointer hover:underline"
+                        onClick={() => handleUserClick(message.sender_id)}
+                      >
+                        {message.sender_name}
+                      </span>
+                      {userTags.has(message.sender_id) && (
+                        <Badge
+                          className="text-[10px] px-1.5 py-0 h-4"
+                          style={{
+                            backgroundColor: userTags.get(message.sender_id)!.tag_color,
+                            color: getTextColor(userTags.get(message.sender_id)!.tag_color),
+                          }}
+                        >
+                          {userTags.get(message.sender_id)!.tag_name}
+                        </Badge>
+                      )}
+                    </div>
                   )}
 
                   {/* Message Bubble */}
