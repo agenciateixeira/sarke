@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Search, Plus, Users, MessageSquare, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -17,6 +17,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { supabase } from '@/lib/supabase'
+import type { UserTag } from '@/types/chat-enhancements'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -38,6 +40,47 @@ export function ConversationList({
   loading = false,
 }: ConversationListProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [userTags, setUserTags] = useState<Map<string, UserTag>>(new Map())
+
+  // Buscar usuário atual
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id || null)
+    }
+    getCurrentUser()
+  }, [])
+
+  // Buscar tags dos usuários nas conversas
+  useEffect(() => {
+    if (!currentUserId || conversations.length === 0) return
+
+    const fetchUserTags = async () => {
+      // IDs únicos das conversas diretas (exceto eu mesmo)
+      const userIds = conversations
+        .filter(conv => conv.type === 'direct' && conv.id !== currentUserId)
+        .map(conv => conv.id)
+
+      if (userIds.length === 0) return
+
+      const { data } = await supabase
+        .from('user_tags')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .in('tagged_user_id', userIds)
+
+      if (data) {
+        const tagsMap = new Map<string, UserTag>()
+        data.forEach(tag => {
+          tagsMap.set(tag.tagged_user_id, tag)
+        })
+        setUserTags(tagsMap)
+      }
+    }
+
+    fetchUserTags()
+  }, [conversations, currentUserId])
 
   const filteredConversations = conversations.filter((conv) =>
     conv.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -60,6 +103,16 @@ export function ConversationList({
   const truncateMessage = (text: string | undefined, maxLength: number = 50) => {
     if (!text) return 'Sem mensagens ainda'
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+  }
+
+  // Função para calcular cor de texto com base no contraste
+  const getTextColor = (hexColor: string) => {
+    const hex = hexColor.replace('#', '')
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.5 ? '#000000' : '#ffffff'
   }
 
   return (
@@ -121,8 +174,8 @@ export function ConversationList({
               <div
                 key={conversation.id}
                 className={cn(
-                  'group relative mb-1 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-accent',
-                  activeConversation?.id === conversation.id && 'bg-accent'
+                  'group relative mb-1 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-pink-50 dark:hover:bg-pink-950/20',
+                  activeConversation?.id === conversation.id && 'bg-pink-100 dark:bg-pink-950/30 border-l-2 border-pink-500'
                 )}
                 onClick={() => onSelectConversation(conversation)}
               >
@@ -143,6 +196,17 @@ export function ConversationList({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <h3 className="truncate text-sm font-medium">{conversation.name}</h3>
+                      {conversation.type === 'direct' && userTags.has(conversation.id) && (
+                        <Badge
+                          className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0"
+                          style={{
+                            backgroundColor: userTags.get(conversation.id)!.tag_color,
+                            color: getTextColor(userTags.get(conversation.id)!.tag_color),
+                          }}
+                        >
+                          {userTags.get(conversation.id)!.tag_name}
+                        </Badge>
+                      )}
                       {conversation.type === 'group' && (
                         <Users className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                       )}
