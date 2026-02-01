@@ -102,6 +102,29 @@ export function useWebRTC() {
   // Flag para controlar se os áudios já foram criados
   const [audioInitialized, setAudioInitialized] = useState(false)
 
+  // Função para parar TODOS os áudios forçadamente
+  const stopAllAudio = useCallback(() => {
+    // Parar ringtone
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause()
+      ringtoneRef.current.currentTime = 0
+      ringtoneRef.current.src = '' // Limpar source
+    }
+
+    // Parar ringback
+    if (ringbackRef.current) {
+      ringbackRef.current.pause()
+      ringbackRef.current.currentTime = 0
+      ringbackRef.current.src = '' // Limpar source
+    }
+
+    // Cancelar timeout
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current)
+      callTimeoutRef.current = null
+    }
+  }, [])
+
   // =============================================
   // GET CURRENT USER
   // =============================================
@@ -113,9 +136,11 @@ export function useWebRTC() {
     }
     getCurrentUser()
 
-    // Não criar áudios no mount - criar apenas quando necessário
-    // para evitar loops e problemas de reprodução
-  }, [])
+    // Cleanup quando componente desmontar
+    return () => {
+      stopAllAudio()
+    }
+  }, [stopAllAudio])
 
   // =============================================
   // INICIALIZAR PEER CONNECTION
@@ -300,11 +325,8 @@ export function useWebRTC() {
       // Timeout de 30 segundos - marcar como "missed" se não atender
       callTimeoutRef.current = setTimeout(async () => {
         if (activeCall?.id === newCall.id && activeCall.status === 'calling') {
-          // Parar ringback
-          if (ringbackRef.current) {
-            ringbackRef.current.pause()
-            ringbackRef.current.currentTime = 0
-          }
+          // Parar TODOS os áudios
+          stopAllAudio()
 
           // Buscar nome do usuário que não atendeu
           const { data: receiverProfile } = await supabase
@@ -348,21 +370,8 @@ export function useWebRTC() {
     if (!currentUserId) return
 
     try {
-      // Parar ringtone e ringback
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause()
-        ringtoneRef.current.currentTime = 0
-      }
-      if (ringbackRef.current) {
-        ringbackRef.current.pause()
-        ringbackRef.current.currentTime = 0
-      }
-
-      // Cancelar timeout se houver
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current)
-        callTimeoutRef.current = null
-      }
+      // Parar TODOS os áudios
+      stopAllAudio()
 
       // Obter mídia local
       await getLocalMedia(call.type)
@@ -426,21 +435,8 @@ export function useWebRTC() {
 
   const rejectCall = async (call: Call) => {
     try {
-      // Parar ringtone e ringback
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause()
-        ringtoneRef.current.currentTime = 0
-      }
-      if (ringbackRef.current) {
-        ringbackRef.current.pause()
-        ringbackRef.current.currentTime = 0
-      }
-
-      // Cancelar timeout se houver
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current)
-        callTimeoutRef.current = null
-      }
+      // Parar TODOS os áudios
+      stopAllAudio()
 
       await supabase
         .from('calls')
@@ -465,21 +461,8 @@ export function useWebRTC() {
     if (!activeCall) return
 
     try {
-      // Parar sons
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause()
-        ringtoneRef.current.currentTime = 0
-      }
-      if (ringbackRef.current) {
-        ringbackRef.current.pause()
-        ringbackRef.current.currentTime = 0
-      }
-
-      // Cancelar timeout se houver
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current)
-        callTimeoutRef.current = null
-      }
+      // Parar TODOS os áudios
+      stopAllAudio()
 
       // Finalizar chamada no banco via RPC
       const { data: result } = await supabase.rpc('end_call', {
@@ -695,10 +678,23 @@ export function useWebRTC() {
         },
         (payload) => {
           const updatedCall = payload.new as Call
+
+          // Se a chamada for atualizada (rejected, ended, missed), parar áudios
+          if (updatedCall.status === 'rejected' || updatedCall.status === 'ended' || updatedCall.status === 'missed') {
+            stopAllAudio()
+          }
+
           if (activeCall?.id === updatedCall.id) {
             setCallStatus(updatedCall.status)
             if (updatedCall.status === 'rejected' || updatedCall.status === 'ended') {
               endCall()
+            }
+          }
+
+          // Se for incomingCall que foi rejeitada/finalizada, limpar
+          if (incomingCall?.id === updatedCall.id) {
+            if (updatedCall.status === 'rejected' || updatedCall.status === 'ended' || updatedCall.status === 'missed') {
+              setIncomingCall(null)
             }
           }
         }
