@@ -154,7 +154,18 @@ export default function ChatPage() {
               <>
                 {/* Chat Header */}
                 <div className="border-b p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded-lg p-2 -m-2 transition-colors"
+                    onClick={() => {
+                      if (activeConversation.type === 'direct') {
+                        // Trigger para abrir perfil - vamos adicionar um state
+                        const event = new CustomEvent('openUserProfile', {
+                          detail: { userId: activeConversation.id }
+                        });
+                        window.dispatchEvent(event);
+                      }
+                    }}
+                  >
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={activeConversation.avatar_url} />
                       <AvatarFallback>

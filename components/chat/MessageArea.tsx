@@ -38,6 +38,19 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Listener para abrir perfil do header
+  useEffect(() => {
+    const handleOpenProfile = (event: Event) => {
+      const customEvent = event as CustomEvent<{ userId: string }>
+      if (customEvent.detail?.userId) {
+        handleUserClick(customEvent.detail.userId)
+      }
+    }
+
+    window.addEventListener('openUserProfile', handleOpenProfile)
+    return () => window.removeEventListener('openUserProfile', handleOpenProfile)
+  }, [])
+
   const handleUserClick = (userId: string) => {
     setSelectedUserId(userId)
     setProfileDialogOpen(true)
