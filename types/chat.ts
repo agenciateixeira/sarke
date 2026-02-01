@@ -37,6 +37,7 @@ export interface Message {
 export interface MessageWithSender extends Message {
   sender_name: string
   sender_avatar?: string
+  is_read?: boolean // Para selos de visualização
 }
 
 export interface MessageRead {

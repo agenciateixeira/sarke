@@ -243,6 +243,8 @@ export default function ChatPage() {
                   currentUserId={currentUserId}
                   typingUsers={typingUsers}
                   loading={loading}
+                  onStartAudioCall={(userId) => startCall({ receiver_id: userId, type: 'audio' })}
+                  onStartVideoCall={(userId) => startCall({ receiver_id: userId, type: 'video' })}
                 />
 
                 {/* Input */}

@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useRef, KeyboardEvent } from 'react'
+import { useState, useRef, KeyboardEvent, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send, Paperclip, Image as ImageIcon, X, Loader2, Video, Mic } from 'lucide-react'
 import { CreateMessageData } from '@/types/chat'
 import { toast } from 'sonner'
+import { SlashCommandMenu } from './SlashCommandMenu'
+import { CreateMeetingDialog } from './CreateMeetingDialog'
+import { CreateTaskDialog } from './CreateTaskDialog'
 
 interface MessageInputProps {
   onSendMessage: (data: CreateMessageData) => Promise<void>
@@ -14,6 +17,7 @@ interface MessageInputProps {
   groupId?: string
   recipientId?: string
   disabled?: boolean
+  currentUserId?: string | null
 }
 
 export function MessageInput({
@@ -23,18 +27,60 @@ export function MessageInput({
   groupId,
   recipientId,
   disabled = false,
+  currentUserId = null,
 }: MessageInputProps) {
   const [message, setMessage] = useState('')
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [attachedFileUrl, setAttachedFileUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [showSlashMenu, setShowSlashMenu] = useState(false)
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 })
+  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false)
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [isSubtask, setIsSubtask] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Detectar quando usuário digita "/" no início
+  useEffect(() => {
+    if (message === '/') {
+      // Calcular posição do menu
+      if (textareaRef.current) {
+        const rect = textareaRef.current.getBoundingClientRect()
+        setSlashMenuPosition({
+          top: rect.top - 200, // Acima do input
+          left: rect.left,
+        })
+        setShowSlashMenu(true)
+      }
+    } else {
+      setShowSlashMenu(false)
+    }
+  }, [message])
+
+  const handleSlashCommand = (commandId: string) => {
+    setMessage('') // Limpar input
+    setShowSlashMenu(false)
+
+    switch (commandId) {
+      case 'meeting':
+        setMeetingDialogOpen(true)
+        break
+      case 'task':
+        setIsSubtask(false)
+        setTaskDialogOpen(true)
+        break
+      case 'subtask':
+        setIsSubtask(true)
+        setTaskDialogOpen(true)
+        break
+    }
+  }
 
   const handleTyping = () => {
     onTypingChange(true)

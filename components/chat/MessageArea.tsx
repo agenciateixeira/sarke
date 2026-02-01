@@ -1,30 +1,53 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { MessageWithSender, TypingUser } from '@/types/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { format, isSameDay, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { File, Image, Video, Music, Download } from 'lucide-react'
+import { File, Image, Video, Music, Download, Check, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { UserProfileDialog } from './UserProfileDialog'
+import { useMessageReads } from '@/hooks/useMessageReads'
 
 interface MessageAreaProps {
   messages: MessageWithSender[]
   currentUserId: string | null
   typingUsers: TypingUser[]
   loading?: boolean
+  onStartAudioCall?: (userId: string) => void
+  onStartVideoCall?: (userId: string) => void
 }
 
-export function MessageArea({ messages, currentUserId, typingUsers, loading = false }: MessageAreaProps) {
+export function MessageArea({ messages, currentUserId, typingUsers, loading = false, onStartAudioCall, onStartVideoCall }: MessageAreaProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+
+  // IDs das mensagens para buscar status de leitura
+  const messageIds = useMemo(() => messages.map((m) => m.id), [messages])
+
+  // Hook para buscar status de leitura
+  const messageReads = useMessageReads(messageIds)
 
   // Auto-scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId)
+    setProfileDialogOpen(true)
+  }
+
+  // Verificar se mensagem foi lida
+  const isMessageRead = (messageId: string) => {
+    const reads = messageReads.get(messageId)
+    return reads && reads.length > 0
+  }
 
   const getInitials = (name: string) => {
     return name
@@ -120,7 +143,10 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
               <div className={cn('flex gap-3', isOwn && 'flex-row-reverse')}>
                 {/* Avatar - só mostra se não for própria mensagem */}
                 {!isOwn && (
-                  <Avatar className="h-8 w-8 flex-shrink-0">
+                  <Avatar
+                    className="h-8 w-8 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleUserClick(message.sender_id)}
+                  >
                     <AvatarImage src={message.sender_avatar} />
                     <AvatarFallback className="text-xs">{getInitials(message.sender_name)}</AvatarFallback>
                   </Avatar>
@@ -129,7 +155,14 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
                 {/* Message Content */}
                 <div className={cn('flex flex-col gap-1 max-w-[70%]', isOwn && 'items-end')}>
                   {/* Sender Name - só mostra se não for própria mensagem */}
-                  {!isOwn && <span className="text-xs font-medium text-muted-foreground">{message.sender_name}</span>}
+                  {!isOwn && (
+                    <span
+                      className="text-xs font-medium text-muted-foreground cursor-pointer hover:underline"
+                      onClick={() => handleUserClick(message.sender_id)}
+                    >
+                      {message.sender_name}
+                    </span>
+                  )}
 
                   {/* Message Bubble */}
                   <div
@@ -179,8 +212,20 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
                     )}
                   </div>
 
-                  {/* Timestamp */}
-                  <span className="text-xs text-muted-foreground">{formatMessageDate(message.created_at)}</span>
+                  {/* Timestamp e Status de Leitura */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">{formatMessageDate(message.created_at)}</span>
+                    {/* Check marks - só mostra em mensagens próprias */}
+                    {isOwn && (
+                      <span className="flex-shrink-0">
+                        {isMessageRead(message.id) ? (
+                          <CheckCheck className="h-3 w-3 text-blue-500" />
+                        ) : (
+                          <Check className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Spacer para alinhar mensagens próprias */}
@@ -214,6 +259,17 @@ export function MessageArea({ messages, currentUserId, typingUsers, loading = fa
         {/* Scroll anchor */}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* User Profile Dialog */}
+      {selectedUserId && (
+        <UserProfileDialog
+          open={profileDialogOpen}
+          onOpenChange={setProfileDialogOpen}
+          userId={selectedUserId}
+          onStartAudioCall={onStartAudioCall ? () => onStartAudioCall(selectedUserId) : undefined}
+          onStartVideoCall={onStartVideoCall ? () => onStartVideoCall(selectedUserId) : undefined}
+        />
+      )}
     </ScrollArea>
   )
 }

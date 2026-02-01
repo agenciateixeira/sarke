@@ -14,18 +14,31 @@ import {
   PresenceState,
 } from '@/types/chat'
 import { RealtimeChannel } from '@supabase/supabase-js'
+import { useTypingIndicator } from './useTypingIndicator'
 
 export function useChat() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<MessageWithSender[]>([])
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null)
   const [loading, setLoading] = useState(true)
-  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // Channels para Realtime
   const [messagesChannel, setMessagesChannel] = useState<RealtimeChannel | null>(null)
-  const [presenceChannel, setPresenceChannel] = useState<RealtimeChannel | null>(null)
+
+  // Typing Indicator Hook
+  const {
+    typingUsers: typingIndicators,
+    startTyping,
+    stopTyping,
+  } = useTypingIndicator({
+    conversationId: activeConversation?.id || '',
+    conversationType: activeConversation?.type || 'direct',
+    currentUserId,
+  })
+
+  // Estado derivado para typingUsers com nomes dos usuários
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
 
   // =============================================
   // GET CURRENT USER
@@ -38,6 +51,41 @@ export function useChat() {
     }
     getCurrentUser()
   }, [])
+
+  // =============================================
+  // TRANSFORM TYPING INDICATORS TO TYPING USERS
+  // =============================================
+
+  useEffect(() => {
+    const fetchTypingUserNames = async () => {
+      if (typingIndicators.length === 0) {
+        setTypingUsers([])
+        return
+      }
+
+      // Buscar nomes dos usuários que estão digitando
+      const userIds = typingIndicators.map((t) => t.user_id)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds)
+
+      if (profiles) {
+        const typingUsersWithNames: TypingUser[] = typingIndicators.map((indicator) => {
+          const profile = profiles.find((p) => p.id === indicator.user_id)
+          return {
+            user_id: indicator.user_id,
+            user_name: profile?.name || 'Usuário',
+            typing: indicator.is_typing,
+            recording: false, // Não temos campo de recording no novo sistema
+          }
+        })
+        setTypingUsers(typingUsersWithNames)
+      }
+    }
+
+    fetchTypingUserNames()
+  }, [typingIndicators])
 
   // =============================================
   // FETCH CONVERSATIONS
@@ -193,11 +241,27 @@ export function useChat() {
 
       if (error) throw error
 
-      // Transformar para MessageWithSender
+      // Buscar informações de leitura para mensagens do usuário atual
+      const messageIds = data?.filter((msg: any) => msg.sender_id === currentUserId).map((msg: any) => msg.id) || []
+      let messageReads: any[] = []
+
+      if (messageIds.length > 0) {
+        const { data: reads } = await supabase
+          .from('message_reads')
+          .select('message_id')
+          .in('message_id', messageIds)
+
+        messageReads = reads || []
+      }
+
+      // Transformar para MessageWithSender com informação de leitura
       const messagesWithSender: MessageWithSender[] = data?.map((msg: any) => ({
         ...msg,
         sender_name: msg.sender?.name || 'Desconhecido',
         sender_avatar: msg.sender?.avatar_url,
+        is_read: msg.sender_id === currentUserId
+          ? messageReads.some((read) => read.message_id === msg.id)
+          : undefined,
       })) || []
 
       setMessages(messagesWithSender)
@@ -501,16 +565,14 @@ export function useChat() {
   // =============================================
 
   const updateTypingStatus = useCallback(
-    (isTyping: boolean, isRecording: boolean = false) => {
-      if (!presenceChannel || !currentUserId || !activeConversation) return
-
-      presenceChannel.track({
-        user_id: currentUserId,
-        typing: isTyping,
-        recording: isRecording,
-      } as PresenceState)
+    (isTyping: boolean) => {
+      if (isTyping) {
+        startTyping()
+      } else {
+        stopTyping()
+      }
     },
-    [presenceChannel, currentUserId, activeConversation]
+    [startTyping, stopTyping]
   )
 
   // =============================================
@@ -551,6 +613,7 @@ export function useChat() {
             ...(payload.new as Message),
             sender_name: sender?.name || 'Desconhecido',
             sender_avatar: sender?.avatar_url,
+            is_read: false, // Mensagens novas sempre começam como não lidas
           }
 
           // Adicionar mensagem se não for duplicada (otimista)
@@ -566,6 +629,23 @@ export function useChat() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_reads',
+        },
+        (payload) => {
+          // Atualizar status de leitura das mensagens em tempo real
+          const read = payload.new as any
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === read.message_id ? { ...msg, is_read: true } : msg
+            )
+          )
+        }
+      )
       .subscribe()
 
     setMessagesChannel(channel)
@@ -575,67 +655,7 @@ export function useChat() {
     }
   }, [activeConversation, currentUserId])
 
-  // =============================================
-  // REALTIME - PRESENCE (TYPING)
-  // =============================================
-
-  useEffect(() => {
-    if (!activeConversation || !currentUserId) return
-
-    // Limpar canal anterior
-    if (presenceChannel) {
-      supabase.removeChannel(presenceChannel)
-    }
-
-    const channelName = `presence-${activeConversation.id}`
-    const channel = supabase.channel(channelName, {
-      config: {
-        presence: {
-          key: currentUserId,
-        },
-      },
-    })
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
-        const users: TypingUser[] = []
-
-        Object.keys(state).forEach((key) => {
-          const presences = state[key] as PresenceState[]
-          presences.forEach((presence) => {
-            if (presence.user_id !== currentUserId && (presence.typing || presence.recording)) {
-              // Buscar nome do usuário (em produção, cachear isso)
-              supabase
-                .from('profiles')
-                .select('name')
-                .eq('id', presence.user_id)
-                .single()
-                .then(({ data }) => {
-                  users.push({
-                    user_id: presence.user_id,
-                    user_name: data?.name || 'Usuário',
-                    typing: presence.typing,
-                    recording: presence.recording,
-                  })
-                  setTypingUsers(users)
-                })
-            }
-          })
-        })
-
-        if (users.length === 0) {
-          setTypingUsers([])
-        }
-      })
-      .subscribe()
-
-    setPresenceChannel(channel)
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [activeConversation, currentUserId])
+  // Presence channel não é mais usado - removido em favor de typing_indicators table
 
   // =============================================
   // REALTIME - CONVERSATIONS LIST
