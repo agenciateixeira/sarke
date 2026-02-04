@@ -24,14 +24,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Timeout de segurança - se após 10s ainda estiver loading, forçar false
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ [AuthContext] Timeout de segurança atingido (10s), forçando loading = false')
+      setLoading(false)
+    }, 10000)
+
     // Verificar sessão atual
+    console.log('🔍 [AuthContext] Iniciando verificação de sessão...')
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('✅ [AuthContext] Sessão obtida:', session ? 'Usuário logado' : 'Sem sessão')
       setSupabaseUser(session?.user ?? null)
       if (session?.user) {
+        console.log('👤 [AuthContext] Carregando perfil do usuário:', session.user.id)
         loadUserProfile(session.user.id)
       } else {
+        console.log('⚠️ [AuthContext] Sem sessão ativa, finalizando loading')
         setLoading(false)
       }
+    }).catch((error) => {
+      console.error('❌ [AuthContext] Erro ao obter sessão:', error)
+      setLoading(false)
     })
 
     // Escutar mudanças de autenticação
@@ -47,11 +60,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(safetyTimeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserProfile = async (userId: string) => {
     try {
+      console.log('🔄 [AuthContext] Buscando perfil na tabela profiles...')
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -59,22 +76,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle()
 
       if (error) {
-        console.error('Error loading user profile:', error)
+        console.error('❌ [AuthContext] Erro ao carregar perfil:', error)
         // Se o perfil não existe, tentar criar
         await createMissingProfile(userId)
         return
       }
 
       if (!data) {
+        console.log('⚠️ [AuthContext] Perfil não encontrado, criando...')
         // Perfil não existe, criar
         await createMissingProfile(userId)
         return
       }
 
+      console.log('✅ [AuthContext] Perfil carregado com sucesso:', data.name)
       setUser(data as User)
     } catch (error) {
-      console.error('Error loading user profile:', error)
+      console.error('❌ [AuthContext] Exceção ao carregar perfil:', error)
     } finally {
+      console.log('🏁 [AuthContext] Finalizando loading')
       setLoading(false)
     }
   }

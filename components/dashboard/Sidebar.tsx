@@ -22,6 +22,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   User,
   Settings,
   LogOut,
@@ -37,6 +38,7 @@ import {
   Building,
   ClipboardList,
   FileText,
+  Briefcase,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/auth/ThemeToggle'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -44,11 +46,18 @@ import { AccessRequestsDialog } from '@/components/notifications/AccessRequestsD
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useNotifications } from '@/hooks/useNotifications'
 
+interface SubMenuItem {
+  title: string
+  href: string
+  setor: SetorType
+}
+
 interface MenuItem {
   title: string
   href: string
   icon: React.ElementType
   setor: SetorType
+  subItems?: SubMenuItem[]
 }
 
 const menuItems: MenuItem[] = [
@@ -106,23 +115,34 @@ const menuItems: MenuItem[] = [
     icon: Wrench,
     setor: 'ferramentas',
   },
+  // OBRA - Menu hierárquico
   {
-    title: 'Gestão de Obra',
+    title: 'Obra',
     href: '/dashboard/obra',
     icon: Building,
     setor: 'gestao_obra',
-  },
-  {
-    title: 'Cronograma',
-    href: '/dashboard/cronograma',
-    icon: ClipboardList,
-    setor: 'cronograma',
-  },
-  {
-    title: 'Memorial',
-    href: '/dashboard/memorial',
-    icon: FileText,
-    setor: 'memorial',
+    subItems: [
+      {
+        title: 'Gestão de Obra',
+        href: '/dashboard/obra',
+        setor: 'gestao_obra',
+      },
+      {
+        title: 'Cronograma',
+        href: '/dashboard/obra/cronograma',
+        setor: 'cronograma',
+      },
+      {
+        title: 'Empresas Parceiras',
+        href: '/dashboard/obra/empresas',
+        setor: 'gestao_obra',
+      },
+      {
+        title: 'Memorial',
+        href: '/dashboard/obra/memorial',
+        setor: 'memorial',
+      },
+    ],
   },
 ]
 
@@ -131,6 +151,7 @@ export const Sidebar = () => {
   const pathname = usePathname()
   const [isExpanded, setIsExpanded] = useState(true)
   const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const { accessRequests, isAdmin } = useNotifications()
 
   // Carregar preferência do localStorage
@@ -141,6 +162,18 @@ export const Sidebar = () => {
     }
   }, [])
 
+  // Auto-expandir menu se estiver em uma subpágina
+  useEffect(() => {
+    menuItems.forEach((item) => {
+      if (item.subItems) {
+        const isInSubMenu = item.subItems.some((sub) => pathname.startsWith(sub.href))
+        if (isInSubMenu && !expandedMenus.includes(item.title)) {
+          setExpandedMenus((prev) => [...prev, item.title])
+        }
+      }
+    })
+  }, [pathname])
+
   // Salvar preferência no localStorage
   const toggleSidebar = () => {
     const newState = !isExpanded
@@ -148,11 +181,27 @@ export const Sidebar = () => {
     localStorage.setItem('sidebar-expanded', String(newState))
   }
 
+  const toggleMenu = (title: string) => {
+    setExpandedMenus((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
+    )
+  }
+
   if (!user) return null
 
-  const visibleMenuItems = menuItems.filter((item) =>
-    hasPermission(user.role, item.setor)
-  )
+  const visibleMenuItems = menuItems.filter((item) => {
+    // Verificar permissão do item principal
+    if (!hasPermission(user.role, item.setor)) return false
+
+    // Se tem subitems, filtrar apenas os que o usuário tem acesso
+    if (item.subItems) {
+      item.subItems = item.subItems.filter((sub) => hasPermission(user.role, sub.setor))
+      // Se não tem nenhum subitem visível, não mostrar o menu pai
+      if (item.subItems.length === 0) return false
+    }
+
+    return true
+  })
 
   const getInitials = (name: string) => {
     return name
@@ -219,30 +268,99 @@ export const Sidebar = () => {
           <TooltipProvider delayDuration={0}>
             {visibleMenuItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const hasSubItems = item.subItems && item.subItems.length > 0
+              const isMenuExpanded = expandedMenus.includes(item.title)
 
+              // Para itens com submenu, verifica se algum subitem está ativo
+              const isActive = hasSubItems
+                ? item.subItems!.some((sub) => pathname.startsWith(sub.href))
+                : item.href === '/dashboard'
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href)
+
+              if (hasSubItems) {
+                // Menu com subitens
+                return (
+                  <div key={item.href}>
+                    {/* Item principal */}
+                    <button
+                      onClick={() => isExpanded && toggleMenu(item.title)}
+                      className={cn(
+                        'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all hover:bg-accent hover:text-accent-foreground',
+                        isActive &&
+                          'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
+                        !isExpanded && 'justify-center px-2'
+                      )}
+                    >
+                      <Icon
+                        className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-primary-foreground')}
+                      />
+                      {isExpanded && (
+                        <>
+                          <span className="text-sm font-medium truncate flex-1 text-left">
+                            {item.title}
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              'h-4 w-4 transition-transform',
+                              isMenuExpanded && 'rotate-180'
+                            )}
+                          />
+                        </>
+                      )}
+                    </button>
+
+                    {/* Subitens */}
+                    {isExpanded && isMenuExpanded && (
+                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
+                        {item.subItems!.map((subItem) => {
+                          const isSubActive =
+                            subItem.href === '/dashboard/obra'
+                              ? pathname === subItem.href
+                              : pathname.startsWith(subItem.href)
+
+                          return (
+                            <Link
+                              key={subItem.href}
+                              href={subItem.href}
+                              className={cn(
+                                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
+                                isSubActive &&
+                                  'bg-primary/10 text-primary font-medium hover:bg-primary/20'
+                              )}
+                            >
+                              {subItem.title}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              // Menu simples sem subitens
               const linkContent = (
                 <Link
                   href={item.href}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all hover:bg-accent hover:text-accent-foreground',
-                    isActive && 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
+                    isActive &&
+                      'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
                     !isExpanded && 'justify-center px-2'
                   )}
                 >
-                  <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-primary-foreground')} />
-                  {isExpanded && (
-                    <span className="text-sm font-medium truncate">{item.title}</span>
-                  )}
+                  <Icon
+                    className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-primary-foreground')}
+                  />
+                  {isExpanded && <span className="text-sm font-medium truncate">{item.title}</span>}
                 </Link>
               )
 
               if (!isExpanded) {
                 return (
                   <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      {linkContent}
-                    </TooltipTrigger>
+                    <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                     <TooltipContent side="right">
                       <p>{item.title}</p>
                     </TooltipContent>
@@ -259,10 +377,12 @@ export const Sidebar = () => {
       {/* Footer - Configurações e Usuário */}
       <div className="border-t p-3 space-y-2">
         {/* Actions: Notifications, Access Requests, Theme */}
-        <div className={cn(
-          'flex items-center gap-2 rounded-lg px-3 py-2',
-          !isExpanded && 'justify-center px-2 flex-col gap-1'
-        )}>
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-lg px-3 py-2',
+            !isExpanded && 'justify-center px-2 flex-col gap-1'
+          )}
+        >
           {isExpanded && <span className="text-sm font-medium mr-auto">Ações</span>}
 
           <NotificationBell />
@@ -288,10 +408,7 @@ export const Sidebar = () => {
         <Separator />
 
         {/* Access Requests Dialog */}
-        <AccessRequestsDialog
-          open={accessRequestsOpen}
-          onOpenChange={setAccessRequestsOpen}
-        />
+        <AccessRequestsDialog open={accessRequestsOpen} onOpenChange={setAccessRequestsOpen} />
 
         {/* Menu do Usuário */}
         <DropdownMenu>
@@ -342,7 +459,10 @@ export const Sidebar = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={() => signOut()}
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Sair
             </DropdownMenuItem>
