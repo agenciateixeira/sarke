@@ -25,29 +25,39 @@
     --input: 0 0% 90%;
     --ring: 324 100% 58%; /* rosa Sarke */
     --radius: 0.5rem;
+    --chart-1: 324 100% 58%; /* rosa Sarke */
+    --chart-2: 162 12% 26%; /* verde Sarke */
+    --chart-3: 0 0% 27%; /* cinza escuro */
+    --chart-4: 324 100% 70%;
+    --chart-5: 162 12% 40%;
   }
 
   .dark {
     /* Sarke Brand Colors - Dark Mode */
-    --background: 300 1% 27%; /* #454445 - cinza escuro */
+    --background: 222 20% 12%; /* #1a1d23 - muito escuro */
     --foreground: 0 0% 98%;
-    --card: 162 12% 22%; /* verde escuro mais escuro */
+    --card: 222 20% 15%; /* #1e2228 - card escuro */
     --card-foreground: 0 0% 98%;
-    --popover: 162 12% 22%;
+    --popover: 222 20% 15%;
     --popover-foreground: 0 0% 98%;
-    --primary: 324 100% 58%; /* #ff2697 - rosa Sarke */
+    --primary: 324 100% 58%; /* #ff2697 - rosa Sarke mantido */
     --primary-foreground: 0 0% 100%;
-    --secondary: 162 12% 35%; /* verde mais claro para contraste */
+    --secondary: 222 20% 20%; /* tom mais claro do background */
     --secondary-foreground: 0 0% 100%;
-    --muted: 162 12% 20%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 222 20% 18%;
+    --muted-foreground: 0 0% 70%;
     --accent: 324 100% 58%; /* rosa Sarke */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 162 12% 30%;
-    --input: 162 12% 30%;
+    --border: 222 20% 25%;
+    --input: 222 20% 25%;
     --ring: 324 100% 58%; /* rosa Sarke */
+    --chart-1: 324 100% 58%;
+    --chart-2: 162 12% 40%;
+    --chart-3: 0 0% 70%;
+    --chart-4: 324 100% 70%;
+    --chart-5: 162 12% 50%;
   }
 }
 
@@ -55,7 +65,43 @@
   * {
     @apply border-border;
   }
+
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-200;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Melhorias para inputs e selects no dark mode */
+  input,
+  textarea,
+  select {
+    @apply bg-background;
+  }
+
+  /* Melhorar contraste de placeholders no dark mode */
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    @apply text-muted-foreground opacity-50;
+  }
+
+  /* Scrollbar customizada para dark mode */
+  .dark ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
   }
 }

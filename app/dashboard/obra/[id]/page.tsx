@@ -33,6 +33,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { ObraFormDialog } from '@/components/obra/ObraFormDialog'
+import { RDOList } from '@/components/rdo/RDOList'
 
 const statusColors: Record<StatusObra, string> = {
   planejamento: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -429,15 +430,7 @@ export default function ObraDetailPage() {
 
           {/* Aba RDO */}
           <TabsContent value="rdo">
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-muted-foreground">
-                  <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-semibold mb-2">Em breve!</p>
-                  <p className="text-sm">Relatório Diário de Obra em desenvolvimento</p>
-                </div>
-              </CardContent>
-            </Card>
+            <RDOList obraId={obra.id} />
           </TabsContent>
         </Tabs>
 
