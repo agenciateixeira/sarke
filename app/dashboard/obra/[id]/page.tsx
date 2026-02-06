@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Clock,
   AlertCircle,
+  Plus,
 } from 'lucide-react'
 import { Obra, StatusObra, TipoObra } from '@/types/obra'
 import { supabase } from '@/lib/supabase'
@@ -34,6 +35,7 @@ import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { ObraFormDialog } from '@/components/obra/ObraFormDialog'
 import { RDOList } from '@/components/rdo/RDOList'
+import { CronogramaObraCompleto } from '@/types/cronograma-obra'
 
 const statusColors: Record<StatusObra, string> = {
   planejamento: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -64,10 +66,12 @@ export default function ObraDetailPage() {
   const [obra, setObra] = useState<Obra | null>(null)
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [cronograma, setCronograma] = useState<CronogramaObraCompleto | null>(null)
 
   useEffect(() => {
     if (params.id) {
       loadObra()
+      loadCronograma()
     }
   }, [params.id])
 
@@ -94,6 +98,28 @@ export default function ObraDetailPage() {
       router.push('/dashboard/obra')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadCronograma() {
+    try {
+      const { data, error } = await supabase
+        .from('cronograma_obras_completo')
+        .select('*')
+        .eq('obra_id', params.id)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          setCronograma(null)
+          return
+        }
+        throw error
+      }
+
+      setCronograma(data)
+    } catch (error: any) {
+      console.error('Erro ao carregar cronograma:', error)
     }
   }
 
@@ -231,8 +257,9 @@ export default function ObraDetailPage() {
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="info">Informações</TabsTrigger>
+            <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
             <TabsTrigger value="fotos">Fotos</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
@@ -243,7 +270,7 @@ export default function ObraDetailPage() {
 
           {/* Aba Informações */}
           <TabsContent value="info" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               {/* Informações Gerais */}
               <Card>
                 <CardHeader>
@@ -335,6 +362,85 @@ export default function ObraDetailPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Resumo do Cronograma */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    Cronograma
+                    {cronograma && (
+                      <Link href={`/dashboard/obra/cronograma/${obra.id}`}>
+                        <Button variant="ghost" size="sm">
+                          <FileSpreadsheet className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {cronograma ? (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Progresso</span>
+                          <span className="font-semibold">{cronograma.progresso_real}%</span>
+                        </div>
+                        <Progress value={cronograma.progresso_real} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Atividades</p>
+                          <p className="text-2xl font-bold">{cronograma.total_atividades}</p>
+                          <p className="text-xs text-green-600">
+                            {cronograma.atividades_concluidas} concluidas
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Atrasadas</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {cronograma.atividades_atrasadas}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-3 space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Custo Total:</span>
+                          <span className="font-medium">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                              notation: 'compact',
+                            }).format(cronograma.custo_total_materiais || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Pago:</span>
+                          <span className="font-medium text-green-600">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                              notation: 'compact',
+                            }).format(cronograma.valor_pago_materiais || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 opacity-50 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-3">Nenhum cronograma criado</p>
+                      <Link href={`/dashboard/obra/${obra.id}`}>
+                        <Button size="sm" variant="outline">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Criar Cronograma
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Observações */}
@@ -348,6 +454,137 @@ export default function ObraDetailPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Aba Cronograma */}
+          <TabsContent value="cronograma">
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumo do Cronograma</CardTitle>
+                <CardDescription>
+                  Visualização rápida do andamento do cronograma desta obra
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {cronograma ? (
+                  <div className="space-y-6">
+                    {/* Progresso */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Progresso Geral</p>
+                          <p className="text-3xl font-bold">{cronograma.progresso_real}%</p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-green-600" />
+                      </div>
+                      <Progress value={cronograma.progresso_real} className="h-3" />
+                    </div>
+
+                    {/* Estatísticas em Grid */}
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {/* Em Andamento */}
+                      <div className="flex items-center gap-3 p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
+                        <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+                          <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Em Andamento</p>
+                          <p className="text-2xl font-bold">{cronograma.atividades_em_andamento}</p>
+                        </div>
+                      </div>
+
+                      {/* Atrasadas */}
+                      <div className="flex items-center gap-3 p-4 rounded-lg border bg-red-50 dark:bg-red-950/20">
+                        <div className="p-3 rounded-full bg-red-100 dark:bg-red-900">
+                          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Atrasadas</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {cronograma.atividades_atrasadas}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Concluídas */}
+                      <div className="flex items-center gap-3 p-4 rounded-lg border bg-green-50 dark:bg-green-950/20">
+                        <div className="p-3 rounded-full bg-green-100 dark:bg-green-900">
+                          <ClipboardCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Concluídas</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {cronograma.atividades_concluidas}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Custos */}
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <DollarSign className="h-5 w-5 text-muted-foreground" />
+                        <h3 className="font-semibold">Informações Financeiras</h3>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Custo Total:</span>
+                          <span className="text-lg font-bold">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(cronograma.custo_total_materiais || 0)}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Valor Pago:</span>
+                          <span className="text-lg font-bold text-green-600">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(cronograma.valor_pago_materiais || 0)}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <span className="text-sm text-muted-foreground">Saldo:</span>
+                          <span className="text-lg font-bold text-orange-600">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format(cronograma.saldo_materiais || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botão de Atalho */}
+                    <div className="pt-4">
+                      <Button className="w-full" size="lg" asChild>
+                        <Link href={`/dashboard/obra/cronograma/${obra.id}`}>
+                          <FileSpreadsheet className="mr-2 h-5 w-5" />
+                          Ver Cronograma Completo
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <FileSpreadsheet className="h-16 w-16 mx-auto mb-4 opacity-50 text-muted-foreground" />
+                    <p className="text-lg font-semibold mb-2">Nenhum cronograma criado</p>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Crie um cronograma para esta obra e acompanhe o progresso das atividades
+                    </p>
+                    <Button size="lg">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Criar Cronograma
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Aba Empresas */}
