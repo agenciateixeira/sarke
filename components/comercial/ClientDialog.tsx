@@ -164,6 +164,63 @@ export function ClientDialog({ open, onOpenChange, client, onSave }: ClientDialo
     return numbers.replace(/(\d{5})(\d{0,3})/, '$1-$2')
   }
 
+  const buscarCEP = async (cep: string) => {
+    const cepNumeros = cep.replace(/\D/g, '')
+
+    if (cepNumeros.length !== 8) return
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`)
+      const data = await response.json()
+
+      if (data.erro) {
+        return // CEP não encontrado, não faz nada
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        address_street: data.logradouro || prev.address_street,
+        address_neighborhood: data.bairro || prev.address_neighborhood,
+        address_city: data.localidade || prev.address_city,
+        address_state: data.uf || prev.address_state,
+      }))
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error)
+    }
+  }
+
+  const buscarCNPJ = async (cnpj: string) => {
+    const cnpjNumeros = cnpj.replace(/\D/g, '')
+
+    if (cnpjNumeros.length !== 14) return
+
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjNumeros}`)
+      const data = await response.json()
+
+      if (data.message) {
+        return // CNPJ não encontrado
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        name: data.razao_social || prev.name,
+        razao_social: data.razao_social || prev.razao_social,
+        email: data.email || prev.email,
+        phone: data.ddd_telefone_1 ? formatPhone(data.ddd_telefone_1) : prev.phone,
+        address_street: data.logradouro || prev.address_street,
+        address_number: data.numero || prev.address_number,
+        address_complement: data.complemento || prev.address_complement,
+        address_neighborhood: data.bairro || prev.address_neighborhood,
+        address_city: data.municipio || prev.address_city,
+        address_state: data.uf || prev.address_state,
+        address_zip: data.cep ? formatCEP(data.cep) : prev.address_zip,
+      }))
+    } catch (error) {
+      console.error('Erro ao buscar CNPJ:', error)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -462,10 +519,14 @@ export function ClientDialog({ open, onOpenChange, client, onSave }: ClientDialo
                             id="cpf_cnpj"
                             value={formData.cpf_cnpj}
                             onChange={(e) => setFormData({ ...formData, cpf_cnpj: formatCNPJ(e.target.value) })}
+                            onBlur={(e) => buscarCNPJ(e.target.value)}
                             placeholder="00.000.000/0000-00"
                             maxLength={18}
                             className="mt-1.5"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            💡 Dados da empresa preenchidos automaticamente
+                          </p>
                         </div>
 
                         <div>
@@ -620,10 +681,14 @@ export function ClientDialog({ open, onOpenChange, client, onSave }: ClientDialo
                           id="address_zip"
                           value={formData.address_zip}
                           onChange={(e) => setFormData({ ...formData, address_zip: formatCEP(e.target.value) })}
+                          onBlur={(e) => buscarCEP(e.target.value)}
                           placeholder="00000-000"
                           maxLength={9}
                           className="mt-1.5"
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          💡 Endereço preenchido automaticamente
+                        </p>
                       </div>
                     </div>
                   </div>
