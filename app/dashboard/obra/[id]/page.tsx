@@ -36,6 +36,8 @@ import Link from 'next/link'
 import { ObraFormDialog } from '@/components/obra/ObraFormDialog'
 import { RDOList } from '@/components/rdo/RDOList'
 import { CronogramaObraCompleto } from '@/types/cronograma-obra'
+import OrcamentoMateriaisView from '@/components/obra-adm/OrcamentoMateriaisView'
+import CaixaObraView from '@/components/obra-adm/CaixaObraView'
 
 const statusColors: Record<StatusObra, string> = {
   planejamento: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -257,9 +259,10 @@ export default function ObraDetailPage() {
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="info">Informações</TabsTrigger>
             <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
+            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
             <TabsTrigger value="fotos">Fotos</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
@@ -585,6 +588,24 @@ export default function ObraDetailPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Aba Financeiro */}
+          <TabsContent value="financeiro">
+            <Tabs defaultValue="orcamento" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="orcamento">Orçamento de Materiais</TabsTrigger>
+                <TabsTrigger value="caixa">Caixa de Obra</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="orcamento" className="mt-4">
+                <OrcamentoMateriaisView obraId={obra.id} />
+              </TabsContent>
+
+              <TabsContent value="caixa" className="mt-4">
+                <CaixaObraView obraId={obra.id} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           {/* Aba Empresas */}

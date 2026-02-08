@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { RDO, RDOMaoObra, RDOAtividade, RDOFoto } from '@/types/rdo'
+import { ObraCaixa, formatarMoeda, isDespesa } from '@/types/obra-adm-financeiro'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -9,6 +10,14 @@ interface RDOPDFData {
   maoObra: RDOMaoObra[]
   atividades: RDOAtividade[]
   fotos: RDOFoto[]
+  // Opcional: dados do caixa de obra
+  caixaObra?: {
+    semana: string
+    movimentacoes: ObraCaixa[]
+    totalDespesas: number
+    totalReceitas: number
+    saldo: number
+  }
 }
 
 const climaLabels: Record<string, string> = {
@@ -32,7 +41,7 @@ const statusLabels: Record<string, string> = {
 }
 
 export async function generateRDOPDF(data: RDOPDFData): Promise<void> {
-  const { rdo, maoObra, atividades, fotos } = data
+  const { rdo, maoObra, atividades, fotos, caixaObra } = data
   const doc = new jsPDF()
 
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -207,6 +216,101 @@ export async function generateRDOPDF(data: RDOPDFData): Promise<void> {
     )
     doc.text(lines, margin, yPosition)
     yPosition += lines.length * 5 + 10
+  }
+
+  // ===== CAIXA DE OBRA =====
+  if (caixaObra && caixaObra.movimentacoes.length > 0) {
+    // Verificar se precisa de nova página
+    if (yPosition > pageHeight - 80) {
+      doc.addPage()
+      yPosition = margin
+    }
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFillColor(240, 240, 240)
+    doc.rect(margin, yPosition - 5, pageWidth - 2 * margin, 8, 'F')
+    doc.text(`Caixa de Obra - ${caixaObra.semana}`, margin + 2, yPosition)
+    yPosition += 10
+
+    // Tabela de movimentações
+    const caixaData = caixaObra.movimentacoes.map((mov) => [
+      format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR }),
+      mov.descricao,
+      mov.empresa || '-',
+      formatarMoeda(mov.valor),
+      mov.tipo_recibo || '-',
+      mov.status,
+    ])
+
+    ;(doc as any).autoTable({
+      startY: yPosition,
+      head: [['Data', 'Descrição', 'Empresa', 'Valor', 'Recibo', 'Status']],
+      body: caixaData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 20, halign: 'center' },
+        5: { cellWidth: 25, halign: 'center' },
+      },
+      // Colorir valores: vermelho para despesas, verde para receitas
+      didParseCell: function (data: any) {
+        if (data.column.index === 3 && data.section === 'body') {
+          const valor = caixaObra.movimentacoes[data.row.index].valor
+          if (isDespesa(valor)) {
+            data.cell.styles.textColor = [220, 38, 38] // red-600
+          } else {
+            data.cell.styles.textColor = [22, 163, 74] // green-600
+          }
+        }
+      },
+    })
+
+    yPosition = (doc as any).lastAutoTable.finalY + 5
+
+    // Totalizadores
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+
+    const totalizadorY = yPosition
+    const col1X = margin
+    const col2X = pageWidth / 2
+    const col3X = pageWidth - margin - 60
+
+    // Despesas
+    doc.setTextColor(220, 38, 38) // red-600
+    doc.text('Total Despesas:', col1X, totalizadorY)
+    doc.text(formatarMoeda(caixaObra.totalDespesas), col1X + 40, totalizadorY, {
+      align: 'right',
+    })
+
+    // Receitas
+    doc.setTextColor(22, 163, 74) // green-600
+    doc.text('Total Receitas:', col2X, totalizadorY)
+    doc.text(formatarMoeda(caixaObra.totalReceitas), col2X + 40, totalizadorY, {
+      align: 'right',
+    })
+
+    // Saldo
+    const saldoCor = caixaObra.saldo >= 0 ? [22, 163, 74] : [234, 88, 12] // green-600 : orange-600
+    doc.setTextColor(saldoCor[0], saldoCor[1], saldoCor[2])
+    doc.text('Saldo:', col3X, totalizadorY)
+    doc.text(formatarMoeda(caixaObra.saldo), col3X + 40, totalizadorY, {
+      align: 'right',
+    })
+
+    // Resetar cor
+    doc.setTextColor(0, 0, 0)
+    yPosition += 12
   }
 
   // ===== FOTOS =====
