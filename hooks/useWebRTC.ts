@@ -244,7 +244,7 @@ export function useWebRTC() {
       content = `${t} - Chamada concluída (${m > 0 ? `${m}m ` : ''}${s}s)`
     } else content = `${t} - Chamada finalizada`
     const recipientId = call.caller_id === userId ? call.receiver_id : call.caller_id
-    await supabase.from('messages').insert({ sender_id: userId, recipient_id: recipientId, content, group_id: null }).catch(() => {})
+    try { await supabase.from('messages').insert({ sender_id: userId, recipient_id: recipientId, content, group_id: null }) } catch { /* ignorar */ }
   }
 
   // ─────────────────────────────────────────
@@ -279,10 +279,12 @@ export function useWebRTC() {
       sendSignal('offer', { to: data.receiver_id, from: userId, call_id: newCall.id, sdp: offer })
 
       // Também salvar no DB como fallback
-      await supabase.from('webrtc_signals').insert({
-        call_id: newCall.id, from_user_id: userId, to_user_id: data.receiver_id,
-        signal_type: 'offer', signal_data: offer,
-      }).catch(() => {})
+      try {
+        await supabase.from('webrtc_signals').insert({
+          call_id: newCall.id, from_user_id: userId, to_user_id: data.receiver_id,
+          signal_type: 'offer', signal_data: offer,
+        })
+      } catch { /* ignorar */ }
 
       // Ringback
       ringbackRef.current = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=')
@@ -355,10 +357,12 @@ export function useWebRTC() {
       sendSignal('answer', { to: call.caller_id, from: userId, call_id: call.id, sdp: answer })
 
       // Salvar no DB
-      await supabase.from('webrtc_signals').insert({
-        call_id: call.id, from_user_id: userId, to_user_id: call.caller_id,
-        signal_type: 'answer', signal_data: answer,
-      }).catch(() => {})
+      try {
+        await supabase.from('webrtc_signals').insert({
+          call_id: call.id, from_user_id: userId, to_user_id: call.caller_id,
+          signal_type: 'answer', signal_data: answer,
+        })
+      } catch { /* ignorar */ }
 
     } catch (err) {
       console.error('acceptCall error:', err)
@@ -493,13 +497,15 @@ export function useWebRTC() {
       .on('broadcast', { event: 'offer' }, async ({ payload }) => {
         if (payload.to !== currentUserId) return
         // Salvar no DB para o acceptCall buscar
-        await supabase.from('webrtc_signals').insert({
-          call_id: payload.call_id,
-          from_user_id: payload.from,
-          to_user_id: payload.to,
-          signal_type: 'offer',
-          signal_data: payload.sdp,
-        }).catch(() => {})
+        try {
+          await supabase.from('webrtc_signals').insert({
+            call_id: payload.call_id,
+            from_user_id: payload.from,
+            to_user_id: payload.to,
+            signal_type: 'offer',
+            signal_data: payload.sdp,
+          })
+        } catch { /* ignorar */ }
       })
       .subscribe()
 
