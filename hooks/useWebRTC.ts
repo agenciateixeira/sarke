@@ -7,118 +7,150 @@ import {
   Call,
   CallType,
   CallStatus,
-  WebRTCSignal,
   CreateCallData,
-  SendSignalData,
 } from '@/types/webrtc'
 import { RealtimeChannel } from '@supabase/supabase-js'
 
-// Configuração dos servidores ICE (STUN/TURN)
+// =============================================
+// CONFIGURAÇÃO ICE (STUN)
+// =============================================
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // Servidor STUN público do Google (grátis)
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // TODO: Adicionar servidor TURN próprio para produção
-    // { urls: 'turn:seu-servidor.com', username: 'user', credential: 'pass' }
+    { urls: 'stun:stun2.l.google.com:19302' },
   ],
 }
 
-// Função auxiliar para converter AudioBuffer para WAV
+// =============================================
+// GERAR SOM SINTETIZADO (WAV)
+// =============================================
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
-  const length = buffer.length * buffer.numberOfChannels * 2 + 44
-  const arrayBuffer = new ArrayBuffer(length)
-  const view = new DataView(arrayBuffer)
-  const channels: Float32Array[] = []
+  const numCh = buffer.numberOfChannels
+  const length = buffer.length * numCh * 2 + 44
+  const ab = new ArrayBuffer(length)
+  const view = new DataView(ab)
   let pos = 0
 
-  const setUint16 = (data: number) => {
-    view.setUint16(pos, data, true)
-    pos += 2
-  }
-  const setUint32 = (data: number) => {
-    view.setUint32(pos, data, true)
-    pos += 4
-  }
+  const u16 = (d: number) => { view.setUint16(pos, d, true); pos += 2 }
+  const u32 = (d: number) => { view.setUint32(pos, d, true); pos += 4 }
 
-  setUint32(0x46464952) // "RIFF"
-  setUint32(length - 8)
-  setUint32(0x45564157) // "WAVE"
-  setUint32(0x20746d66) // "fmt "
-  setUint32(16)
-  setUint16(1)
-  setUint16(buffer.numberOfChannels)
-  setUint32(buffer.sampleRate)
-  setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels)
-  setUint16(buffer.numberOfChannels * 2)
-  setUint16(16)
-  setUint32(0x61746164) // "data"
-  setUint32(length - pos - 4)
+  u32(0x46464952); u32(length - 8); u32(0x45564157)
+  u32(0x20746d66); u32(16); u16(1); u16(numCh)
+  u32(buffer.sampleRate); u32(buffer.sampleRate * 2 * numCh)
+  u16(numCh * 2); u16(16); u32(0x61746164); u32(length - pos - 4)
 
-  for (let i = 0; i < buffer.numberOfChannels; i++) {
-    channels.push(buffer.getChannelData(i))
-  }
+  const channels: Float32Array[] = []
+  for (let i = 0; i < numCh; i++) channels.push(buffer.getChannelData(i))
 
   let offset = pos
   for (let i = 0; i < buffer.length; i++) {
-    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-      const sample = Math.max(-1, Math.min(1, channels[channel][i]))
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
+    for (let ch = 0; ch < numCh; ch++) {
+      const s = Math.max(-1, Math.min(1, channels[ch][i]))
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
       offset += 2
     }
   }
-
-  return arrayBuffer
+  return ab
 }
 
+async function createToneAudio(
+  frequencies: number[],
+  onDuration: number,
+  offDuration: number,
+  volume = 0.15
+): Promise<HTMLAudioElement> {
+  const sampleRate = 44100
+  const totalDuration = onDuration + offDuration
+  const ctx = new OfflineAudioContext(1, sampleRate * totalDuration, sampleRate)
+  const buf = ctx.createBuffer(1, sampleRate * totalDuration, sampleRate)
+  const data = buf.getChannelData(0)
+
+  for (let i = 0; i < sampleRate * onDuration; i++) {
+    const t = i / sampleRate
+    data[i] = frequencies.reduce((sum, f) => sum + Math.sin(2 * Math.PI * f * t), 0) * (volume / frequencies.length)
+  }
+
+  const source = ctx.createBufferSource()
+  source.buffer = buf
+  source.connect(ctx.destination)
+  source.start()
+
+  const rendered = await ctx.startRendering()
+  const wav = audioBufferToWav(rendered)
+  const blob = new Blob([wav], { type: 'audio/wav' })
+  const audio = new Audio(URL.createObjectURL(blob))
+  audio.loop = true
+  return audio
+}
+
+// =============================================
+// HOOK
+// =============================================
 export function useWebRTC() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [activeCall, setActiveCall] = useState<Call | null>(null)
   const [incomingCall, setIncomingCall] = useState<Call | null>(null)
   const [callStatus, setCallStatus] = useState<CallStatus | null>(null)
 
-  // Refs para WebRTC
+  // WebRTC refs
   const peerConnection = useRef<RTCPeerConnection | null>(null)
   const localStream = useRef<MediaStream | null>(null)
-  const remoteStream = useRef<MediaStream | null>(null)
 
-  // Refs para elementos de vídeo (serão passados para componentes)
+  // Ref com valor atual do activeCall para uso em closures (evita stale closure)
+  const activeCallRef = useRef<Call | null>(null)
+  const currentUserIdRef = useRef<string | null>(null)
+
+  // Video elements
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
 
-  // Channels do Realtime
+  // Broadcast channels
   const callsChannel = useRef<RealtimeChannel | null>(null)
-  const signalsChannel = useRef<RealtimeChannel | null>(null)
+  const signalChannel = useRef<RealtimeChannel | null>(null)
 
-  // Audio de toque para chamada recebida
+  // Audio
   const ringtoneRef = useRef<HTMLAudioElement | null>(null)
-
-  // Audio de ringback (som para quem está ligando)
   const ringbackRef = useRef<HTMLAudioElement | null>(null)
 
-  // Timeout para chamadas não atendidas (30 segundos)
+  // Timeout
   const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Flag para controlar se os áudios já foram criados
-  const [audioInitialized, setAudioInitialized] = useState(false)
+  // ICE candidate queue (fix race condition)
+  const pendingCandidates = useRef<RTCIceCandidateInit[]>([])
+  const remoteDescriptionSet = useRef(false)
 
-  // Função para parar TODOS os áudios forçadamente
+  // Sincronizar refs com state
+  useEffect(() => {
+    activeCallRef.current = activeCall
+  }, [activeCall])
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId
+  }, [currentUserId])
+
+  // =============================================
+  // INIT USER
+  // =============================================
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id || null)
+    })
+    return () => stopAllAudio()
+  }, [])
+
+  // =============================================
+  // PARAR TODOS OS ÁUDIOS
+  // =============================================
   const stopAllAudio = useCallback(() => {
-    // Parar ringtone
     if (ringtoneRef.current) {
       ringtoneRef.current.pause()
       ringtoneRef.current.currentTime = 0
-      ringtoneRef.current.src = '' // Limpar source
     }
-
-    // Parar ringback
     if (ringbackRef.current) {
       ringbackRef.current.pause()
       ringbackRef.current.currentTime = 0
-      ringbackRef.current.src = '' // Limpar source
     }
-
-    // Cancelar timeout
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = null
@@ -126,119 +158,174 @@ export function useWebRTC() {
   }, [])
 
   // =============================================
-  // GET CURRENT USER
+  // LIMPAR RECURSOS WEBRTC
   // =============================================
-
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user?.id || null)
+  const cleanupCallResources = useCallback(() => {
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((t) => t.stop())
+      localStream.current = null
     }
-    getCurrentUser()
-
-    // Cleanup quando componente desmontar
-    return () => {
-      stopAllAudio()
+    if (peerConnection.current) {
+      peerConnection.current.close()
+      peerConnection.current = null
     }
-  }, [stopAllAudio])
-
-  // =============================================
-  // INICIALIZAR PEER CONNECTION
-  // =============================================
-
-  const initializePeerConnection = useCallback(() => {
-    if (peerConnection.current) return peerConnection.current
-
-    const pc = new RTCPeerConnection(ICE_SERVERS)
-
-    // Quando ICE candidate for gerado
-    pc.onicecandidate = async (event) => {
-      if (event.candidate && activeCall) {
-        await sendSignal({
-          call_id: activeCall.id,
-          to_user_id: activeCall.caller_id === currentUserId ? activeCall.receiver_id : activeCall.caller_id,
-          signal_type: 'ice-candidate',
-          signal_data: event.candidate.toJSON(),
-        })
-      }
-    }
-
-    // Quando receber stream remoto
-    pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        remoteStream.current = event.streams[0]
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0]
-        }
-      }
-    }
-
-    // Monitorar estado da conexão
-    pc.onconnectionstatechange = () => {
-      console.log('Connection state:', pc.connectionState)
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        toast.error('Conexão perdida')
-        endCall()
-      }
-    }
-
-    peerConnection.current = pc
-    return pc
-  }, [activeCall, currentUserId])
+    pendingCandidates.current = []
+    remoteDescriptionSet.current = false
+    setActiveCall(null)
+    setCallStatus(null)
+    setIncomingCall(null)
+  }, [])
 
   // =============================================
-  // GET LOCAL MEDIA (ÁUDIO/VÍDEO)
+  // APLICAR ICE CANDIDATE (com queue)
   // =============================================
+  const applyIceCandidate = useCallback(async (candidate: RTCIceCandidateInit) => {
+    const pc = peerConnection.current
+    if (!pc) return
 
-  const getLocalMedia = useCallback(async (type: CallType) => {
+    if (!remoteDescriptionSet.current) {
+      // Encaminhar para fila até remoteDescription estar pronta
+      pendingCandidates.current.push(candidate)
+      return
+    }
+
     try {
-      let constraints: MediaStreamConstraints = {}
+      await pc.addIceCandidate(new RTCIceCandidate(candidate))
+    } catch (err) {
+      console.warn('addIceCandidate error (ignorado):', err)
+    }
+  }, [])
 
-      if (type === 'audio') {
-        constraints = { audio: true, video: false }
-      } else if (type === 'video') {
-        constraints = { audio: true, video: true }
-      } else if (type === 'screen') {
-        // Compartilhamento de tela
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
+  // Flush da fila de ICE candidates
+  const flushPendingCandidates = useCallback(async () => {
+    const pc = peerConnection.current
+    if (!pc) return
+
+    const candidates = [...pendingCandidates.current]
+    pendingCandidates.current = []
+
+    for (const c of candidates) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(c))
+      } catch (err) {
+        console.warn('flushPendingCandidates error (ignorado):', err)
+      }
+    }
+  }, [])
+
+  // =============================================
+  // OBTER MÍDIA LOCAL
+  // =============================================
+  const getLocalMedia = useCallback(async (type: CallType): Promise<MediaStream> => {
+    try {
+      let stream: MediaStream
+
+      if (type === 'screen') {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
+          video: type === 'video',
         })
-        localStream.current = screenStream
-        return screenStream
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
       localStream.current = stream
 
-      if (localVideoRef.current && type === 'video') {
+      if (localVideoRef.current && type !== 'audio') {
         localVideoRef.current.srcObject = stream
       }
 
       return stream
     } catch (err) {
-      console.error('Error getting local media:', err)
-      toast.error('Erro ao acessar câmera/microfone')
+      console.error('Erro ao obter mídia local:', err)
+      toast.error('Erro ao acessar câmera/microfone. Verifique as permissões.')
       throw err
     }
   }, [])
 
   // =============================================
-  // START CALL (CALLER)
+  // CRIAR PEER CONNECTION
   // =============================================
+  // Ref para endCall (evitar dependência circular)
+  const endCallRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
+  const createPeerConnection = useCallback((callId: string, remoteUserId: string) => {
+    // Fechar conexão anterior se existir
+    if (peerConnection.current) {
+      peerConnection.current.close()
+      peerConnection.current = null
+    }
+
+    const pc = new RTCPeerConnection(ICE_SERVERS)
+
+    // Enviar ICE candidates via Broadcast (mais rápido que DB)
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        signalChannel.current?.send({
+          type: 'broadcast',
+          event: 'ice-candidate',
+          payload: {
+            call_id: callId,
+            to_user_id: remoteUserId,
+            from_user_id: currentUserIdRef.current,
+            candidate: event.candidate.toJSON(),
+          },
+        })
+      }
+    }
+
+    // Stream remoto recebido
+    pc.ontrack = (event) => {
+      if (event.streams?.[0] && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0]
+      }
+    }
+
+    // Monitorar estado da conexão
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState
+      console.log('[WebRTC] Connection state:', state)
+      if (state === 'failed') {
+        toast.error('Conexão falhou. Verifique sua rede.')
+        endCallRef.current()
+      } else if (state === 'disconnected') {
+        toast.warning('Conexão instável...')
+      } else if (state === 'connected') {
+        stopAllAudio()
+      }
+    }
+
+    peerConnection.current = pc
+    return pc
+  }, [stopAllAudio])
+
+  // =============================================
+  // ENVIAR SINAL VIA BROADCAST
+  // =============================================
+  const sendSignalBroadcast = useCallback((event: string, payload: Record<string, unknown>) => {
+    signalChannel.current?.send({
+      type: 'broadcast',
+      event,
+      payload,
+    })
+  }, [])
+
+  // =============================================
+  // INICIAR CHAMADA (CALLER)
+  // =============================================
   const startCall = async (data: CreateCallData): Promise<Call | null> => {
-    if (!currentUserId) return null
+    const userId = currentUserIdRef.current
+    if (!userId) return null
 
     try {
-      // Obter mídia local
+      // Obter mídia antes de criar a chamada
       await getLocalMedia(data.type)
 
-      // Criar chamada no banco
+      // Criar registro da chamada no banco
       const { data: newCall, error } = await supabase
         .from('calls')
         .insert({
-          caller_id: currentUserId,
+          caller_id: userId,
           receiver_id: data.receiver_id,
           type: data.type,
           status: 'calling',
@@ -251,152 +338,96 @@ export function useWebRTC() {
       setActiveCall(newCall)
       setCallStatus('calling')
 
-      // Inicializar peer connection
-      const pc = initializePeerConnection()
+      // Criar PeerConnection
+      const pc = createPeerConnection(newCall.id, data.receiver_id)
 
       // Adicionar tracks locais
-      if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStream.current!)
-        })
-      }
+      localStream.current?.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream.current!)
+      })
 
       // Criar offer
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
 
-      // Enviar offer via sinalização
-      await sendSignal({
+      // Enviar offer via Broadcast
+      sendSignalBroadcast('offer', {
         call_id: newCall.id,
         to_user_id: data.receiver_id,
-        signal_type: 'offer',
-        signal_data: offer,
+        from_user_id: userId,
+        sdp: offer,
       })
 
-      // Criar e tocar ringback (som de "chamando...") para quem está ligando
-      // Tom simples: beep curto a cada 3 segundos
+      // Tocar ringback
       if (!ringbackRef.current) {
-        // Criar contexto de áudio para gerar tom simples
-        try {
-          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-          const sampleRate = audioContext.sampleRate
-          const duration = 3 // 3 segundos: beep + pausa
-          const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate)
-          const data = buffer.getChannelData(0)
-
-          // Gerar beep de 0.5s no início
-          for (let i = 0; i < sampleRate * 0.5; i++) {
-            const t = i / sampleRate
-            data[i] = Math.sin(2 * Math.PI * 440 * t) * 0.2 // 440Hz, volume 20%
-          }
-
-          // Resto é silêncio (já está zerado)
-
-          // Converter para áudio
-          const offlineContext = new OfflineAudioContext(1, buffer.length, sampleRate)
-          const source = offlineContext.createBufferSource()
-          source.buffer = buffer
-          source.connect(offlineContext.destination)
-          source.start()
-
-          offlineContext.startRendering().then((renderedBuffer) => {
-            const wav = audioBufferToWav(renderedBuffer)
-            const blob = new Blob([wav], { type: 'audio/wav' })
-            const url = URL.createObjectURL(blob)
-            const audio = new Audio(url)
-            audio.loop = true
-            ringbackRef.current = audio
-
-            audio.play().catch((err) => {
-              console.log('Não foi possível tocar o ringback:', err)
-            })
-          })
-        } catch (err) {
-          console.error('Erro ao criar ringback:', err)
-        }
-      } else {
-        // Se já existe, apenas tocar
-        ringbackRef.current.currentTime = 0
-        ringbackRef.current.play().catch((err) => {
-          console.log('Não foi possível tocar o ringback:', err)
-        })
+        ringbackRef.current = await createToneAudio([440], 0.5, 2.5, 0.2).catch(() => null as any)
       }
+      ringbackRef.current?.play().catch(() => null)
 
-      // Timeout de 30 segundos - marcar como "missed" se não atender
+      // Timeout de 30 segundos
       callTimeoutRef.current = setTimeout(async () => {
-        if (activeCall?.id === newCall.id && activeCall.status === 'calling') {
-          // Parar TODOS os áudios
+        const call = activeCallRef.current
+        if (call?.id === newCall.id) {
           stopAllAudio()
-
-          // Buscar nome do usuário que não atendeu
-          const { data: receiverProfile } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', data.receiver_id)
-            .single()
-
-          const receiverName = receiverProfile?.name || 'o usuário'
-
-          // Marcar como missed
           await supabase
             .from('calls')
             .update({ status: 'missed', ended_at: new Date().toISOString() })
             .eq('id', newCall.id)
 
-          endCall()
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', data.receiver_id)
+            .single()
 
-          // Mensagem personalizada
-          toast.error('Chamada não concluída', {
-            description: `Sua ligação não pode ser concluída, ${receiverName} está offline. Tente mais tarde.`,
-            duration: 5000,
+          cleanupCallResources()
+          toast.error('Chamada não atendida', {
+            description: `${profile?.name || 'O usuário'} não está disponível.`,
           })
         }
-      }, 30000) // 30 segundos
+      }, 30000)
 
-      toast.success('Chamando...')
       return newCall
     } catch (err) {
-      console.error('Error starting call:', err)
-      toast.error('Erro ao iniciar chamada')
+      console.error('Erro ao iniciar chamada:', err)
+      toast.error('Não foi possível iniciar a chamada')
+      cleanupCallResources()
       return null
     }
   }
 
   // =============================================
-  // ACCEPT CALL (RECEIVER)
+  // ACEITAR CHAMADA (RECEIVER)
   // =============================================
-
   const acceptCall = async (call: Call) => {
-    if (!currentUserId) return
+    const userId = currentUserIdRef.current
+    if (!userId) return
 
     try {
-      // Parar TODOS os áudios
       stopAllAudio()
 
-      // Obter mídia local
       await getLocalMedia(call.type)
 
       setActiveCall(call)
       setCallStatus('accepted')
       setIncomingCall(null)
 
-      // Atualizar status no banco
+      // Atualizar banco
       await supabase
         .from('calls')
         .update({ status: 'accepted', started_at: new Date().toISOString() })
         .eq('id', call.id)
 
-      // Inicializar peer connection
-      const pc = initializePeerConnection()
+      // Criar PeerConnection
+      const pc = createPeerConnection(call.id, call.caller_id)
 
       // Adicionar tracks locais
-      if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStream.current!)
-        })
-      }
+      localStream.current?.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream.current!)
+      })
 
-      // Buscar offer do caller
+      // Buscar offer (pode ter chegado via broadcast antes de aceitar)
+      // Tentar via banco como fallback
       const { data: signals } = await supabase
         .from('webrtc_signals')
         .select('*')
@@ -406,16 +437,26 @@ export function useWebRTC() {
         .limit(1)
 
       if (signals && signals.length > 0) {
-        const offerSignal = signals[0]
-        await pc.setRemoteDescription(new RTCSessionDescription(offerSignal.signal_data as RTCSessionDescriptionInit))
+        const offerData = signals[0].signal_data as RTCSessionDescriptionInit
+        await pc.setRemoteDescription(new RTCSessionDescription(offerData))
+        remoteDescriptionSet.current = true
+        await flushPendingCandidates()
 
-        // Criar answer
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
 
-        // Enviar answer
-        await sendSignal({
+        // Enviar answer via Broadcast E salvar no banco como fallback
+        sendSignalBroadcast('answer', {
           call_id: call.id,
+          to_user_id: call.caller_id,
+          from_user_id: userId,
+          sdp: answer,
+        })
+
+        // Salvar no banco como fallback
+        await supabase.from('webrtc_signals').insert({
+          call_id: call.id,
+          from_user_id: userId,
           to_user_id: call.caller_id,
           signal_type: 'answer',
           signal_data: answer,
@@ -424,18 +465,17 @@ export function useWebRTC() {
 
       toast.success('Chamada aceita!')
     } catch (err) {
-      console.error('Error accepting call:', err)
+      console.error('Erro ao aceitar chamada:', err)
       toast.error('Erro ao aceitar chamada')
+      cleanupCallResources()
     }
   }
 
   // =============================================
-  // REJECT CALL
+  // RECUSAR CHAMADA
   // =============================================
-
   const rejectCall = async (call: Call) => {
     try {
-      // Parar TODOS os áudios
       stopAllAudio()
 
       await supabase
@@ -443,158 +483,101 @@ export function useWebRTC() {
         .update({ status: 'rejected', ended_at: new Date().toISOString() })
         .eq('id', call.id)
 
-      // Criar mensagem de chamada recusada
       await createCallMessage({ ...call, status: 'rejected' }, 0)
-
       setIncomingCall(null)
-      toast.info('Chamada recusada')
     } catch (err) {
-      console.error('Error rejecting call:', err)
+      console.error('Erro ao recusar chamada:', err)
     }
   }
 
   // =============================================
-  // END CALL
+  // FINALIZAR CHAMADA
   // =============================================
-
-  const endCall = async () => {
-    if (!activeCall) return
+  // eslint-disable-next-line prefer-const
+  const endCall = useCallback(async () => {
+    const call = activeCallRef.current
+    if (!call) return
 
     try {
-      // Parar TODOS os áudios imediatamente
       stopAllAudio()
 
-      // Finalizar chamada no banco via RPC (isso vai disparar o UPDATE realtime para ambos)
       const { data: result } = await supabase.rpc('end_call', {
-        p_call_id: activeCall.id,
-        p_user_id: currentUserId,
+        p_call_id: call.id,
+        p_user_id: currentUserIdRef.current,
       })
 
-      // Criar mensagem automática no chat sobre a chamada
-      await createCallMessage(activeCall, result?.duration || 0)
-
-      // Limpar recursos locais (o realtime vai cuidar do cleanup para o outro usuário)
+      await createCallMessage(call, result?.duration || 0)
       cleanupCallResources()
-
-      // Toast será exibido via realtime handler para consistência
     } catch (err) {
-      console.error('Error ending call:', err)
-      toast.error('Erro ao finalizar chamada')
+      console.error('Erro ao finalizar chamada:', err)
+      cleanupCallResources()
     }
-  }
+  }, [stopAllAudio, cleanupCallResources])
 
-  // Função separada para limpar recursos sem fazer chamadas ao banco
-  const cleanupCallResources = () => {
-    // Parar tracks locais
-    if (localStream.current) {
-      localStream.current.getTracks().forEach((track) => track.stop())
-      localStream.current = null
-    }
-
-    // Fechar peer connection
-    if (peerConnection.current) {
-      peerConnection.current.close()
-      peerConnection.current = null
-    }
-
-    // Limpar estados
-    setActiveCall(null)
-    setCallStatus(null)
-    setIncomingCall(null)
-  }
+  // Manter ref atualizado para uso em closures
+  useEffect(() => {
+    endCallRef.current = endCall
+  }, [endCall])
 
   // =============================================
-  // CREATE CALL MESSAGE (automática no chat)
+  // MENSAGEM AUTOMÁTICA NO CHAT
   // =============================================
-
   const createCallMessage = async (call: Call, duration: number) => {
-    if (!currentUserId) return
+    const userId = currentUserIdRef.current
+    if (!userId) return
 
     try {
-      // Determinar o tipo e status da chamada
-      const callTypeText = call.type === 'audio' ? '📞 Áudio' : call.type === 'video' ? '📹 Vídeo' : '🖥️ Tela'
-
-      let messageContent = ''
+      const typeText = call.type === 'audio' ? '📞 Áudio' : call.type === 'video' ? '📹 Vídeo' : '🖥️ Tela'
+      let content = ''
 
       if (call.status === 'rejected') {
-        messageContent = `${callTypeText} - Chamada recusada`
+        content = `${typeText} - Chamada recusada`
       } else if (call.status === 'missed') {
-        messageContent = `${callTypeText} - Chamada perdida`
-      } else if (call.status === 'ended' && duration > 0) {
+        content = `${typeText} - Chamada perdida`
+      } else if (duration > 0) {
         const mins = Math.floor(duration / 60)
         const secs = duration % 60
-        const durationText = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
-        messageContent = `${callTypeText} - Chamada concluída (${durationText})`
+        content = `${typeText} - Chamada concluída (${mins > 0 ? `${mins}m ` : ''}${secs}s)`
       } else {
-        messageContent = `${callTypeText} - Chamada finalizada`
+        content = `${typeText} - Chamada finalizada`
       }
 
-      // Determinar recipient_id (quem não é o currentUser)
-      const recipientId = call.caller_id === currentUserId ? call.receiver_id : call.caller_id
+      const recipientId = call.caller_id === userId ? call.receiver_id : call.caller_id
 
-      // Criar mensagem no chat
       await supabase.from('messages').insert({
-        sender_id: currentUserId,
+        sender_id: userId,
         recipient_id: recipientId,
-        content: messageContent,
+        content,
         group_id: null,
       })
     } catch (err) {
-      console.error('Error creating call message:', err)
+      console.error('Erro ao criar mensagem de chamada:', err)
     }
   }
 
   // =============================================
-  // SEND SIGNAL (OFFER/ANSWER/ICE)
+  // CONTROLES DE MÍDIA
   // =============================================
+  const toggleMute = useCallback(() => {
+    localStream.current?.getAudioTracks().forEach((t) => {
+      t.enabled = !t.enabled
+    })
+  }, [])
 
-  const sendSignal = async (data: SendSignalData) => {
-    if (!currentUserId) return
-
-    try {
-      await supabase.from('webrtc_signals').insert({
-        call_id: data.call_id,
-        from_user_id: currentUserId,
-        to_user_id: data.to_user_id,
-        signal_type: data.signal_type,
-        signal_data: data.signal_data,
-      })
-    } catch (err) {
-      console.error('Error sending signal:', err)
-    }
-  }
+  const toggleVideo = useCallback(() => {
+    localStream.current?.getVideoTracks().forEach((t) => {
+      t.enabled = !t.enabled
+    })
+  }, [])
 
   // =============================================
-  // TOGGLE MUTE/VIDEO
+  // REALTIME: CALLS (Postgres Changes — para notificar chamadas recebidas)
   // =============================================
-
-  const toggleMute = () => {
-    if (localStream.current) {
-      const audioTrack = localStream.current.getAudioTracks()[0]
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled
-      }
-    }
-  }
-
-  const toggleVideo = () => {
-    if (localStream.current) {
-      const videoTrack = localStream.current.getVideoTracks()[0]
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled
-      }
-    }
-  }
-
-  // =============================================
-  // REALTIME - LISTEN TO CALLS
-  // =============================================
-
   useEffect(() => {
     if (!currentUserId) return
 
     const channel = supabase
-      .channel('calls-channel')
+      .channel(`calls-incoming-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -603,76 +586,21 @@ export function useWebRTC() {
           table: 'calls',
           filter: `receiver_id=eq.${currentUserId}`,
         },
-        (payload) => {
+        async (payload) => {
           const newCall = payload.new as Call
           setIncomingCall(newCall)
 
-          // Criar e tocar ringtone (se não existir)
+          // Tocar ringtone
           if (!ringtoneRef.current) {
-            try {
-              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-              const sampleRate = audioContext.sampleRate
-              const duration = 2 // 2 segundos: ring curto + pausa
-              const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate)
-              const data = buffer.getChannelData(0)
-
-              // Gerar 2 rings curtos (0.2s cada) com pausa entre eles
-              // Ring 1: 0 a 0.2s
-              for (let i = 0; i < sampleRate * 0.2; i++) {
-                const t = i / sampleRate
-                const wave1 = Math.sin(2 * Math.PI * 480 * t)
-                const wave2 = Math.sin(2 * Math.PI * 620 * t)
-                data[i] = (wave1 + wave2) * 0.15 // Dual tone, volume 15%
-              }
-
-              // Pausa: 0.2s a 0.4s (já está zerado)
-
-              // Ring 2: 0.4s a 0.6s
-              for (let i = sampleRate * 0.4; i < sampleRate * 0.6; i++) {
-                const t = (i - sampleRate * 0.4) / sampleRate
-                const wave1 = Math.sin(2 * Math.PI * 480 * t)
-                const wave2 = Math.sin(2 * Math.PI * 620 * t)
-                data[i] = (wave1 + wave2) * 0.15
-              }
-
-              // Resto é silêncio
-
-              const offlineContext = new OfflineAudioContext(1, buffer.length, sampleRate)
-              const source = offlineContext.createBufferSource()
-              source.buffer = buffer
-              source.connect(offlineContext.destination)
-              source.start()
-
-              offlineContext.startRendering().then((renderedBuffer) => {
-                const wav = audioBufferToWav(renderedBuffer)
-                const blob = new Blob([wav], { type: 'audio/wav' })
-                const url = URL.createObjectURL(blob)
-                const audio = new Audio(url)
-                audio.loop = true
-                ringtoneRef.current = audio
-
-                audio.play().catch((err) => {
-                  console.log('Não foi possível tocar o ringtone:', err)
-                })
-              })
-            } catch (err) {
-              console.error('Erro ao criar ringtone:', err)
-            }
-          } else {
-            // Se já existe, apenas tocar
-            ringtoneRef.current.currentTime = 0
-            ringtoneRef.current.play().catch((err) => {
-              console.log('Não foi possível tocar o ringtone:', err)
-            })
+            ringtoneRef.current = await createToneAudio([480, 620], 0.4, 0.2, 0.15).catch(() => null as any)
           }
+          ringtoneRef.current?.play().catch(() => null)
 
           toast.info('📞 Chamada recebida!')
 
-          // Notificação do navegador (se permitido)
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Chamada recebida', {
               body: `Chamada de ${newCall.type === 'video' ? 'vídeo' : 'áudio'}`,
-              icon: '/logo.png',
             })
           }
         }
@@ -685,39 +613,28 @@ export function useWebRTC() {
           table: 'calls',
         },
         (payload) => {
-          const updatedCall = payload.new as Call
+          const updated = payload.new as Call
+          const myCall = activeCallRef.current
+          const incoming = incomingCall
 
-          // Se a chamada for atualizada (rejected, ended, missed), parar áudios e limpar recursos
-          if (updatedCall.status === 'rejected' || updatedCall.status === 'ended' || updatedCall.status === 'missed') {
+          if (['rejected', 'ended', 'missed'].includes(updated.status)) {
             stopAllAudio()
 
-            // Se é minha chamada ativa, limpar recursos
-            if (activeCall?.id === updatedCall.id) {
+            if (myCall?.id === updated.id) {
               cleanupCallResources()
-              toast.info(
-                updatedCall.status === 'rejected'
-                  ? 'Chamada recusada'
-                  : updatedCall.status === 'missed'
-                  ? 'Chamada não atendida'
-                  : 'Chamada finalizada'
-              )
+              const msg = updated.status === 'rejected' ? 'Chamada recusada' :
+                updated.status === 'missed' ? 'Chamada não atendida' : 'Chamada finalizada'
+              toast.info(msg)
             }
 
-            // Se é uma chamada que estou recebendo, limpar
-            if (incomingCall?.id === updatedCall.id) {
+            if (incoming?.id === updated.id) {
               setIncomingCall(null)
             }
-          } else if (updatedCall.status === 'accepted') {
-            // Quando a chamada for aceita, parar áudios nas duas pontas
+          } else if (updated.status === 'accepted') {
             stopAllAudio()
-
-            if (activeCall?.id === updatedCall.id) {
+            if (myCall?.id === updated.id) {
               setCallStatus('accepted')
-              toast.success('Chamada conectada!')
             }
-          } else if (activeCall?.id === updatedCall.id) {
-            // Atualizar status para outros casos
-            setCallStatus(updatedCall.status)
           }
         }
       )
@@ -725,7 +642,6 @@ export function useWebRTC() {
 
     callsChannel.current = channel
 
-    // Solicitar permissão para notificações
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
@@ -733,70 +649,75 @@ export function useWebRTC() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUserId, activeCall])
+  }, [currentUserId, stopAllAudio, cleanupCallResources])
 
   // =============================================
-  // REALTIME - LISTEN TO SIGNALS
+  // REALTIME: SIGNALS (Broadcast — rápido, sem DB)
   // =============================================
-
   useEffect(() => {
-    if (!currentUserId || !activeCall) return
+    if (!currentUserId) return
 
+    // Canal único de sinais por usuário
     const channel = supabase
-      .channel(`signals-${activeCall.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'webrtc_signals',
-          filter: `to_user_id=eq.${currentUserId}`,
-        },
-        async (payload) => {
-          const signal = payload.new as WebRTCSignal
-          const pc = peerConnection.current
+      .channel(`signals-${currentUserId}`)
+      .on('broadcast', { event: 'offer' }, async (payload) => {
+        const { call_id, from_user_id, sdp, to_user_id } = payload.payload
+        if (to_user_id !== currentUserId) return
 
-          if (!pc) return
+        console.log('[WebRTC] Received offer via broadcast')
 
-          if (signal.signal_type === 'offer') {
-            // Receiver recebe offer
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.signal_data as RTCSessionDescriptionInit))
-          } else if (signal.signal_type === 'answer') {
-            // Caller recebe answer
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.signal_data as RTCSessionDescriptionInit))
-          } else if (signal.signal_type === 'ice-candidate') {
-            // Ambos recebem ICE candidates
-            await pc.addIceCandidate(new RTCIceCandidate(signal.signal_data as RTCIceCandidateInit))
-          }
+        // Salvar offer no banco para o receiver usar ao aceitar
+        await supabase.from('webrtc_signals').insert({
+          call_id,
+          from_user_id,
+          to_user_id,
+          signal_type: 'offer',
+          signal_data: sdp,
+        }).then(() => null).catch(() => null)
+      })
+      .on('broadcast', { event: 'answer' }, async (payload) => {
+        const { to_user_id, sdp } = payload.payload
+        if (to_user_id !== currentUserId) return
+
+        const pc = peerConnection.current
+        if (!pc || pc.signalingState !== 'have-local-offer') return
+
+        console.log('[WebRTC] Received answer via broadcast')
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(sdp))
+          remoteDescriptionSet.current = true
+          await flushPendingCandidates()
+        } catch (err) {
+          console.error('Erro ao processar answer:', err)
         }
-      )
+      })
+      .on('broadcast', { event: 'ice-candidate' }, async (payload) => {
+        const { to_user_id, candidate } = payload.payload
+        if (to_user_id !== currentUserId) return
+
+        await applyIceCandidate(candidate)
+      })
       .subscribe()
 
-    signalsChannel.current = channel
+    signalChannel.current = channel
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUserId, activeCall])
+  }, [currentUserId, applyIceCandidate, flushPendingCandidates])
 
   // =============================================
   // RETURN
   // =============================================
-
   return {
-    // State
     activeCall,
     incomingCall,
     callStatus,
     currentUserId,
-
-    // Refs (para componentes)
     localVideoRef,
     remoteVideoRef,
     localStream: localStream.current,
-    remoteStream: remoteStream.current,
-
-    // Actions
+    remoteStream: null,
     startCall,
     acceptCall,
     rejectCall,
