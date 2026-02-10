@@ -87,11 +87,20 @@ async function createToneAudio(
 // =============================================
 // HOOK
 // =============================================
+interface CallProfile {
+  id: string
+  name: string
+  avatar_url?: string
+}
+
 export function useWebRTC() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [activeCall, setActiveCall] = useState<Call | null>(null)
   const [incomingCall, setIncomingCall] = useState<Call | null>(null)
   const [callStatus, setCallStatus] = useState<CallStatus | null>(null)
+  // Perfis dos participantes da chamada
+  const [callerProfile, setCallerProfile] = useState<CallProfile | null>(null)
+  const [receiverProfile, setReceiverProfile] = useState<CallProfile | null>(null)
 
   // WebRTC refs
   const peerConnection = useRef<RTCPeerConnection | null>(null)
@@ -158,6 +167,20 @@ export function useWebRTC() {
   }, [])
 
   // =============================================
+  // BUSCAR PERFIS DOS PARTICIPANTES
+  // =============================================
+  const fetchCallProfiles = useCallback(async (callerId: string, receiverId: string) => {
+    const ids = [callerId, receiverId].filter(Boolean)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', ids)
+    if (!data) return
+    setCallerProfile(data.find((p) => p.id === callerId) ?? null)
+    setReceiverProfile(data.find((p) => p.id === receiverId) ?? null)
+  }, [])
+
+  // =============================================
   // LIMPAR RECURSOS WEBRTC
   // =============================================
   const cleanupCallResources = useCallback(() => {
@@ -174,6 +197,8 @@ export function useWebRTC() {
     setActiveCall(null)
     setCallStatus(null)
     setIncomingCall(null)
+    setCallerProfile(null)
+    setReceiverProfile(null)
   }, [])
 
   // =============================================
@@ -337,6 +362,9 @@ export function useWebRTC() {
 
       setActiveCall(newCall)
       setCallStatus('calling')
+
+      // Buscar perfis dos participantes
+      await fetchCallProfiles(userId, data.receiver_id)
 
       // Criar PeerConnection
       const pc = createPeerConnection(newCall.id, data.receiver_id)
@@ -590,6 +618,9 @@ export function useWebRTC() {
           const newCall = payload.new as Call
           setIncomingCall(newCall)
 
+          // Buscar perfil de quem está ligando
+          fetchCallProfiles(newCall.caller_id, newCall.receiver_id)
+
           // Tocar ringtone
           if (!ringtoneRef.current) {
             ringtoneRef.current = await createToneAudio([480, 620], 0.4, 0.2, 0.15).catch(() => null as any)
@@ -714,6 +745,8 @@ export function useWebRTC() {
     incomingCall,
     callStatus,
     currentUserId,
+    callerProfile,
+    receiverProfile,
     localVideoRef,
     remoteVideoRef,
     localStream: localStream.current,

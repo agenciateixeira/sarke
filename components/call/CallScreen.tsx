@@ -13,6 +13,8 @@ interface CallScreenProps {
   localVideoRef: React.RefObject<HTMLVideoElement>
   remoteVideoRef: React.RefObject<HTMLVideoElement>
   isVideo: boolean
+  remoteName?: string
+  remoteAvatar?: string
   onEndCall: () => void
   onToggleMute: () => void
   onToggleVideo: () => void
@@ -24,6 +26,8 @@ export function CallScreen({
   localVideoRef,
   remoteVideoRef,
   isVideo,
+  remoteName,
+  remoteAvatar,
   onEndCall,
   onToggleMute,
   onToggleVideo,
@@ -84,19 +88,27 @@ export function CallScreen({
         />
       )}
 
-      {/* Avatar/Nome quando não é vídeo */}
-      {!isVideo && (
-        <div className="absolute inset-0 flex items-center justify-center">
+      {/* Avatar/Nome — sempre visível em áudio, sobreposto em vídeo enquanto conecta */}
+      {(!isVideo || callStatus !== 'accepted') && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <div className="text-center">
-            <div className="h-32 w-32 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-              <span className="text-6xl text-white">
-                {call.caller_id?.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <h2 className="text-2xl font-semibold text-white mb-2">
-              Chamada de Áudio
+            {remoteAvatar ? (
+              <img
+                src={remoteAvatar}
+                alt={remoteName}
+                className="h-32 w-32 rounded-full object-cover mx-auto mb-4 border-4 border-white/20"
+              />
+            ) : (
+              <div className="h-32 w-32 rounded-full bg-primary/30 flex items-center justify-center mx-auto mb-4 border-4 border-white/20">
+                <span className="text-5xl font-bold text-white">
+                  {(remoteName || '?').charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <h2 className="text-2xl font-semibold text-white mb-1">
+              {remoteName || 'Desconhecido'}
             </h2>
-            <p className="text-white/80">{getStatusText()}</p>
+            <p className="text-white/70 text-sm">{getStatusText()}</p>
           </div>
         </div>
       )}
@@ -114,10 +126,11 @@ export function CallScreen({
         </Card>
       )}
 
-      {/* Status e duração */}
-      {isVideo && (
+      {/* Nome + status no topo (visível durante vídeo conectado) */}
+      {isVideo && callStatus === 'accepted' && (
         <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2">
-          <p className="text-white font-medium">{getStatusText()}</p>
+          <p className="text-white font-semibold">{remoteName || 'Chamada de vídeo'}</p>
+          <p className="text-white/70 text-xs">{getStatusText()}</p>
         </div>
       )}
 

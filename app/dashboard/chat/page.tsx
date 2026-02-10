@@ -44,6 +44,9 @@ export default function ChatPage() {
     activeCall,
     incomingCall,
     callStatus,
+    callerProfile,
+    receiverProfile,
+    currentUserId: webrtcUserId,
     localVideoRef,
     remoteVideoRef,
     startCall,
@@ -298,30 +301,32 @@ export default function ChatPage() {
         {incomingCall && (
           <IncomingCallDialog
             call={incomingCall}
-            callerName={
-              conversations.find((c) => c.id === incomingCall.caller_id)?.name || 'Desconhecido'
-            }
-            callerAvatar={
-              conversations.find((c) => c.id === incomingCall.caller_id)?.avatar_url
-            }
+            callerName={callerProfile?.name || 'Desconhecido'}
+            callerAvatar={callerProfile?.avatar_url}
             onAccept={handleAcceptCall}
             onReject={handleRejectCall}
           />
         )}
 
         {/* Active Call Screen */}
-        {activeCall && (
-          <CallScreen
-            call={activeCall}
-            callStatus={callStatus}
-            localVideoRef={localVideoRef}
-            remoteVideoRef={remoteVideoRef}
-            isVideo={activeCall.type === 'video'}
-            onEndCall={endCall}
-            onToggleMute={toggleMute}
-            onToggleVideo={toggleVideo}
-          />
-        )}
+        {activeCall && (() => {
+          // "remote" é quem não sou eu
+          const remoteProfile = activeCall.caller_id === webrtcUserId ? receiverProfile : callerProfile
+          return (
+            <CallScreen
+              call={activeCall}
+              callStatus={callStatus}
+              localVideoRef={localVideoRef}
+              remoteVideoRef={remoteVideoRef}
+              isVideo={activeCall.type === 'video'}
+              remoteName={remoteProfile?.name}
+              remoteAvatar={remoteProfile?.avatar_url}
+              onEndCall={endCall}
+              onToggleMute={toggleMute}
+              onToggleVideo={toggleVideo}
+            />
+          )
+        })()}
       </div>
   )
 }
