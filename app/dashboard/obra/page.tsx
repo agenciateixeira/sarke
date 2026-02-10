@@ -31,6 +31,16 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ObraFormDialog } from '@/components/obra/ObraFormDialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import Link from 'next/link'
 
 const statusColors: Record<StatusObra, string> = {
@@ -64,6 +74,9 @@ export default function ObraPage() {
   const [filterStatus, setFilterStatus] = useState<StatusObra | 'todas'>('todas')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedObra, setSelectedObra] = useState<Obra | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [obraToDelete, setObraToDelete] = useState<Obra | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Estatísticas
   const stats = {
@@ -143,6 +156,30 @@ export default function ObraPage() {
 
   function handleObraSuccess() {
     loadObras()
+  }
+
+  function handleExcluirObra(obra: Obra, e: React.MouseEvent) {
+    e.stopPropagation()
+    setObraToDelete(obra)
+    setDeleteDialogOpen(true)
+  }
+
+  async function confirmDeleteObra() {
+    if (!obraToDelete) return
+    try {
+      setDeleting(true)
+      const { error } = await supabase.from('obras').delete().eq('id', obraToDelete.id)
+      if (error) throw error
+      toast.success(`Obra "${obraToDelete.nome}" excluída com sucesso`)
+      setObras((prev) => prev.filter((o) => o.id !== obraToDelete.id))
+    } catch (error: any) {
+      console.error('Erro ao excluir obra:', error)
+      toast.error('Erro ao excluir obra. Verifique se não há dados vinculados.')
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
+      setObraToDelete(null)
+    }
   }
 
   return (
@@ -369,8 +406,17 @@ export default function ObraPage() {
                         Ver Detalhes
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEditarObra(obra)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEditarObra(obra)} title="Editar obra">
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleExcluirObra(obra, e)}
+                      title="Excluir obra"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>
@@ -386,6 +432,30 @@ export default function ObraPage() {
           obra={selectedObra}
           onSuccess={handleObraSuccess}
         />
+
+        {/* Confirmação de Exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir obra?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir a obra{' '}
+                <strong>"{obraToDelete?.nome}"</strong>?{' '}
+                Essa ação não pode ser desfeita e todos os dados vinculados (RDOs, fotos, documentos) serão removidos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteObra}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )
