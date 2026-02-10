@@ -49,6 +49,7 @@ export default function ChatPage() {
     currentUserId: webrtcUserId,
     localVideoRef,
     remoteVideoRef,
+    remoteAudioRef,
     startCall,
     acceptCall,
     rejectCall,
@@ -318,6 +319,7 @@ export default function ChatPage() {
               callStatus={callStatus}
               localVideoRef={localVideoRef}
               remoteVideoRef={remoteVideoRef}
+              remoteAudioRef={remoteAudioRef}
               isVideo={activeCall.type === 'video'}
               remoteName={remoteProfile?.name}
               remoteAvatar={remoteProfile?.avatar_url}
