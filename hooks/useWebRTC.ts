@@ -171,8 +171,12 @@ export function useWebRTC() {
   }, [])
 
   const applyIce = useCallback(async (candidate: RTCIceCandidateInit) => {
-    if (!pc.current) return
-    if (!remoteDescReady.current) { icePending.current.push(candidate); return }
+    // Sem PC ou sem remoteDesc: enfileira — será drenado em flushIce()
+    if (!pc.current || !remoteDescReady.current) {
+      console.log('[WebRTC] ICE enfileirado (PC não pronto ainda)')
+      icePending.current.push(candidate)
+      return
+    }
     try { await pc.current.addIceCandidate(new RTCIceCandidate(candidate)) } catch (e) { console.warn('[WebRTC] addIceCandidate error:', e) }
   }, [])
 
@@ -493,6 +497,7 @@ export function useWebRTC() {
       }, async (payload) => {
         const call = payload.new as Call
         if (activeCallRef.current) return
+        console.log('[WebRTC] chamada recebida! call_id:', call.id, 'de:', call.caller_id)
         setIncomingCall(call)
         fetchProfiles(call.caller_id, call.receiver_id)
         playRingtone()
