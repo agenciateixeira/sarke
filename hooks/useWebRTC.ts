@@ -251,44 +251,48 @@ export function useWebRTC() {
     signalsCh.current.send({ type: 'broadcast', event, payload })
   }, [])
 
-  // Entra no canal de sinais específico da chamada (compartilhado pelos dois lados)
-  const joinSignalChannel = useCallback((callId: string) => {
+  // Entra no canal de sinais e aguarda SUBSCRIBED antes de resolver
+  const joinSignalChannel = useCallback((callId: string): Promise<void> => {
     if (signalsCh.current) {
       supabase.removeChannel(signalsCh.current)
       signalsCh.current = null
     }
     console.log('[WebRTC] joinSignalChannel:', `call-signals-${callId}`)
-    const ch = supabase
-      .channel(`call-signals-${callId}`)
-      .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to !== currentUserIdRef.current) return
-        console.log('[WebRTC] recebeu answer')
-        const conn = pc.current
-        if (!conn || conn.signalingState !== 'have-local-offer') return
-        try {
-          await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          remoteDescReady.current = true
-          await flushIce()
-        } catch (e) { console.error('answer error:', e) }
-      })
-      .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-        if (payload.to !== currentUserIdRef.current) return
-        console.log('[WebRTC] recebeu ICE candidate')
-        await applyIce(payload.candidate)
-      })
-      .on('broadcast', { event: 'hangup' }, ({ payload }) => {
-        if (payload.to !== currentUserIdRef.current) return
-        const isMyCall = activeCallRef.current?.id === payload.call_id
-          || incomingCallRef.current?.id === payload.call_id
-        if (isMyCall) {
-          cleanup()
-          toast.info('Chamada encerrada')
-        }
-      })
-      .subscribe((status) => {
-        console.log('[WebRTC] signal channel status:', status)
-      })
-    signalsCh.current = ch
+
+    return new Promise((resolve) => {
+      const ch = supabase
+        .channel(`call-signals-${callId}`, { config: { broadcast: { self: false } } })
+        .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+          if (payload.to !== currentUserIdRef.current) return
+          console.log('[WebRTC] recebeu answer')
+          const conn = pc.current
+          if (!conn || conn.signalingState !== 'have-local-offer') return
+          try {
+            await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+            remoteDescReady.current = true
+            await flushIce()
+          } catch (e) { console.error('answer error:', e) }
+        })
+        .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+          if (payload.to !== currentUserIdRef.current) return
+          console.log('[WebRTC] recebeu ICE candidate')
+          await applyIce(payload.candidate)
+        })
+        .on('broadcast', { event: 'hangup' }, ({ payload }) => {
+          if (payload.to !== currentUserIdRef.current) return
+          const isMyCall = activeCallRef.current?.id === payload.call_id
+            || incomingCallRef.current?.id === payload.call_id
+          if (isMyCall) {
+            cleanup()
+            toast.info('Chamada encerrada')
+          }
+        })
+        .subscribe((status) => {
+          console.log('[WebRTC] signal channel status:', status)
+          if (status === 'SUBSCRIBED') resolve()
+        })
+      signalsCh.current = ch
+    })
   }, [applyIce, flushIce, cleanup])
 
   // ─────────────────────────────────────────
@@ -449,8 +453,8 @@ export function useWebRTC() {
       setCallStatus('calling')
       fetchProfiles(userId, data.receiver_id)
 
-      // Entra no canal compartilhado ANTES de criar o PC (para não perder sinais)
-      joinSignalChannel(newCall.id)
+      // Espera canal estar SUBSCRIBED antes de criar o PC e enviar sinais
+      await joinSignalChannel(newCall.id)
 
       const conn = createPC(newCall.id, data.receiver_id)
       stream.getTracks().forEach(t => {
@@ -513,8 +517,8 @@ export function useWebRTC() {
 
       await supabase.from('calls').update({ status: 'accepted', started_at: new Date().toISOString() }).eq('id', call.id)
 
-      // Entra no canal compartilhado da chamada
-      joinSignalChannel(call.id)
+      // Espera canal estar SUBSCRIBED antes de criar PC e enviar sinais
+      await joinSignalChannel(call.id)
 
       const conn = createPC(call.id, call.caller_id)
       stream.getTracks().forEach(t => {
