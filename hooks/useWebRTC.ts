@@ -256,28 +256,52 @@ export function useWebRTC() {
     }
 
     conn.ontrack = (ev) => {
-      console.log('[WebRTC] ontrack fired, kind:', ev.track.kind, 'streams:', ev.streams.length)
-      console.log('[WebRTC] track enabled:', ev.track.enabled, 'muted:', ev.track.muted, 'readyState:', ev.track.readyState)
+      console.log('[WebRTC] ontrack fired, kind:', ev.track.kind, 'muted:', ev.track.muted)
       const stream = ev.streams?.[0]
       if (!stream) return
 
       if (ev.track.kind === 'audio') {
-        console.log('[WebRTC] Audio track recebida, conectando ao elemento de áudio...')
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = stream
-          remoteAudioRef.current.volume = 1.0
-          remoteAudioRef.current.muted = false
-          remoteAudioRef.current.play().catch(err => {
-            console.warn('[WebRTC] play() bloqueado, tentando após interação:', err)
-            const tryPlay = () => {
-              remoteAudioRef.current?.play().catch(() => {})
-              document.removeEventListener('click', tryPlay)
-            }
-            document.addEventListener('click', tryPlay, { once: true })
-          })
-        } else {
-          console.warn('[WebRTC] remoteAudioRef não está montado no DOM!')
+        const audioEl = remoteAudioRef.current
+        if (!audioEl) {
+          console.warn('[WebRTC] remoteAudioRef não montado no DOM!')
+          return
         }
+
+        // Conecta o stream ao elemento de áudio imediatamente
+        audioEl.srcObject = stream
+        audioEl.volume = 1.0
+        audioEl.muted = false
+
+        const tryPlay = () => {
+          audioEl.play().then(() => {
+            console.log('[WebRTC] Audio playing!')
+          }).catch(err => {
+            console.warn('[WebRTC] play() bloqueado:', err)
+          })
+        }
+
+        // Se a track já está desmutada, toca agora
+        if (!ev.track.muted) {
+          tryPlay()
+        }
+
+        // Escuta unmute — dispara quando o ICE completa e o áudio realmente começa
+        ev.track.onunmute = () => {
+          console.log('[WebRTC] track unmuted! Tocando áudio remoto...')
+          audioEl.muted = false
+          audioEl.volume = 1.0
+          tryPlay()
+        }
+
+        // Também toca quando connectionState chegar em 'connected'
+        conn.addEventListener('connectionstatechange', () => {
+          if (conn.connectionState === 'connected') {
+            console.log('[WebRTC] connected! Forçando play do áudio...')
+            audioEl.muted = false
+            audioEl.volume = 1.0
+            tryPlay()
+          }
+        }, { once: true })
       }
 
       // Vídeo remoto para videochamadas
@@ -302,6 +326,14 @@ export function useWebRTC() {
 
     conn.oniceconnectionstatechange = () => {
       console.log('[WebRTC] iceConnectionState:', conn.iceConnectionState)
+    }
+
+    conn.onicegatheringstatechange = () => {
+      console.log('[WebRTC] iceGatheringState:', conn.iceGatheringState)
+    }
+
+    conn.onsignalingstatechange = () => {
+      console.log('[WebRTC] signalingState:', conn.signalingState)
     }
 
     pc.current = conn
