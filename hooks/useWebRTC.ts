@@ -58,7 +58,8 @@ export function useWebRTC() {
 
   // Realtime
   const callsCh = useRef<RealtimeChannel | null>(null)
-  const signalsCh = useRef<RealtimeChannel | null>(null)
+  const signalsCh = useRef<RealtimeChannel | null>(null)  // canal de RECEPÇÃO (ouve sinais destinados a mim)
+  const signalsSendCh = useRef<RealtimeChannel | null>(null)  // canal de ENVIO (envia para o outro)
 
   // Timeout chamada sem resposta
   const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -198,10 +199,14 @@ export function useWebRTC() {
     }
     pc.current?.close()
     pc.current = null
-    // Fechar canal de sinais da chamada
+    // Fechar canais de sinais da chamada
     if (signalsCh.current) {
       supabase.removeChannel(signalsCh.current)
       signalsCh.current = null
+    }
+    if (signalsSendCh.current) {
+      supabase.removeChannel(signalsSendCh.current)
+      signalsSendCh.current = null
     }
     icePending.current = []
     remoteDescReady.current = false
@@ -243,27 +248,35 @@ export function useWebRTC() {
   }, [])
 
   const sendSignal = useCallback((event: string, payload: Record<string, unknown>) => {
-    if (!signalsCh.current) {
-      console.warn('[WebRTC] sendSignal: canal de sinais não está aberto!')
+    if (!signalsSendCh.current) {
+      console.warn('[WebRTC] sendSignal: canal de envio não está aberto!')
       return
     }
     console.log('[WebRTC] sendSignal:', event, 'to:', payload.to)
-    signalsCh.current.send({ type: 'broadcast', event, payload })
+    signalsSendCh.current.send({ type: 'broadcast', event, payload })
   }, [])
 
-  // Entra no canal de sinais e aguarda SUBSCRIBED antes de resolver
-  const joinSignalChannel = useCallback((callId: string): Promise<void> => {
-    if (signalsCh.current) {
-      supabase.removeChannel(signalsCh.current)
-      signalsCh.current = null
-    }
-    console.log('[WebRTC] joinSignalChannel:', `call-signals-${callId}`)
+  // Abre canal de RECEPÇÃO (ouve sinais endereçados a mim) e canal de ENVIO (envia ao remoto)
+  // Canal de recepção: call-signals-{callId}-{myId}    — só eu escuto
+  // Canal de envio:   call-signals-{callId}-{remoteId} — o outro escuta
+  const joinSignalChannel = useCallback((callId: string, myId: string, remoteId: string): Promise<void> => {
+    // Fechar canais anteriores
+    if (signalsCh.current) { supabase.removeChannel(signalsCh.current); signalsCh.current = null }
+    if (signalsSendCh.current) { supabase.removeChannel(signalsSendCh.current); signalsSendCh.current = null }
 
+    const recvName = `call-signals-${callId}-${myId}`
+    const sendName = `call-signals-${callId}-${remoteId}`
+    console.log('[WebRTC] joinSignalChannel recv:', recvName, '| send:', sendName)
+
+    // Canal de envio (não precisa esperar — só envia)
+    signalsSendCh.current = supabase.channel(sendName)
+    signalsSendCh.current.subscribe()
+
+    // Canal de recepção — aguarda SUBSCRIBED
     return new Promise((resolve) => {
       const ch = supabase
-        .channel(`call-signals-${callId}`, { config: { broadcast: { self: false } } })
+        .channel(recvName)
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-          if (payload.to !== currentUserIdRef.current) return
           console.log('[WebRTC] recebeu answer')
           const conn = pc.current
           if (!conn || conn.signalingState !== 'have-local-offer') return
@@ -274,12 +287,10 @@ export function useWebRTC() {
           } catch (e) { console.error('answer error:', e) }
         })
         .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-          if (payload.to !== currentUserIdRef.current) return
           console.log('[WebRTC] recebeu ICE candidate')
           await applyIce(payload.candidate)
         })
         .on('broadcast', { event: 'hangup' }, ({ payload }) => {
-          if (payload.to !== currentUserIdRef.current) return
           const isMyCall = activeCallRef.current?.id === payload.call_id
             || incomingCallRef.current?.id === payload.call_id
           if (isMyCall) {
@@ -288,7 +299,7 @@ export function useWebRTC() {
           }
         })
         .subscribe((status) => {
-          console.log('[WebRTC] signal channel status:', status)
+          console.log('[WebRTC] recv channel status:', status)
           if (status === 'SUBSCRIBED') resolve()
         })
       signalsCh.current = ch
@@ -454,7 +465,7 @@ export function useWebRTC() {
       fetchProfiles(userId, data.receiver_id)
 
       // Espera canal estar SUBSCRIBED antes de criar o PC e enviar sinais
-      await joinSignalChannel(newCall.id)
+      await joinSignalChannel(newCall.id, userId, data.receiver_id)
 
       const conn = createPC(newCall.id, data.receiver_id)
       stream.getTracks().forEach(t => {
@@ -518,7 +529,7 @@ export function useWebRTC() {
       await supabase.from('calls').update({ status: 'accepted', started_at: new Date().toISOString() }).eq('id', call.id)
 
       // Espera canal estar SUBSCRIBED antes de criar PC e enviar sinais
-      await joinSignalChannel(call.id)
+      await joinSignalChannel(call.id, userId, call.caller_id)
 
       const conn = createPC(call.id, call.caller_id)
       stream.getTracks().forEach(t => {
