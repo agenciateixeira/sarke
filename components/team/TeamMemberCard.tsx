@@ -1,7 +1,7 @@
 'use client'
 
-import { TeamMember } from '@/hooks/useTeam'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { TeamMember, PendingInvite } from '@/hooks/useTeam'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,12 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreVertical, Edit, Trash2, Mail, Phone, Calendar, Clock } from 'lucide-react'
+import { MoreVertical, Edit, Trash2, Mail, Phone, Calendar, Clock, Hourglass } from 'lucide-react'
 
 interface TeamMemberCardProps {
   member: TeamMember
   onEdit: (member: TeamMember) => void
   onDelete: (member: TeamMember) => void
+}
+
+interface PendingInviteCardProps {
+  invite: PendingInvite
+  onDelete: (id: string) => void
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -30,6 +35,81 @@ const ROLE_COLORS: Record<string, string> = {
   gerente: 'bg-blue-500',
   colaborador: 'bg-green-500',
   juridico: 'bg-orange-500',
+}
+
+export function PendingInviteCard({ invite, onDelete }: PendingInviteCardProps) {
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+
+  return (
+    <div className="border border-dashed rounded-lg p-6 bg-muted/30 opacity-80">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12">
+            <AvatarFallback className="bg-gray-400 text-white font-semibold">
+              {getInitials(invite.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h3 className="font-semibold text-lg">{invite.name}</h3>
+            {invite.cargo && (
+              <p className="text-sm text-muted-foreground">{invite.cargo}</p>
+            )}
+          </div>
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => onDelete(invite.id)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Cancelar convite
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">{ROLE_LABELS[invite.role] || invite.role}</Badge>
+          <Badge variant="outline" className="text-yellow-600 border-yellow-400 bg-yellow-50">
+            <Hourglass className="h-3 w-3 mr-1" />
+            Aguardando acesso
+          </Badge>
+        </div>
+
+        {invite.departamento && (
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium">Depto:</span> {invite.departamento}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Mail className="h-4 w-4" />
+          <span>{invite.email}</span>
+        </div>
+
+        {invite.telefone && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-4 w-4" />
+            <span>{invite.telefone}</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
+          <Calendar className="h-3 w-3" />
+          Cadastrado em {new Date(invite.created_at).toLocaleDateString('pt-BR')}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function TeamMemberCard({ member, onEdit, onDelete }: TeamMemberCardProps) {

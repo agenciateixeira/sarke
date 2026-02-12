@@ -12,6 +12,10 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
+    // TURN público (OpenRelay) — necessário para redes com NAT simétrico
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
   ],
 }
 
@@ -78,10 +82,23 @@ export function useWebRTC() {
   // Gerados com Web Audio API dentro de gestos do usuário
   // ─────────────────────────────────────────
   const playRingtone = useCallback(() => {
-    // Tom duplo 480Hz + 620Hz (padrão telefone BR)
+    // Para qualquer ringtone anterior antes de criar novo
+    try { (ringtoneRef as any)._stop?.() } catch { }
+
     try {
       const ctx = new AudioContext()
+      let active = true
+      let closed = false
+
+      const safeClose = () => {
+        if (!closed && ctx.state !== 'closed') {
+          closed = true
+          ctx.close().catch(() => {})
+        }
+      }
+
       const playTone = () => {
+        if (!active || ctx.state === 'closed') return Promise.resolve()
         const osc1 = ctx.createOscillator()
         const osc2 = ctx.createOscillator()
         const gain = ctx.createGain()
@@ -97,25 +114,39 @@ export function useWebRTC() {
         osc2.stop(ctx.currentTime + 0.4)
         return new Promise<void>(resolve => { osc1.onended = () => resolve() })
       }
-      let active = true
+
       const loop = async () => {
         while (active) {
           await playTone()
-          await new Promise(r => setTimeout(r, 800)) // pausa entre tons
+          if (!active) break
+          await new Promise(r => setTimeout(r, 800))
         }
+        safeClose()
       }
       loop()
-      // Armazena o ctx para poder parar
-      ;(ringtoneRef as any)._ctx = ctx
-      ;(ringtoneRef as any)._stop = () => { active = false; ctx.close() }
+
+      ;(ringtoneRef as any)._stop = () => { active = false }
     } catch { /* AudioContext não disponível */ }
   }, [])
 
   const playRingback = useCallback(() => {
-    // Tom 440Hz (chamando...)
+    // Para qualquer ringback anterior antes de criar novo
+    try { (ringbackRef as any)._stop?.() } catch { }
+
     try {
       const ctx = new AudioContext()
+      let active = true
+      let closed = false
+
+      const safeClose = () => {
+        if (!closed && ctx.state !== 'closed') {
+          closed = true
+          ctx.close().catch(() => {})
+        }
+      }
+
       const playTone = () => {
+        if (!active || ctx.state === 'closed') return Promise.resolve()
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.frequency.value = 440
@@ -126,21 +157,26 @@ export function useWebRTC() {
         osc.stop(ctx.currentTime + 0.5)
         return new Promise<void>(resolve => { osc.onended = () => resolve() })
       }
-      let active = true
+
       const loop = async () => {
         while (active) {
           await playTone()
+          if (!active) break
           await new Promise(r => setTimeout(r, 2500))
         }
+        safeClose()
       }
       loop()
-      ;(ringbackRef as any)._stop = () => { active = false; ctx.close() }
+
+      ;(ringbackRef as any)._stop = () => { active = false }
     } catch { /* ignorar */ }
   }, [])
 
   const stopAllAudio = useCallback(() => {
     try { (ringtoneRef as any)._stop?.() } catch { }
     try { (ringbackRef as any)._stop?.() } catch { }
+    ;(ringtoneRef as any)._stop = null
+    ;(ringbackRef as any)._stop = null
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = null
@@ -220,23 +256,28 @@ export function useWebRTC() {
     }
 
     conn.ontrack = (ev) => {
-      console.log('[WebRTC] ontrack fired, streams:', ev.streams.length)
+      console.log('[WebRTC] ontrack fired, kind:', ev.track.kind, 'streams:', ev.streams.length)
+      console.log('[WebRTC] track enabled:', ev.track.enabled, 'muted:', ev.track.muted, 'readyState:', ev.track.readyState)
       const stream = ev.streams?.[0]
       if (!stream) return
 
-      // Conectar ao elemento <audio> que já está no DOM (criado pelo JSX do CallScreen)
-      // Isso respeita a política de autoplay do Chrome pois o elemento já existia
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = stream
-        remoteAudioRef.current.play().catch(err => {
-          console.warn('[WebRTC] play() bloqueado, tentando após interação:', err)
-          // Fallback: tenta play na próxima interação do usuário
-          const tryPlay = () => {
-            remoteAudioRef.current?.play().catch(() => {})
-            document.removeEventListener('click', tryPlay)
-          }
-          document.addEventListener('click', tryPlay, { once: true })
-        })
+      if (ev.track.kind === 'audio') {
+        console.log('[WebRTC] Audio track recebida, conectando ao elemento de áudio...')
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = stream
+          remoteAudioRef.current.volume = 1.0
+          remoteAudioRef.current.muted = false
+          remoteAudioRef.current.play().catch(err => {
+            console.warn('[WebRTC] play() bloqueado, tentando após interação:', err)
+            const tryPlay = () => {
+              remoteAudioRef.current?.play().catch(() => {})
+              document.removeEventListener('click', tryPlay)
+            }
+            document.addEventListener('click', tryPlay, { once: true })
+          })
+        } else {
+          console.warn('[WebRTC] remoteAudioRef não está montado no DOM!')
+        }
       }
 
       // Vídeo remoto para videochamadas
@@ -328,7 +369,10 @@ export function useWebRTC() {
       fetchProfiles(userId, data.receiver_id)
 
       const conn = createPC(newCall.id, data.receiver_id)
-      stream.getTracks().forEach(t => conn.addTrack(t, stream))
+      stream.getTracks().forEach(t => {
+        console.log('[WebRTC] startCall addTrack:', t.kind, 'enabled:', t.enabled, 'readyState:', t.readyState)
+        conn.addTrack(t, stream)
+      })
 
       const offer = await conn.createOffer()
       await conn.setLocalDescription(offer)
@@ -387,7 +431,10 @@ export function useWebRTC() {
       await supabase.from('calls').update({ status: 'accepted', started_at: new Date().toISOString() }).eq('id', call.id)
 
       const conn = createPC(call.id, call.caller_id)
-      stream.getTracks().forEach(t => conn.addTrack(t, stream))
+      stream.getTracks().forEach(t => {
+        console.log('[WebRTC] acceptCall addTrack:', t.kind, 'enabled:', t.enabled, 'readyState:', t.readyState)
+        conn.addTrack(t, stream)
+      })
 
       // Buscar offer no DB
       const { data: sigs } = await supabase

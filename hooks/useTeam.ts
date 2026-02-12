@@ -47,8 +47,21 @@ export interface UpdateTeamMemberData {
   dias_trabalho?: number[]
 }
 
+export interface PendingInvite {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  cargo?: string
+  departamento?: string
+  telefone?: string
+  created_at: string
+  expires_at: string
+}
+
 export function useTeam() {
   const [members, setMembers] = useState<TeamMember[]>([])
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -56,15 +69,21 @@ export function useTeam() {
   const fetchMembers = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const [profilesRes, invitesRes] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('team_invites')
+          .select('id, email, name, role, cargo, departamento, telefone, created_at, expires_at')
+          .is('accepted_at', null)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false }),
+      ])
 
-      if (error) throw error
+      if (profilesRes.error) throw profilesRes.error
 
-      setMembers(data || [])
-      return data || []
+      setMembers(profilesRes.data || [])
+      setPendingInvites(invitesRes.data || [])
+      return profilesRes.data || []
     } catch (err) {
       console.error('Error fetching team members:', err)
       setError(err as Error)
@@ -78,21 +97,18 @@ export function useTeam() {
   useEffect(() => {
     fetchMembers()
 
-    // Configurar Realtime para atualização automática
+    // Realtime em profiles e team_invites
     const channel = supabase
       .channel('team-members-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-        },
-        (payload) => {
-          console.log('Team member change:', payload)
-          // Refetch quando houver mudanças
-          fetchMembers()
-        }
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => { fetchMembers() }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'team_invites' },
+        () => { fetchMembers() }
       )
       .subscribe()
 
@@ -141,12 +157,12 @@ export function useTeam() {
           email: data.email,
           name: data.name,
           role: data.role,
-          setor: data.setor,
-          cargo: data.cargo,
-          departamento: data.departamento,
-          telefone: data.telefone,
-          horario_inicio: data.horario_inicio,
-          horario_fim: data.horario_fim,
+          setor: data.setor || null,
+          cargo: data.cargo || null,
+          departamento: data.departamento || null,
+          telefone: data.telefone || null,
+          horario_inicio: data.horario_inicio || null,
+          horario_fim: data.horario_fim || null,
           dias_trabalho: data.dias_trabalho || [1, 2, 3, 4, 5],
           invited_by: user?.id,
         })
@@ -183,9 +199,14 @@ export function useTeam() {
   // Atualizar membro
   const updateMember = async (id: string, updates: UpdateTeamMemberData) => {
     try {
+      const sanitized = {
+        ...updates,
+        horario_inicio: updates.horario_inicio || null,
+        horario_fim: updates.horario_fim || null,
+      }
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(sanitized)
         .eq('id', id)
         .select()
         .single()
@@ -264,6 +285,7 @@ export function useTeam() {
 
   return {
     members,
+    pendingInvites,
     loading,
     error,
     fetchMembers,

@@ -1,26 +1,29 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { TeamMemberCard } from '@/components/team/TeamMemberCard'
+import { TeamMemberCard, PendingInviteCard } from '@/components/team/TeamMemberCard'
 import { TeamMemberDialog } from '@/components/team/TeamMemberDialog'
 import { useTeam, TeamMember } from '@/hooks/useTeam'
 import { UserRole } from '@/types'
-import { Plus, Users, UserCheck, Search, Filter, Loader2 } from 'lucide-react'
+import { Plus, Users, UserCheck, Search, Filter, Loader2, Hourglass } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function EquipePage() {
   const {
     members,
+    pendingInvites,
     loading,
     inviteMember,
     updateMember,
     removeMember,
+    fetchMembers,
     getStats,
   } = useTeam()
 
@@ -48,6 +51,17 @@ export default function EquipePage() {
     const success = await removeMember(member.id)
     if (success) {
       toast.success(`${member.name} foi removido da equipe`)
+    }
+  }
+
+  const handleCancelInvite = async (id: string) => {
+    if (!confirm('Cancelar este convite?')) return
+    const { error } = await supabase.from('team_invites').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao cancelar convite')
+    } else {
+      toast.success('Convite cancelado')
+      fetchMembers()
     }
   }
 
@@ -170,7 +184,7 @@ export default function EquipePage() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredMembers.length === 0 ? (
+        ) : filteredMembers.length === 0 && pendingInvites.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -183,15 +197,39 @@ export default function EquipePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredMembers.map((member) => (
-              <TeamMemberCard
-                key={member.id}
-                member={member}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
+          <div className="space-y-6">
+            {/* Membros ativos */}
+            {filteredMembers.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredMembers.map((member) => (
+                  <TeamMemberCard
+                    key={member.id}
+                    member={member}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Convites pendentes */}
+            {pendingInvites.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Hourglass className="h-4 w-4" />
+                  <span className="font-medium">Aguardando primeiro acesso ({pendingInvites.length})</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {pendingInvites.map((invite) => (
+                    <PendingInviteCard
+                      key={invite.id}
+                      invite={invite}
+                      onDelete={handleCancelInvite}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
