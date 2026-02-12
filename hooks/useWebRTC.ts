@@ -190,7 +190,6 @@ export function useWebRTC() {
     stopAllAudio()
     localStream.current?.getTracks().forEach(t => t.stop())
     localStream.current = null
-    // Limpar o elemento de áudio remoto (sem destruí-lo — ele vive no JSX)
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = null
     }
@@ -199,6 +198,11 @@ export function useWebRTC() {
     }
     pc.current?.close()
     pc.current = null
+    // Fechar canal de sinais da chamada
+    if (signalsCh.current) {
+      supabase.removeChannel(signalsCh.current)
+      signalsCh.current = null
+    }
     icePending.current = []
     remoteDescReady.current = false
     setActiveCall(null)
@@ -239,8 +243,53 @@ export function useWebRTC() {
   }, [])
 
   const sendSignal = useCallback((event: string, payload: Record<string, unknown>) => {
-    signalsCh.current?.send({ type: 'broadcast', event, payload })
+    if (!signalsCh.current) {
+      console.warn('[WebRTC] sendSignal: canal de sinais não está aberto!')
+      return
+    }
+    console.log('[WebRTC] sendSignal:', event, 'to:', payload.to)
+    signalsCh.current.send({ type: 'broadcast', event, payload })
   }, [])
+
+  // Entra no canal de sinais específico da chamada (compartilhado pelos dois lados)
+  const joinSignalChannel = useCallback((callId: string) => {
+    if (signalsCh.current) {
+      supabase.removeChannel(signalsCh.current)
+      signalsCh.current = null
+    }
+    console.log('[WebRTC] joinSignalChannel:', `call-signals-${callId}`)
+    const ch = supabase
+      .channel(`call-signals-${callId}`)
+      .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+        if (payload.to !== currentUserIdRef.current) return
+        console.log('[WebRTC] recebeu answer')
+        const conn = pc.current
+        if (!conn || conn.signalingState !== 'have-local-offer') return
+        try {
+          await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+          remoteDescReady.current = true
+          await flushIce()
+        } catch (e) { console.error('answer error:', e) }
+      })
+      .on('broadcast', { event: 'ice' }, async ({ payload }) => {
+        if (payload.to !== currentUserIdRef.current) return
+        console.log('[WebRTC] recebeu ICE candidate')
+        await applyIce(payload.candidate)
+      })
+      .on('broadcast', { event: 'hangup' }, ({ payload }) => {
+        if (payload.to !== currentUserIdRef.current) return
+        const isMyCall = activeCallRef.current?.id === payload.call_id
+          || incomingCallRef.current?.id === payload.call_id
+        if (isMyCall) {
+          cleanup()
+          toast.info('Chamada encerrada')
+        }
+      })
+      .subscribe((status) => {
+        console.log('[WebRTC] signal channel status:', status)
+      })
+    signalsCh.current = ch
+  }, [applyIce, flushIce, cleanup])
 
   // ─────────────────────────────────────────
   // CRIAR PEER CONNECTION
@@ -400,6 +449,9 @@ export function useWebRTC() {
       setCallStatus('calling')
       fetchProfiles(userId, data.receiver_id)
 
+      // Entra no canal compartilhado ANTES de criar o PC (para não perder sinais)
+      joinSignalChannel(newCall.id)
+
       const conn = createPC(newCall.id, data.receiver_id)
       stream.getTracks().forEach(t => {
         console.log('[WebRTC] startCall addTrack:', t.kind, 'enabled:', t.enabled, 'readyState:', t.readyState)
@@ -409,8 +461,7 @@ export function useWebRTC() {
       const offer = await conn.createOffer()
       await conn.setLocalDescription(offer)
 
-      // Enviar offer via broadcast E salvar no DB
-      sendSignal('offer', { to: data.receiver_id, from: userId, call_id: newCall.id, sdp: offer })
+      // Salvar offer no DB (o receptor vai buscar ao aceitar)
       try {
         await supabase.from('webrtc_signals').insert({
           call_id: newCall.id, from_user_id: userId, to_user_id: data.receiver_id,
@@ -461,6 +512,9 @@ export function useWebRTC() {
       fetchProfiles(call.caller_id, userId)
 
       await supabase.from('calls').update({ status: 'accepted', started_at: new Date().toISOString() }).eq('id', call.id)
+
+      // Entra no canal compartilhado da chamada
+      joinSignalChannel(call.id)
 
       const conn = createPC(call.id, call.caller_id)
       stream.getTracks().forEach(t => {
@@ -573,51 +627,7 @@ export function useWebRTC() {
     return () => { supabase.removeChannel(ch) }
   }, [currentUserId, stopAllAudio, cleanup, fetchProfiles, playRingtone])
 
-  // ─────────────────────────────────────────
-  // REALTIME: sinais WebRTC
-  // ─────────────────────────────────────────
-  useEffect(() => {
-    if (!currentUserId) return
-
-    const ch = supabase
-      .channel(`signals-${currentUserId}`)
-      .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to !== currentUserId) return
-        const conn = pc.current
-        if (!conn || conn.signalingState !== 'have-local-offer') return
-        try {
-          await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-          remoteDescReady.current = true
-          await flushIce()
-        } catch (e) { console.error('answer error:', e) }
-      })
-      .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-        if (payload.to !== currentUserId) return
-        await applyIce(payload.candidate)
-      })
-      .on('broadcast', { event: 'hangup' }, ({ payload }) => {
-        if (payload.to !== currentUserId) return
-        const isMyCall = activeCallRef.current?.id === payload.call_id
-          || incomingCallRef.current?.id === payload.call_id
-        if (isMyCall) {
-          cleanup()
-          toast.info('Chamada encerrada')
-        }
-      })
-      .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-        if (payload.to !== currentUserId) return
-        try {
-          await supabase.from('webrtc_signals').insert({
-            call_id: payload.call_id, from_user_id: payload.from, to_user_id: payload.to,
-            signal_type: 'offer', signal_data: payload.sdp,
-          })
-        } catch { }
-      })
-      .subscribe()
-
-    signalsCh.current = ch
-    return () => { supabase.removeChannel(ch) }
-  }, [currentUserId, applyIce, flushIce, stopAllAudio, cleanup])
+  // Canal de sinais criado dinamicamente por joinSignalChannel() ao iniciar/aceitar chamada
 
   // ─────────────────────────────────────────
   // CONTROLES
