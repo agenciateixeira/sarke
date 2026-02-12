@@ -6,17 +6,28 @@ import { toast } from 'sonner'
 import { Call, CallType, CallStatus, CreateCallData } from '@/types/webrtc'
 import { RealtimeChannel } from '@supabase/supabase-js'
 
+// ─────────────────────────────────────────
+// ICE SERVERS
+// STUN: descoberta de IP público
+// TURN: relay quando STUN não traversa NAT (necessário em ~20% das redes)
+// ─────────────────────────────────────────
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    // TURN público (OpenRelay) — necessário para redes com NAT simétrico
-    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    // TURN público via metered.ca — mais confiável que openrelay
+    {
+      urls: [
+        'turn:a.relay.metered.ca:80',
+        'turn:a.relay.metered.ca:80?transport=tcp',
+        'turn:a.relay.metered.ca:443',
+        'turns:a.relay.metered.ca:443',
+      ],
+      username: 'e8dd65f03a6877ffe1f49c03',
+      credential: 'uBPLIFhmvfCdz8rg',
+    },
   ],
+  iceCandidatePoolSize: 10,
 }
 
 interface CallProfile {
@@ -33,7 +44,7 @@ export function useWebRTC() {
   const [callerProfile, setCallerProfile] = useState<CallProfile | null>(null)
   const [receiverProfile, setReceiverProfile] = useState<CallProfile | null>(null)
 
-  // Refs sempre atualizados (sem stale closure)
+  // Refs sem stale closure
   const currentUserIdRef = useRef<string | null>(null)
   const activeCallRef = useRef<Call | null>(null)
   const incomingCallRef = useRef<Call | null>(null)
@@ -42,24 +53,22 @@ export function useWebRTC() {
   const pc = useRef<RTCPeerConnection | null>(null)
   const localStream = useRef<MediaStream | null>(null)
 
-  // Elementos de mídia — DEVEM estar no JSX (React cria o DOM element)
-  // O hook exporta esses refs para serem aplicados nos elementos <audio>/<video> do JSX
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null) // áudio remoto
+  // Elementos de mídia (criados no JSX do CallScreen)
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null)
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
 
-  // Sons de ringtone / ringback — também elementos de áudio no DOM
+  // Sons
   const ringtoneRef = useRef<HTMLAudioElement | null>(null)
   const ringbackRef = useRef<HTMLAudioElement | null>(null)
 
-  // ICE queue
+  // ICE queue — candidatos recebidos antes do setRemoteDescription
   const icePending = useRef<RTCIceCandidateInit[]>([])
   const remoteDescReady = useRef(false)
 
-  // Realtime
-  const callsCh = useRef<RealtimeChannel | null>(null)
-  const signalsCh = useRef<RealtimeChannel | null>(null)  // canal de RECEPÇÃO (ouve sinais destinados a mim)
-  const signalsSendCh = useRef<RealtimeChannel | null>(null)  // canal de ENVIO (envia para o outro)
+  // Realtime channels
+  const callsCh = useRef<RealtimeChannel | null>(null)   // escuta tabela calls
+  const signalsCh = useRef<RealtimeChannel | null>(null)  // escuta tabela webrtc_signals
 
   // Timeout chamada sem resposta
   const callTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -70,7 +79,7 @@ export function useWebRTC() {
   useEffect(() => { incomingCallRef.current = incomingCall }, [incomingCall])
 
   // ─────────────────────────────────────────
-  // INIT
+  // INIT — buscar userId
   // ─────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -79,98 +88,48 @@ export function useWebRTC() {
   }, [])
 
   // ─────────────────────────────────────────
-  // SONS — ringtone e ringback
-  // Gerados com Web Audio API dentro de gestos do usuário
+  // SONS — ringtone e ringback via Web Audio API
   // ─────────────────────────────────────────
   const playRingtone = useCallback(() => {
-    // Para qualquer ringtone anterior antes de criar novo
     try { (ringtoneRef as any)._stop?.() } catch { }
-
     try {
       const ctx = new AudioContext()
       let active = true
       let closed = false
-
-      const safeClose = () => {
-        if (!closed && ctx.state !== 'closed') {
-          closed = true
-          ctx.close().catch(() => {})
-        }
-      }
-
+      const safeClose = () => { if (!closed && ctx.state !== 'closed') { closed = true; ctx.close().catch(() => {}) } }
       const playTone = () => {
         if (!active || ctx.state === 'closed') return Promise.resolve()
-        const osc1 = ctx.createOscillator()
-        const osc2 = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc1.frequency.value = 480
-        osc2.frequency.value = 620
-        gain.gain.value = 0.15
-        osc1.connect(gain)
-        osc2.connect(gain)
-        gain.connect(ctx.destination)
-        osc1.start()
-        osc2.start()
-        osc1.stop(ctx.currentTime + 0.4)
-        osc2.stop(ctx.currentTime + 0.4)
-        return new Promise<void>(resolve => { osc1.onended = () => resolve() })
+        const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain()
+        o1.frequency.value = 480; o2.frequency.value = 620; g.gain.value = 0.15
+        o1.connect(g); o2.connect(g); g.connect(ctx.destination)
+        o1.start(); o2.start(); o1.stop(ctx.currentTime + 0.4); o2.stop(ctx.currentTime + 0.4)
+        return new Promise<void>(res => { o1.onended = () => res() })
       }
-
-      const loop = async () => {
-        while (active) {
-          await playTone()
-          if (!active) break
-          await new Promise(r => setTimeout(r, 800))
-        }
-        safeClose()
-      }
+      const loop = async () => { while (active) { await playTone(); if (!active) break; await new Promise(r => setTimeout(r, 800)) }; safeClose() }
       loop()
-
       ;(ringtoneRef as any)._stop = () => { active = false }
-    } catch { /* AudioContext não disponível */ }
+    } catch { }
   }, [])
 
   const playRingback = useCallback(() => {
-    // Para qualquer ringback anterior antes de criar novo
     try { (ringbackRef as any)._stop?.() } catch { }
-
     try {
       const ctx = new AudioContext()
       let active = true
       let closed = false
-
-      const safeClose = () => {
-        if (!closed && ctx.state !== 'closed') {
-          closed = true
-          ctx.close().catch(() => {})
-        }
-      }
-
+      const safeClose = () => { if (!closed && ctx.state !== 'closed') { closed = true; ctx.close().catch(() => {}) } }
       const playTone = () => {
         if (!active || ctx.state === 'closed') return Promise.resolve()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.frequency.value = 440
-        gain.gain.value = 0.1
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.start()
-        osc.stop(ctx.currentTime + 0.5)
-        return new Promise<void>(resolve => { osc.onended = () => resolve() })
+        const o = ctx.createOscillator(), g = ctx.createGain()
+        o.frequency.value = 440; g.gain.value = 0.1
+        o.connect(g); g.connect(ctx.destination)
+        o.start(); o.stop(ctx.currentTime + 0.5)
+        return new Promise<void>(res => { o.onended = () => res() })
       }
-
-      const loop = async () => {
-        while (active) {
-          await playTone()
-          if (!active) break
-          await new Promise(r => setTimeout(r, 2500))
-        }
-        safeClose()
-      }
+      const loop = async () => { while (active) { await playTone(); if (!active) break; await new Promise(r => setTimeout(r, 2500)) }; safeClose() }
       loop()
-
       ;(ringbackRef as any)._stop = () => { active = false }
-    } catch { /* ignorar */ }
+    } catch { }
   }, [])
 
   const stopAllAudio = useCallback(() => {
@@ -178,10 +137,7 @@ export function useWebRTC() {
     try { (ringbackRef as any)._stop?.() } catch { }
     ;(ringtoneRef as any)._stop = null
     ;(ringbackRef as any)._stop = null
-    if (callTimeoutRef.current) {
-      clearTimeout(callTimeoutRef.current)
-      callTimeoutRef.current = null
-    }
+    if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null }
   }, [])
 
   // ─────────────────────────────────────────
@@ -191,23 +147,10 @@ export function useWebRTC() {
     stopAllAudio()
     localStream.current?.getTracks().forEach(t => t.stop())
     localStream.current = null
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = null
-    }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null
-    }
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
     pc.current?.close()
     pc.current = null
-    // Fechar canais de sinais da chamada
-    if (signalsCh.current) {
-      supabase.removeChannel(signalsCh.current)
-      signalsCh.current = null
-    }
-    if (signalsSendCh.current) {
-      supabase.removeChannel(signalsSendCh.current)
-      signalsSendCh.current = null
-    }
     icePending.current = []
     remoteDescReady.current = false
     setActiveCall(null)
@@ -221,9 +164,7 @@ export function useWebRTC() {
   // HELPERS
   // ─────────────────────────────────────────
   const fetchProfiles = useCallback(async (callerId: string, receiverId: string) => {
-    const { data } = await supabase
-      .from('profiles').select('id, name, avatar_url')
-      .in('id', [callerId, receiverId])
+    const { data } = await supabase.from('profiles').select('id, name, avatar_url').in('id', [callerId, receiverId])
     if (!data) return
     setCallerProfile(data.find(p => p.id === callerId) ?? null)
     setReceiverProfile(data.find(p => p.id === receiverId) ?? null)
@@ -232,7 +173,7 @@ export function useWebRTC() {
   const applyIce = useCallback(async (candidate: RTCIceCandidateInit) => {
     if (!pc.current) return
     if (!remoteDescReady.current) { icePending.current.push(candidate); return }
-    try { await pc.current.addIceCandidate(new RTCIceCandidate(candidate)) } catch { }
+    try { await pc.current.addIceCandidate(new RTCIceCandidate(candidate)) } catch (e) { console.warn('[WebRTC] addIceCandidate error:', e) }
   }, [])
 
   const flushIce = useCallback(async () => {
@@ -247,64 +188,28 @@ export function useWebRTC() {
     return navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' })
   }, [])
 
-  const sendSignal = useCallback((event: string, payload: Record<string, unknown>) => {
-    if (!signalsSendCh.current) {
-      console.warn('[WebRTC] sendSignal: canal de envio não está aberto!')
-      return
-    }
-    console.log('[WebRTC] sendSignal:', event, 'to:', payload.to)
-    signalsSendCh.current.send({ type: 'broadcast', event, payload })
-  }, [])
-
-  // Abre canal de RECEPÇÃO (ouve sinais endereçados a mim) e canal de ENVIO (envia ao remoto)
-  // Canal de recepção: call-signals-{callId}-{myId}    — só eu escuto
-  // Canal de envio:   call-signals-{callId}-{remoteId} — o outro escuta
-  const joinSignalChannel = useCallback((callId: string, myId: string, remoteId: string): Promise<void> => {
-    // Fechar canais anteriores
-    if (signalsCh.current) { supabase.removeChannel(signalsCh.current); signalsCh.current = null }
-    if (signalsSendCh.current) { supabase.removeChannel(signalsSendCh.current); signalsSendCh.current = null }
-
-    const recvName = `call-signals-${callId}-${myId}`
-    const sendName = `call-signals-${callId}-${remoteId}`
-    console.log('[WebRTC] joinSignalChannel recv:', recvName, '| send:', sendName)
-
-    // Canal de envio (não precisa esperar — só envia)
-    signalsSendCh.current = supabase.channel(sendName)
-    signalsSendCh.current.subscribe()
-
-    // Canal de recepção — aguarda SUBSCRIBED
-    return new Promise((resolve) => {
-      const ch = supabase
-        .channel(recvName)
-        .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-          console.log('[WebRTC] recebeu answer')
-          const conn = pc.current
-          if (!conn || conn.signalingState !== 'have-local-offer') return
-          try {
-            await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-            remoteDescReady.current = true
-            await flushIce()
-          } catch (e) { console.error('answer error:', e) }
-        })
-        .on('broadcast', { event: 'ice' }, async ({ payload }) => {
-          console.log('[WebRTC] recebeu ICE candidate')
-          await applyIce(payload.candidate)
-        })
-        .on('broadcast', { event: 'hangup' }, ({ payload }) => {
-          const isMyCall = activeCallRef.current?.id === payload.call_id
-            || incomingCallRef.current?.id === payload.call_id
-          if (isMyCall) {
-            cleanup()
-            toast.info('Chamada encerrada')
-          }
-        })
-        .subscribe((status) => {
-          console.log('[WebRTC] recv channel status:', status)
-          if (status === 'SUBSCRIBED') resolve()
-        })
-      signalsCh.current = ch
+  // ─────────────────────────────────────────
+  // ENVIAR SINAL via tabela webrtc_signals
+  // Dura·vel, sobrevive a reconexões, sem conflito de canal
+  // ─────────────────────────────────────────
+  const sendSignal = useCallback(async (
+    callId: string,
+    toUserId: string,
+    signalType: 'offer' | 'answer' | 'ice-candidate',
+    signalData: object
+  ) => {
+    const fromUserId = currentUserIdRef.current
+    if (!fromUserId) return
+    console.log('[WebRTC] sendSignal:', signalType, '→', toUserId)
+    const { error } = await supabase.from('webrtc_signals').insert({
+      call_id: callId,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      signal_type: signalType,
+      signal_data: signalData,
     })
-  }, [applyIce, flushIce, cleanup])
+    if (error) console.error('[WebRTC] sendSignal error:', error)
+  }, [])
 
   // ─────────────────────────────────────────
   // CRIAR PEER CONNECTION
@@ -316,59 +221,49 @@ export function useWebRTC() {
     const conn = new RTCPeerConnection(ICE_SERVERS)
 
     conn.onicecandidate = ({ candidate }) => {
-      if (candidate) sendSignal('ice', { to: remoteId, from: currentUserIdRef.current, candidate: candidate.toJSON() })
+      if (candidate) {
+        console.log('[WebRTC] local candidate:', candidate.type, candidate.protocol)
+        sendSignal(callId, remoteId, 'ice-candidate', candidate.toJSON())
+      } else {
+        console.log('[WebRTC] ICE gathering completo')
+      }
+    }
+
+    conn.onicecandidateerror = (ev: any) => {
+      console.warn('[WebRTC] ICE candidate error:', ev.errorCode, ev.errorText)
     }
 
     conn.ontrack = (ev) => {
-      console.log('[WebRTC] ontrack fired, kind:', ev.track.kind, 'muted:', ev.track.muted)
+      console.log('[WebRTC] ontrack:', ev.track.kind, 'muted:', ev.track.muted)
       const stream = ev.streams?.[0]
       if (!stream) return
 
       if (ev.track.kind === 'audio') {
         const audioEl = remoteAudioRef.current
-        if (!audioEl) {
-          console.warn('[WebRTC] remoteAudioRef não montado no DOM!')
-          return
-        }
+        if (!audioEl) { console.warn('[WebRTC] remoteAudioRef não montado!'); return }
 
-        // Conecta o stream ao elemento de áudio imediatamente
         audioEl.srcObject = stream
         audioEl.volume = 1.0
         audioEl.muted = false
 
         const tryPlay = () => {
-          audioEl.play().then(() => {
-            console.log('[WebRTC] Audio playing!')
-          }).catch(err => {
-            console.warn('[WebRTC] play() bloqueado:', err)
-          })
+          audioEl.play()
+            .then(() => console.log('[WebRTC] Audio playing!'))
+            .catch(err => console.warn('[WebRTC] play() bloqueado:', err))
         }
 
-        // Se a track já está desmutada, toca agora
-        if (!ev.track.muted) {
-          tryPlay()
-        }
+        // Toca imediatamente se já desmutado
+        if (!ev.track.muted) tryPlay()
 
-        // Escuta unmute — dispara quando o ICE completa e o áudio realmente começa
+        // Aguarda unmute (disparado quando RTP começa a chegar após ICE conectar)
         ev.track.onunmute = () => {
-          console.log('[WebRTC] track unmuted! Tocando áudio remoto...')
+          console.log('[WebRTC] track unmuted — RTP fluindo')
           audioEl.muted = false
           audioEl.volume = 1.0
           tryPlay()
         }
-
-        // Também toca quando connectionState chegar em 'connected'
-        conn.addEventListener('connectionstatechange', () => {
-          if (conn.connectionState === 'connected') {
-            console.log('[WebRTC] connected! Forçando play do áudio...')
-            audioEl.muted = false
-            audioEl.volume = 1.0
-            tryPlay()
-          }
-        }, { once: true })
       }
 
-      // Vídeo remoto para videochamadas
       if (remoteVideoRef.current && ev.track.kind === 'video') {
         remoteVideoRef.current.srcObject = stream
       }
@@ -380,9 +275,22 @@ export function useWebRTC() {
       if (s === 'connected') {
         stopAllAudio()
         setCallStatus('accepted')
+        // Força play quando conexão estabelecida
+        const audioEl = remoteAudioRef.current
+        if (audioEl && audioEl.srcObject && audioEl.paused) {
+          audioEl.muted = false
+          audioEl.volume = 1.0
+          audioEl.play().catch(() => {})
+        }
       } else if (s === 'failed') {
-        toast.error('Conexão falhou. Verifique sua rede.')
-        endCallRef.current()
+        console.error('[WebRTC] conexão falhou — tentando ICE restart')
+        conn.restartIce()
+        setTimeout(() => {
+          if (pc.current?.connectionState === 'failed') {
+            toast.error('Conexão falhou. Verifique sua rede.')
+            endCallRef.current()
+          }
+        }, 5000)
       } else if (s === 'disconnected') {
         toast.warning('Conexão instável...')
       }
@@ -412,8 +320,6 @@ export function useWebRTC() {
     if (!call) return
     try {
       stopAllAudio()
-      const remoteId = call.caller_id === currentUserIdRef.current ? call.receiver_id : call.caller_id
-      sendSignal('hangup', { to: remoteId, call_id: call.id })
       const { data: result } = await supabase.rpc('end_call', { p_call_id: call.id, p_user_id: currentUserIdRef.current })
       await createCallMessage(call, result?.duration ?? 0)
     } catch (e) {
@@ -421,7 +327,7 @@ export function useWebRTC() {
     } finally {
       cleanup()
     }
-  }, [stopAllAudio, sendSignal, cleanup])
+  }, [stopAllAudio, cleanup])
 
   useEffect(() => { endCallRef.current = endCall }, [endCall])
 
@@ -464,30 +370,21 @@ export function useWebRTC() {
       setCallStatus('calling')
       fetchProfiles(userId, data.receiver_id)
 
-      // Espera canal estar SUBSCRIBED antes de criar o PC e enviar sinais
-      await joinSignalChannel(newCall.id, userId, data.receiver_id)
-
+      // Cria PC e adiciona tracks
       const conn = createPC(newCall.id, data.receiver_id)
       stream.getTracks().forEach(t => {
-        console.log('[WebRTC] startCall addTrack:', t.kind, 'enabled:', t.enabled, 'readyState:', t.readyState)
+        console.log('[WebRTC] startCall addTrack:', t.kind)
         conn.addTrack(t, stream)
       })
 
+      // Cria offer e envia via DB
       const offer = await conn.createOffer()
       await conn.setLocalDescription(offer)
+      await sendSignal(newCall.id, data.receiver_id, 'offer', offer)
 
-      // Salvar offer no DB (o receptor vai buscar ao aceitar)
-      try {
-        await supabase.from('webrtc_signals').insert({
-          call_id: newCall.id, from_user_id: userId, to_user_id: data.receiver_id,
-          signal_type: 'offer', signal_data: offer,
-        })
-      } catch { }
-
-      // Ringback (dentro do gesto do usuário — OK para autoplay)
       playRingback()
 
-      // Timeout 30s sem atender
+      // Timeout 30s
       callTimeoutRef.current = setTimeout(async () => {
         if (!activeCallRef.current) return
         stopAllAudio()
@@ -528,20 +425,21 @@ export function useWebRTC() {
 
       await supabase.from('calls').update({ status: 'accepted', started_at: new Date().toISOString() }).eq('id', call.id)
 
-      // Espera canal estar SUBSCRIBED antes de criar PC e enviar sinais
-      await joinSignalChannel(call.id, userId, call.caller_id)
-
+      // Cria PC e adiciona tracks
       const conn = createPC(call.id, call.caller_id)
       stream.getTracks().forEach(t => {
-        console.log('[WebRTC] acceptCall addTrack:', t.kind, 'enabled:', t.enabled, 'readyState:', t.readyState)
+        console.log('[WebRTC] acceptCall addTrack:', t.kind)
         conn.addTrack(t, stream)
       })
 
       // Buscar offer no DB
       const { data: sigs } = await supabase
-        .from('webrtc_signals').select('*')
-        .eq('call_id', call.id).eq('signal_type', 'offer')
-        .order('created_at', { ascending: false }).limit(1)
+        .from('webrtc_signals')
+        .select('*')
+        .eq('call_id', call.id)
+        .eq('signal_type', 'offer')
+        .order('created_at', { ascending: false })
+        .limit(1)
 
       if (!sigs || sigs.length === 0) {
         toast.error('Erro ao conectar chamada. Tente novamente.')
@@ -556,14 +454,7 @@ export function useWebRTC() {
 
       const answer = await conn.createAnswer()
       await conn.setLocalDescription(answer)
-
-      sendSignal('answer', { to: call.caller_id, from: userId, call_id: call.id, sdp: answer })
-      try {
-        await supabase.from('webrtc_signals').insert({
-          call_id: call.id, from_user_id: userId, to_user_id: call.caller_id,
-          signal_type: 'answer', signal_data: answer,
-        })
-      } catch { }
+      await sendSignal(call.id, call.caller_id, 'answer', answer)
 
     } catch (err: any) {
       console.error('acceptCall:', err)
@@ -582,7 +473,6 @@ export function useWebRTC() {
   const rejectCall = async (call: Call) => {
     try {
       stopAllAudio()
-      sendSignal('hangup', { to: call.caller_id, call_id: call.id })
       await supabase.from('calls').update({ status: 'rejected', ended_at: new Date().toISOString() }).eq('id', call.id)
       await createCallMessage({ ...call, status: 'rejected' }, 0)
       setIncomingCall(null)
@@ -590,24 +480,21 @@ export function useWebRTC() {
   }
 
   // ─────────────────────────────────────────
-  // REALTIME: chamadas recebidas
+  // REALTIME: escuta tabela calls (chamadas recebidas + atualizações)
   // ─────────────────────────────────────────
   useEffect(() => {
     if (!currentUserId) return
 
     const ch = supabase
-      .channel(`calls-${currentUserId}`)
+      .channel(`calls-user-${currentUserId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'calls',
         filter: `receiver_id=eq.${currentUserId}`,
       }, async (payload) => {
         const call = payload.new as Call
-        if (activeCallRef.current) return // já em chamada
-
+        if (activeCallRef.current) return
         setIncomingCall(call)
         fetchProfiles(call.caller_id, call.receiver_id)
-        // Ringtone — chamado aqui pois o INSERT do Supabase Realtime pode não ser dentro de gesto
-        // Mas o IncomingCallDialog aparecerá e o usuário vai interagir com ele
         playRingtone()
         toast.info('📞 Chamada recebida!')
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -623,7 +510,6 @@ export function useWebRTC() {
         const updated = payload.new as Call
         const isMyActive = activeCallRef.current?.id === updated.id
         const isMyIncoming = incomingCallRef.current?.id === updated.id
-
         if (['ended', 'rejected', 'missed'].includes(updated.status)) {
           if (isMyActive || isMyIncoming) {
             const msg = updated.status === 'rejected' ? 'Chamada recusada'
@@ -636,13 +522,65 @@ export function useWebRTC() {
           setCallStatus('accepted')
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[WebRTC] calls channel:', status)
+      })
 
     callsCh.current = ch
     return () => { supabase.removeChannel(ch) }
   }, [currentUserId, stopAllAudio, cleanup, fetchProfiles, playRingtone])
 
-  // Canal de sinais criado dinamicamente por joinSignalChannel() ao iniciar/aceitar chamada
+  // ─────────────────────────────────────────
+  // REALTIME: escuta tabela webrtc_signals (sinais ICE/answer)
+  // Canal único por usuário — nunca conflita, sobrevive a reconexões
+  // ─────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUserId) return
+
+    const ch = supabase
+      .channel(`signals-user-${currentUserId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'webrtc_signals',
+        filter: `to_user_id=eq.${currentUserId}`,
+      }, async (payload) => {
+        const signal = payload.new as {
+          call_id: string
+          from_user_id: string
+          signal_type: string
+          signal_data: any
+        }
+
+        console.log('[WebRTC] sinal recebido via DB:', signal.signal_type, 'de:', signal.from_user_id)
+
+        const conn = pc.current
+
+        if (signal.signal_type === 'answer') {
+          if (!conn || conn.signalingState !== 'have-local-offer') return
+          try {
+            await conn.setRemoteDescription(new RTCSessionDescription(signal.signal_data))
+            remoteDescReady.current = true
+            console.log('[WebRTC] answer aplicado, drenando ICE queue...')
+            await flushIce()
+          } catch (e) { console.error('[WebRTC] answer error:', e) }
+        }
+
+        else if (signal.signal_type === 'ice-candidate') {
+          console.log('[WebRTC] ICE candidate recebido')
+          await applyIce(signal.signal_data)
+        }
+      })
+      .subscribe((status) => {
+        console.log('[WebRTC] signals channel:', status)
+      })
+
+    signalsCh.current = ch
+    return () => {
+      supabase.removeChannel(ch)
+      signalsCh.current = null
+    }
+  }, [currentUserId, applyIce, flushIce])
 
   // ─────────────────────────────────────────
   // CONTROLES
@@ -658,7 +596,7 @@ export function useWebRTC() {
   return {
     activeCall, incomingCall, callStatus, currentUserId,
     callerProfile, receiverProfile,
-    remoteAudioRef,   // <-- aplicar num <audio> no JSX
+    remoteAudioRef,
     localVideoRef, remoteVideoRef,
     localStream: localStream.current,
     startCall, acceptCall, rejectCall, endCall,
