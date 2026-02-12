@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react'
+import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Call, CallStatus } from '@/types/webrtc'
@@ -36,6 +36,7 @@ export function CallScreen({
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
   const [callDuration, setCallDuration] = useState(0)
+  const [isSpeaker, setIsSpeaker] = useState(false)
 
   useEffect(() => {
     if (callStatus === 'accepted') {
@@ -44,8 +45,50 @@ export function CallScreen({
     }
   }, [callStatus])
 
+  // Quando a chamada conectar, garante que o áudio está tocando e tenta viva-voz
+  useEffect(() => {
+    if (callStatus === 'accepted' && remoteAudioRef.current) {
+      const audio = remoteAudioRef.current
+      audio.muted = false
+      audio.volume = 1.0
+      if (audio.paused && audio.srcObject) {
+        audio.play().catch(() => {})
+      }
+    }
+  }, [callStatus, remoteAudioRef])
+
   const handleToggleMute = () => { onToggleMute(); setIsMuted(!isMuted) }
   const handleToggleVideo = () => { onToggleVideo(); setIsVideoOff(!isVideoOff) }
+
+  const handleToggleSpeaker = async () => {
+    const audio = remoteAudioRef.current
+    if (!audio) return
+
+    const next = !isSpeaker
+    setIsSpeaker(next)
+
+    try {
+      // setSinkId roteia o áudio para o alto-falante ou earpiece
+      // 'default' = dispositivo padrão do sistema (alto-falante/headphone)
+      // '' (vazio) = padrão do browser, geralmente earpiece em mobile
+      if ('setSinkId' in audio) {
+        if (next) {
+          // Tenta listar dispositivos e pegar o alto-falante externo
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const speaker = devices.find(d => d.kind === 'audiooutput' && d.deviceId !== 'default')
+          await (audio as any).setSinkId(speaker?.deviceId || 'default')
+        } else {
+          await (audio as any).setSinkId('')
+        }
+      }
+      // Garante que não está mudo e está tocando
+      audio.muted = false
+      audio.volume = 1.0
+      if (audio.paused) audio.play().catch(() => {})
+    } catch (err) {
+      console.warn('[CallScreen] setSinkId não suportado:', err)
+    }
+  }
 
   const formatDuration = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`
@@ -141,6 +184,16 @@ export function CallScreen({
           title="Encerrar chamada"
         >
           <PhoneOff className="h-6 w-6" />
+        </Button>
+
+        <Button
+          size="lg"
+          variant={isSpeaker ? 'default' : 'secondary'}
+          className={`rounded-full h-14 w-14 ${isSpeaker ? 'bg-green-600 hover:bg-green-700' : ''}`}
+          onClick={handleToggleSpeaker}
+          title={isSpeaker ? 'Desligar viva-voz' : 'Viva-voz'}
+        >
+          {isSpeaker ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
         </Button>
 
         {isVideo && (
