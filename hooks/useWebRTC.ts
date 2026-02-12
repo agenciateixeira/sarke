@@ -13,18 +13,21 @@ import { RealtimeChannel } from '@supabase/supabase-js'
 // ─────────────────────────────────────────
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
+    // STUN Google — descoberta de IP público
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // TURN público via metered.ca — mais confiável que openrelay
+    // STUN Cloudflare
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    // TURN OpenRelay — relay para NAT simétrico (secret correto)
     {
       urls: [
-        'turn:a.relay.metered.ca:80',
-        'turn:a.relay.metered.ca:80?transport=tcp',
-        'turn:a.relay.metered.ca:443',
-        'turns:a.relay.metered.ca:443',
+        'turn:staticauth.openrelay.metered.ca:80',
+        'turn:staticauth.openrelay.metered.ca:80?transport=tcp',
+        'turn:staticauth.openrelay.metered.ca:443',
+        'turns:staticauth.openrelay.metered.ca:443',
       ],
-      username: 'e8dd65f03a6877ffe1f49c03',
-      credential: 'uBPLIFhmvfCdz8rg',
+      username: 'openrelayproject',
+      credential: 'openrelayprojectsecret',
     },
   ],
   iceCandidatePoolSize: 10,
