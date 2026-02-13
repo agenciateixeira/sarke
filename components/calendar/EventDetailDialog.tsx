@@ -3,6 +3,16 @@
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -45,19 +55,18 @@ const statusLabels = {
 export function EventDetailDialog({ open, onOpenChange, event, onEdit }: EventDetailDialogProps) {
   const { deleteEvent } = useCalendarEvents()
   const [deleting, setDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   if (!event) return null
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja excluir este evento?')) return
-
     setDeleting(true)
     try {
       await deleteEvent(event.id)
+      setDeleteOpen(false)
       onOpenChange(false)
     } catch (err) {
       console.error('Error deleting event:', err)
-      alert('Erro ao excluir evento')
     } finally {
       setDeleting(false)
     }
@@ -244,7 +253,7 @@ export function EventDetailDialog({ open, onOpenChange, event, onEdit }: EventDe
         <DialogFooter className="px-6 pb-6 flex gap-2">
           <Button
             variant="destructive"
-            onClick={handleDelete}
+            onClick={() => setDeleteOpen(true)}
             disabled={deleting}
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -262,6 +271,28 @@ export function EventDetailDialog({ open, onOpenChange, event, onEdit }: EventDe
           )}
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>"{event.title}"</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

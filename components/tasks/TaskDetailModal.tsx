@@ -3,6 +3,16 @@
 import { useState, useEffect } from 'react'
 import { TaskWithDetails, Subtask, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/types/tasks'
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -65,6 +75,8 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dueDateInput, setDueDateInput] = useState('')
+  const [deleteTaskOpen, setDeleteTaskOpen] = useState(false)
+  const [deleteSubtaskId, setDeleteSubtaskId] = useState<string | null>(null)
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>('')
@@ -167,10 +179,10 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   }
 
   const handleDelete = async () => {
-    if (currentTask && confirm('Tem certeza que deseja excluir esta tarefa?')) {
-      await deleteTask(currentTask.id)
-      onOpenChange(false)
-    }
+    if (!currentTask) return
+    await deleteTask(currentTask.id)
+    setDeleteTaskOpen(false)
+    onOpenChange(false)
   }
 
   // Subtarefas
@@ -195,12 +207,12 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
     await refreshTask()
   }
 
-  const handleDeleteSubtask = async (subtaskId: string) => {
-    if (confirm('Excluir subtarefa?')) {
-      await deleteSubtask(subtaskId)
-      await loadSubtasks()
-      await refreshTask()
-    }
+  const handleDeleteSubtask = async () => {
+    if (!deleteSubtaskId) return
+    await deleteSubtask(deleteSubtaskId)
+    setDeleteSubtaskId(null)
+    await loadSubtasks()
+    await refreshTask()
   }
 
   if (!currentTask) return null
@@ -520,8 +532,8 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleDeleteSubtask(subtask.id)}
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteSubtaskId(subtask.id)}
                           >
                             <Trash className="h-3 w-3" />
                           </Button>
@@ -594,7 +606,7 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
           {/* Footer */}
           <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/30">
-            <Button variant="destructive" onClick={handleDelete} size="sm">
+            <Button variant="destructive" onClick={() => setDeleteTaskOpen(true)} size="sm">
               <Trash className="h-4 w-4 mr-2" />
               Excluir Tarefa
             </Button>
@@ -605,6 +617,49 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
           </div>
         </div>
       </DialogContent>
+
+      {/* AlertDialog: excluir tarefa */}
+      <AlertDialog open={deleteTaskOpen} onOpenChange={setDeleteTaskOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>"{currentTask?.title}"</strong>?
+              Esta ação não pode ser desfeita. Subtarefas, comentários e anexos também serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog: excluir subtarefa */}
+      <AlertDialog open={!!deleteSubtaskId} onOpenChange={(o) => { if (!o) setDeleteSubtaskId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir subtarefa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSubtask}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

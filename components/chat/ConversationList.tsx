@@ -1,6 +1,16 @@
 'use client'
 
 import { Conversation } from '@/types/chat'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +52,7 @@ export function ConversationList({
   const [searchTerm, setSearchTerm] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [userTags, setUserTags] = useState<Map<string, UserTag>>(new Map())
+  const [convToDelete, setConvToDelete] = useState<Conversation | null>(null)
 
   // Buscar usuário atual
   useEffect(() => {
@@ -235,15 +246,7 @@ export function ConversationList({
                   className="absolute right-2 top-2 h-7 w-7 opacity-0 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (
-                      confirm(
-                        `Tem certeza que deseja ${
-                          conversation.type === 'group' ? 'sair do grupo' : 'deletar esta conversa'
-                        }?`
-                      )
-                    ) {
-                      onDeleteConversation(conversation.id, conversation.type)
-                    }
+                    setConvToDelete(conversation)
                   }}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -253,6 +256,35 @@ export function ConversationList({
           </div>
         )}
       </ScrollArea>
+
+      <AlertDialog open={!!convToDelete} onOpenChange={(o) => { if (!o) setConvToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {convToDelete?.type === 'group' ? 'Sair do grupo?' : 'Deletar conversa?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {convToDelete?.type === 'group'
+                ? `Tem certeza que deseja sair do grupo "${convToDelete?.name}"?`
+                : `Tem certeza que deseja deletar a conversa com "${convToDelete?.name}"? Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (convToDelete) {
+                  onDeleteConversation(convToDelete.id, convToDelete.type)
+                  setConvToDelete(null)
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {convToDelete?.type === 'group' ? 'Sair' : 'Deletar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

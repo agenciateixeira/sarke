@@ -2,6 +2,16 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +42,8 @@ export default function EquipePage() {
   const [dialogLoading, setDialogLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
+  const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null)
+  const [inviteToCancel, setInviteToCancel] = useState<string | null>(null)
 
   const stats = getStats()
 
@@ -45,24 +57,25 @@ export default function EquipePage() {
     setDialogOpen(true)
   }
 
-  const handleDelete = async (member: TeamMember) => {
-    if (!confirm(`Tem certeza que deseja remover ${member.name} da equipe?`)) return
-
-    const success = await removeMember(member.id)
+  const handleDelete = async () => {
+    if (!memberToDelete) return
+    const success = await removeMember(memberToDelete.id)
     if (success) {
-      toast.success(`${member.name} foi removido da equipe`)
+      toast.success(`${memberToDelete.name} foi removido da equipe`)
     }
+    setMemberToDelete(null)
   }
 
-  const handleCancelInvite = async (id: string) => {
-    if (!confirm('Cancelar este convite?')) return
-    const { error } = await supabase.from('team_invites').delete().eq('id', id)
+  const handleCancelInvite = async () => {
+    if (!inviteToCancel) return
+    const { error } = await supabase.from('team_invites').delete().eq('id', inviteToCancel)
     if (error) {
       toast.error('Erro ao cancelar convite')
     } else {
       toast.success('Convite cancelado')
       fetchMembers()
     }
+    setInviteToCancel(null)
   }
 
   const handleSubmit = async (data: any) => {
@@ -206,7 +219,7 @@ export default function EquipePage() {
                     key={member.id}
                     member={member}
                     onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onDelete={setMemberToDelete}
                   />
                 ))}
               </div>
@@ -224,7 +237,7 @@ export default function EquipePage() {
                     <PendingInviteCard
                       key={invite.id}
                       invite={invite}
-                      onDelete={handleCancelInvite}
+                      onDelete={setInviteToCancel}
                     />
                   ))}
                 </div>
@@ -241,6 +254,49 @@ export default function EquipePage() {
           onSubmit={handleSubmit}
           loading={dialogLoading}
         />
+
+        {/* AlertDialog: remover membro */}
+        <AlertDialog open={!!memberToDelete} onOpenChange={(o) => { if (!o) setMemberToDelete(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover membro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja remover <strong>{memberToDelete?.name}</strong> da equipe?
+                O acesso dele ao sistema será revogado.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* AlertDialog: cancelar convite */}
+        <AlertDialog open={!!inviteToCancel} onOpenChange={(o) => { if (!o) setInviteToCancel(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancelar convite?</AlertDialogTitle>
+              <AlertDialogDescription>
+                O convite será cancelado e o link de acesso deixará de funcionar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Voltar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleCancelInvite}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Cancelar convite
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )

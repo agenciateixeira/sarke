@@ -8,6 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TaskWithDetails, PipelineColumn, CreateTaskData, CreateColumnData } from '@/types/tasks'
 import { Plus, Loader2 } from 'lucide-react'
@@ -28,6 +38,7 @@ export default function TarefasPage() {
   // Estados para modais
   const [selectedTask, setSelectedTask] = useState<TaskWithDetails | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [columnToDelete, setColumnToDelete] = useState<PipelineColumn | null>(null)
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false)
   const [createColumnModalOpen, setCreateColumnModalOpen] = useState(false)
   const [editColumnModalOpen, setEditColumnModalOpen] = useState(false)
@@ -131,10 +142,14 @@ export default function TarefasPage() {
     }
   }
 
-  const handleDeleteColumn = async (column: PipelineColumn) => {
-    if (confirm(`Excluir a coluna "${column.name}"? As tarefas nela serão mantidas, mas ficarão sem coluna.`)) {
-      await deleteColumn(column.id)
-    }
+  const handleDeleteColumn = (column: PipelineColumn) => {
+    setColumnToDelete(column)
+  }
+
+  const confirmDeleteColumn = async () => {
+    if (!columnToDelete) return
+    await deleteColumn(columnToDelete.id)
+    setColumnToDelete(null)
   }
 
   if (loading) {
@@ -355,6 +370,28 @@ export default function TarefasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog: excluir coluna */}
+      <AlertDialog open={!!columnToDelete} onOpenChange={(o) => { if (!o) setColumnToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir coluna?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a coluna <strong>"{columnToDelete?.name}"</strong>?
+              As tarefas nela serão mantidas, mas ficarão sem coluna.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteColumn}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

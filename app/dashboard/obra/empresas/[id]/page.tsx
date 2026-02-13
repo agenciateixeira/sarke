@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,6 +66,8 @@ export default function EmpresaDetailPage() {
   const router = useRouter()
   const [empresa, setEmpresa] = useState<EmpresaParceira | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -81,6 +93,27 @@ export default function EmpresaDetailPage() {
       router.push('/dashboard/obra/empresas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      setDeleting(true)
+      const { error } = await supabase
+        .from('empresas_parceiras')
+        .delete()
+        .eq('id', params.id)
+
+      if (error) throw error
+
+      toast.success('Empresa excluída com sucesso!')
+      router.push('/dashboard/obra/empresas')
+    } catch (error: any) {
+      console.error('Erro ao excluir empresa:', error)
+      toast.error(error.message || 'Erro ao excluir empresa')
+    } finally {
+      setDeleting(false)
+      setDeleteOpen(false)
     }
   }
 
@@ -177,7 +210,11 @@ export default function EmpresaDetailPage() {
                 Editar
               </Link>
             </Button>
-            <Button variant="outline" className="text-red-600 hover:text-red-700">
+            <Button
+              variant="outline"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setDeleteOpen(true)}
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Excluir
             </Button>
@@ -644,6 +681,28 @@ export default function EmpresaDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir empresa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>"{empresa?.nome}"</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ProtectedRoute>
   )
 }

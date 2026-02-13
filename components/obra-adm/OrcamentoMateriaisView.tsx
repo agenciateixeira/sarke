@@ -1,6 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import {
   ObraOrcamentoMaterial,
@@ -23,6 +33,7 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editando, setEditando] = useState<ObraOrcamentoMaterial | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   // Carregar dados
   useEffect(() => {
@@ -91,20 +102,20 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
     }
   };
 
-  const handleExcluir = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este item?')) return;
+  const handleExcluir = async () => {
+    if (!itemToDelete) return;
 
     try {
       const { error } = await supabase
         .from('obra_orcamento_materiais')
         .delete()
-        .eq('id', id);
+        .eq('id', itemToDelete);
 
       if (error) throw error;
+      setItemToDelete(null);
       carregarDados();
     } catch (error) {
       console.error('Erro ao excluir material:', error);
-      alert('Erro ao excluir material');
     }
   };
 
@@ -264,7 +275,7 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleExcluir(material.id)}
+                          onClick={() => setItemToDelete(material.id)}
                           className="text-red-600 hover:text-red-800"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -531,6 +542,26 @@ function FormularioMaterial({ material, obraId, onSalvar, onCancelar }: Formular
           </form>
         </div>
       </div>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(o) => { if (!o) setItemToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este item do orçamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluir}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,16 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +42,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null)
+  const [attachmentToDelete, setAttachmentToDelete] = useState<TaskAttachment | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,10 +94,11 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
     }
   }
 
-  const handleDelete = async (attachment: TaskAttachment) => {
-    if (!confirm(`Excluir o arquivo "${attachment.file_name}"?`)) return
+  const handleDelete = async () => {
+    if (!attachmentToDelete) return
 
     try {
+      const attachment = attachmentToDelete
       // Deletar do storage
       const { error: storageError } = await supabase.storage
         .from('documents')
@@ -103,6 +115,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
       if (dbError) throw dbError
 
       toast.success('Arquivo excluído!')
+      setAttachmentToDelete(null)
       onRefresh()
     } catch (err) {
       console.error('Error deleting file:', err)
@@ -278,7 +291,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(attachment)}
+                    onClick={() => setAttachmentToDelete(attachment)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -330,6 +343,27 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!attachmentToDelete} onOpenChange={(o) => { if (!o) setAttachmentToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir arquivo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>"{attachmentToDelete?.file_name}"</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

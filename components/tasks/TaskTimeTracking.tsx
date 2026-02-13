@@ -1,6 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -44,6 +54,7 @@ export function TaskTimeTracking({ taskId }: TaskTimeTrackingProps) {
   const [elapsedTime, setElapsedTime] = useState(0)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null)
 
   // Fetch time entries
   const fetchTimeEntries = async () => {
@@ -158,18 +169,19 @@ export function TaskTimeTracking({ taskId }: TaskTimeTrackingProps) {
   }
 
   // Deletar entry
-  const handleDelete = async (entryId: string) => {
-    if (!confirm('Deseja realmente excluir este registro de tempo?')) return
+  const handleDelete = async () => {
+    if (!entryToDelete) return
 
     try {
       const { error } = await supabase
         .from('task_time_entries')
         .delete()
-        .eq('id', entryId)
+        .eq('id', entryToDelete)
 
       if (error) throw error
 
       toast.success('Registro excluído')
+      setEntryToDelete(null)
       await fetchTimeEntries()
     } catch (error) {
       console.error('Error deleting entry:', error)
@@ -320,7 +332,7 @@ export function TaskTimeTracking({ taskId }: TaskTimeTrackingProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(entry.id)}
+                          onClick={() => setEntryToDelete(entry.id)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -335,6 +347,25 @@ export function TaskTimeTracking({ taskId }: TaskTimeTrackingProps) {
           </ScrollArea>
         </CardContent>
       </Card>
+      <AlertDialog open={!!entryToDelete} onOpenChange={(o) => { if (!o) setEntryToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir registro de tempo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir este registro de tempo? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

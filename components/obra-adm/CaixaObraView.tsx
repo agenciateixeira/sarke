@@ -1,6 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import {
   ObraCaixa,
@@ -33,6 +43,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [showDialogMovimentacao, setShowDialogMovimentacao] = useState(false);
   const [showDialogSemana, setShowDialogSemana] = useState(false);
   const [editandoMovimentacao, setEditandoMovimentacao] = useState<ObraCaixa | null>(null);
+  const [movToDelete, setMovToDelete] = useState<string | null>(null);
 
   // Carregar semanas
   useEffect(() => {
@@ -145,21 +156,21 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
     }
   };
 
-  const handleExcluirMovimentacao = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta movimentação?')) return;
+  const handleExcluirMovimentacao = async () => {
+    if (!movToDelete) return;
 
     try {
       const { error } = await supabase
         .from('obra_caixa')
         .delete()
-        .eq('id', id);
+        .eq('id', movToDelete);
 
       if (error) throw error;
+      setMovToDelete(null);
       carregarMovimentacoes();
-      carregarSemanas(); // Atualizar totais
+      carregarSemanas();
     } catch (error) {
       console.error('Erro ao excluir movimentação:', error);
-      alert('Erro ao excluir movimentação');
     }
   };
 
@@ -387,7 +398,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleExcluirMovimentacao(mov.id)}
+                            onClick={() => setMovToDelete(mov.id)}
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -955,5 +966,25 @@ function FormularioMovimentacao({ movimentacao, obraId, semanaSelecionada, onSal
         </div>
       </div>
     </div>
+
+    <AlertDialog open={!!movToDelete} onOpenChange={(o) => { if (!o) setMovToDelete(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir esta movimentação? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleExcluirMovimentacao}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
