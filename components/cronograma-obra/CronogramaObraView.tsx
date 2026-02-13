@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -69,6 +79,9 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
     status: 'pendente' as AtividadeStatus,
     prioridade: 'normal' as AtividadePrioridade,
   })
+  const [editandoAtividade, setEditandoAtividade] = useState<CronogramaObraAtividade | null>(null)
+  const [atividadeToDelete, setAtividadeToDelete] = useState<string | null>(null)
+  const [materialToDelete, setMaterialToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     loadCronograma()
@@ -212,6 +225,119 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
       console.error('Erro ao adicionar atividade:', error)
       toast.error('Erro ao adicionar atividade')
     }
+  }
+
+  async function atualizarAtividade() {
+    try {
+      if (!editandoAtividade) return
+
+      if (!novaAtividade.data_prevista || !novaAtividade.descricao_servico) {
+        toast.error('Preencha os campos obrigatórios')
+        return
+      }
+
+      const data = new Date(novaAtividade.data_prevista)
+      const mes = format(data, 'MMMM', { locale: ptBR })
+      const diaSemana = format(data, 'EEEE', { locale: ptBR })
+
+      const { error } = await supabase
+        .from('cronograma_obra_atividades')
+        .update({
+          mes: mes,
+          dia_semana: diaSemana,
+          data_prevista: novaAtividade.data_prevista,
+          descricao_servico: novaAtividade.descricao_servico,
+          observacao: novaAtividade.observacao || null,
+          empresa_parceira_id: novaAtividade.empresa_parceira_id || null,
+          status: novaAtividade.status,
+          prioridade: novaAtividade.prioridade,
+        })
+        .eq('id', editandoAtividade.id)
+
+      if (error) throw error
+
+      toast.success('Atividade atualizada com sucesso!')
+      setAtividadeDialogOpen(false)
+      setEditandoAtividade(null)
+      setNovaAtividade({
+        data_prevista: '',
+        descricao_servico: '',
+        observacao: '',
+        empresa_parceira_id: '',
+        status: 'pendente',
+        prioridade: 'normal',
+      })
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao atualizar atividade:', error)
+      toast.error('Erro ao atualizar atividade')
+    }
+  }
+
+  async function deletarAtividade() {
+    if (!atividadeToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('cronograma_obra_atividades')
+        .delete()
+        .eq('id', atividadeToDelete)
+
+      if (error) throw error
+
+      toast.success('Atividade excluída com sucesso!')
+      setAtividadeToDelete(null)
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao excluir atividade:', error)
+      toast.error('Erro ao excluir atividade')
+    }
+  }
+
+  async function deletarMaterial() {
+    if (!materialToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('cronograma_obra_materiais')
+        .delete()
+        .eq('id', materialToDelete)
+
+      if (error) throw error
+
+      toast.success('Material excluído com sucesso!')
+      setMaterialToDelete(null)
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao excluir material:', error)
+      toast.error('Erro ao excluir material')
+    }
+  }
+
+  function abrirEditarAtividade(atividade: CronogramaObraAtividade) {
+    setEditandoAtividade(atividade)
+    setNovaAtividade({
+      data_prevista: atividade.data_prevista,
+      descricao_servico: atividade.descricao_servico,
+      observacao: atividade.observacao || '',
+      empresa_parceira_id: atividade.empresa_parceira_id || '',
+      status: atividade.status,
+      prioridade: atividade.prioridade,
+    })
+    setAtividadeDialogOpen(true)
+  }
+
+  function fecharDialogAtividade() {
+    setAtividadeDialogOpen(false)
+    setEditandoAtividade(null)
+    setNovaAtividade({
+      data_prevista: '',
+      descricao_servico: '',
+      observacao: '',
+      empresa_parceira_id: '',
+      status: 'pendente',
+      prioridade: 'normal',
+    })
   }
 
   if (loading) {
@@ -385,10 +511,20 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
                       </td>
                       <td className="p-2 text-center">
                         <div className="flex gap-1 justify-center">
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => abrirEditarAtividade(atividade)}
+                          >
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setAtividadeToDelete(atividade.id)}
+                          >
                             <Trash2 className="h-3 w-3 text-red-600" />
                           </Button>
                         </div>
@@ -481,10 +617,15 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
                       </td>
                       <td className="p-2 text-center">
                         <div className="flex gap-1 justify-center">
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled title="Edição em desenvolvimento">
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setMaterialToDelete(material.id)}
+                          >
                             <Trash2 className="h-3 w-3 text-red-600" />
                           </Button>
                         </div>
@@ -498,13 +639,15 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
         </CardContent>
       </Card>
 
-      {/* Dialog Nova Atividade */}
-      <Dialog open={atividadeDialogOpen} onOpenChange={setAtividadeDialogOpen}>
+      {/* Dialog Nova/Editar Atividade */}
+      <Dialog open={atividadeDialogOpen} onOpenChange={fecharDialogAtividade}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Nova Atividade</DialogTitle>
+            <DialogTitle>{editandoAtividade ? 'Editar Atividade' : 'Nova Atividade'}</DialogTitle>
             <DialogDescription>
-              Adicione uma nova atividade ao cronograma da obra
+              {editandoAtividade
+                ? 'Atualize os dados da atividade'
+                : 'Adicione uma nova atividade ao cronograma da obra'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -607,13 +750,57 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAtividadeDialogOpen(false)}>
+            <Button variant="outline" onClick={fecharDialogAtividade}>
               Cancelar
             </Button>
-            <Button onClick={adicionarAtividade}>Adicionar</Button>
+            <Button onClick={editandoAtividade ? atualizarAtividade : adicionarAtividade}>
+              {editandoAtividade ? 'Salvar' : 'Adicionar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog - Excluir Atividade */}
+      <AlertDialog open={!!atividadeToDelete} onOpenChange={(o) => { if (!o) setAtividadeToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir atividade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta atividade? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deletarAtividade}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog - Excluir Material */}
+      <AlertDialog open={!!materialToDelete} onOpenChange={(o) => { if (!o) setMaterialToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir material?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este material? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deletarMaterial}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
