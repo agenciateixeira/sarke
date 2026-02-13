@@ -440,6 +440,26 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           }}
         />
       )}
+
+      <AlertDialog open={!!movToDelete} onOpenChange={(o) => { if (!o) setMovToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta movimentação? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluirMovimentacao}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -966,25 +986,5 @@ function FormularioMovimentacao({ movimentacao, obraId, semanaSelecionada, onSal
         </div>
       </div>
     </div>
-
-    <AlertDialog open={!!movToDelete} onOpenChange={(o) => { if (!o) setMovToDelete(null); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Excluir movimentação?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Tem certeza que deseja excluir esta movimentação? Esta ação não pode ser desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleExcluirMovimentacao}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Excluir
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
