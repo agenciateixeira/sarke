@@ -1,0 +1,239 @@
+================================================================================
+                    LISTA COMPLETA DE ARQUIVOS ANALISADOS
+================================================================================
+
+1. APLICAÇÃO (Frontend React/Next.js)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   
+   📄 app/dashboard/obra/page.tsx
+      ├─ Função: confirmDeleteObra()
+      ├─ Linhas: 167-183
+      ├─ Tabela: obras
+      ├─ Problema: ❌ RLS sem DELETE policy
+      ├─ Filtros: ✅ eq('id', obraToDelete.id)
+      ├─ Refresh: ✅ setObras() com filter
+      └─ Status: CRÍTICO
+      
+   📄 components/obra-adm/CaixaObraView.tsx
+      ├─ Função: handleExcluirMovimentacao()
+      ├─ Linhas: 148-164
+      ├─ Tabela: obra_caixa
+      ├─ Problema: ⚠️ Sem validar obra_id
+      ├─ Filtros: ❌ Apenas eq('id', id)
+      ├─ Refresh: ✅ carregarMovimentacoes() + carregarSemanas()
+      └─ Status: MÉDIO
+      
+   📄 components/tasks/TaskDetailModal.tsx
+      ├─ Funções: handleDelete() / handleDeleteSubtask()
+      ├─ Linhas: 169-174 / 198-204
+      ├─ Tabelas: tasks / subtasks
+      ├─ Problemas:
+      │  ├─ Tasks: Sem validação created_by (MÉDIO)
+      │  └─ Subtasks: Refetch incompleto (MÉDIO)
+      ├─ Filtros: ✅ eq('id', taskId/subtaskId)
+      ├─ Refresh: ✅ Mas subtask não refetch task
+      └─ Status: MÉDIO
+      
+   📄 components/tasks/TaskAttachmentsTab.tsx
+      ├─ Função: handleDelete()
+      ├─ Linhas: 119-144
+      ├─ Tabelas: task_attachments (+ storage)
+      ├─ Problema: ❌ Storage deletado ANTES de DB
+      ├─ Ordem: Storage → DB (ERRADO!)
+      ├─ Filtros: ✅ eq('id', attachment.id)
+      ├─ Refresh: ✅ fetchAttachments()
+      └─ Status: MÉDIO
+      
+   📄 components/calendar/EventDetailDialog.tsx
+      ├─ Função: handleDelete()
+      ├─ Linhas: 51-64
+      ├─ Tabela: calendar_events
+      ├─ Problema: ⚠️ Sem validar organizer_id
+      ├─ Filtros: ❌ Apenas eq('id', eventId)
+      ├─ Refresh: ✅ Via hook
+      └─ Status: MÉDIO
+      
+   📄 app/dashboard/equipe/page.tsx
+      ├─ Função: handleDelete() / handleCancelInvite()
+      ├─ Linhas: 48-55 / 57-66
+      ├─ Tabelas: profiles / team_invites
+      ├─ Problemas:
+      │  ├─ Delete membro: ❌ Sem remover auth.user
+      │  └─ Delete invite: ✅ OK
+      ├─ Filtros: ⚠️ Apenas eq('id', id)
+      ├─ Refresh: ✅ fetchMembers()
+      └─ Status: CRÍTICO (membro) / OK (invite)
+      
+   📄 app/dashboard/comercial/page.tsx
+      ├─ Função: handleDelete()
+      ├─ Linhas: 69-80
+      ├─ Tabela: clients
+      ├─ Problema: ⚠️ Sem validar cascata com obras
+      ├─ Filtros: ✅ eq('id', clientToDelete.id)
+      ├─ Refresh: ✅ Remove da UI
+      └─ Status: MÉDIO
+      
+================================================================================
+
+2. HOOKS (Lógica de dados)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   
+   📄 hooks/useTaskPipeline.ts
+      ├─ Funções:
+      │  ├─ deleteTask() - Linhas: 244-267
+      │  ├─ deleteSubtask() - Linhas: 358-374
+      │  └─ deleteColumn() - Linhas: 163-187
+      ├─ Tabelas: tasks / subtasks / pipeline_columns
+      ├─ Problemas:
+      │  ├─ deleteTask: Sem validar created_by
+      │  ├─ deleteSubtask: Sem refetch no hook
+      │  └─ deleteColumn: Sem confirmação antes
+      ├─ Refresh: ✅ Sim (com update otimista)
+      └─ Status: BAIXO-MÉDIO
+      
+   📄 hooks/useCalendarEvents.ts
+      ├─ Função: deleteEvent()
+      ├─ Linhas: 196-213
+      ├─ Tabela: calendar_events
+      ├─ Problema: ⚠️ Sem validar organizer_id
+      ├─ Filtros: ❌ Apenas eq('id', eventId)
+      ├─ Refresh: ✅ fetchEvents()
+      └─ Status: MÉDIO
+      
+   📄 hooks/useTeam.ts
+      ├─ Função: removeMember()
+      ├─ Linhas: 228-245
+      ├─ Tabela: profiles (+ auth.users)
+      ├─ Problema: ❌ Não remove auth.users
+      ├─ Filtros: ✅ eq('id', id)
+      ├─ Refresh: ✅ fetchMembers()
+      └─ Status: CRÍTICO
+      
+   📄 hooks/useClients.ts
+      ├─ Função: deleteClient()
+      ├─ Linhas: 65-78
+      ├─ Tabela: clients
+      ├─ Problema: ⚠️ Sem validar FK constraints
+      ├─ Filtros: ✅ eq('id', id)
+      ├─ Refresh: ✅ Remove da state
+      └─ Status: MÉDIO
+      
+================================================================================
+
+3. SUPABASE MIGRATIONS (Banco de dados)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   
+   📄 supabase/migrations/20260203_obras.sql
+      ├─ Tabelas criadas:
+      │  ├─ obras (CREATE TABLE)
+      │  ├─ obra_fotos (CREATE TABLE)
+      │  ├─ obra_documentos (CREATE TABLE)
+      │  ├─ obra_medicoes (CREATE TABLE)
+      │  ├─ obra_etapas (CREATE TABLE)
+      │  └─ obra_rdo (CREATE TABLE)
+      ├─ RLS:
+      │  ├─ SELECT policy: ✅ Existe
+      │  ├─ INSERT policy: ✅ Existe
+      │  ├─ UPDATE policy: ✅ Existe
+      │  └─ DELETE policy: ❌ FALTA EM TODAS!
+      ├─ Linhas com RLS: 169-261
+      └─ Status: CRÍTICO - DELETE policies faltando
+      
+   📄 supabase/migrations/20260206_obra_adm_financeiro.sql
+      ├─ Tabelas criadas:
+      │  ├─ obra_orcamento_materiais
+      │  ├─ obra_caixa
+      │  └─ obra_caixa_semanas
+      ├─ RLS:
+      │  ├─ obra_caixa: ✅ DELETE policy existe
+      │  ├─ obra_caixa_semanas: ✅ DELETE policy existe
+      │  └─ obra_orcamento_materiais: ✅ DELETE policy existe
+      ├─ Status: OK (mas sem validação de propriedade)
+      
+   📄 supabase/migrations/20260206_empresa_config.sql
+      ├─ RLS check: ✅ DELETE policy existe
+      
+   📄 supabase/migrations/20260212_fix_webrtc_signals_rls.sql
+      ├─ RLS check: ✅ DELETE policy existe
+      
+================================================================================
+
+4. RESUMO POR STATUS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   CRÍTICO (requer fix urgente):
+   ├─ app/dashboard/obra/page.tsx → confirmDeleteObra()
+   ├─ app/dashboard/equipe/page.tsx → handleDelete() [membro]
+   ├─ supabase/migrations/20260203_obras.sql → DELETE policies
+   └─ hooks/useTeam.ts → removeMember()
+   
+   MÉDIO (requer fix esta semana):
+   ├─ components/obra-adm/CaixaObraView.tsx → handleExcluirMovimentacao()
+   ├─ components/tasks/TaskDetailModal.tsx → handleDelete() [task]
+   ├─ components/tasks/TaskAttachmentsTab.tsx → handleDelete()
+   ├─ components/calendar/EventDetailDialog.tsx → handleDelete()
+   ├─ app/dashboard/comercial/page.tsx → handleDelete()
+   └─ hooks/useCalendarEvents.ts → deleteEvent()
+   
+   BAIXO (requer fix nas próximas sprints):
+   ├─ hooks/useTaskPipeline.ts → deleteColumn()
+   ├─ hooks/useClients.ts → deleteClient()
+   └─ components/tasks/TaskDetailModal.tsx → handleDeleteSubtask()
+
+================================================================================
+
+5. QUANTIDADE RESUMIDA
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Total de funções delete analisadas: 13
+   
+   Problemas encontrados:
+   ├─ CRÍTICOS: 4
+   ├─ MÉDIOS: 6
+   ├─ BAIXOS: 3
+   └─ Total: 13 (100% com algum problema)
+   
+   RLS policies:
+   ├─ DELETE faltando: 6 tabelas
+   ├─ DELETE existindo: 5 tabelas
+   └─ Não consultado: 3 tabelas
+
+================================================================================
+
+6. PRÓXIMAS AÇÕES POR ARQUIVO
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   HOJE:
+   └─ supabase/migrations/20260213_add_delete_policies.sql
+      ├─ Ação: CRIAR migration com DELETE policies
+      └─ Prioridade: CRÍTICA
+   
+   AMANHÃ:
+   ├─ components/obra-adm/CaixaObraView.tsx
+   │  ├─ Ação: Adicionar filtro .eq('obra_id', obraId)
+   │  └─ Linha: 155
+   │
+   └─ components/tasks/TaskAttachmentsTab.tsx
+      ├─ Ação: Inverter ordem (DB antes storage)
+      └─ Linhas: 119-144
+   
+   ESTA SEMANA:
+   ├─ hooks/useTaskPipeline.ts
+   │  ├─ Ação: Validar created_by em deleteTask()
+   │  └─ Linha: 252
+   │
+   ├─ hooks/useCalendarEvents.ts
+   │  ├─ Ação: Validar organizer_id em deleteEvent()
+   │  └─ Linha: 200
+   │
+   ├─ hooks/useTeam.ts
+   │  ├─ Ação: Criar endpoint /api/admin/delete-user
+   │  └─ Linha: 230-245
+   │
+   └─ app/dashboard/comercial/page.tsx
+      ├─ Ação: Validar cascata com obras
+      └─ Linha: 70
+
+================================================================================
+EOF
+cat /Users/guilhermeteixeira/Documents/PROJETOS/sarke/ARQUIVOS_AFETADOS.txt

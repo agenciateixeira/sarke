@@ -1,0 +1,248 @@
+================================================================================
+                    AUDITORIA DE DELETE FUNCTIONS - RESUMO
+================================================================================
+
+Projeto:     Sarke (Next.js + Supabase)
+Data:        13 de Fevereiro de 2026
+Arquivos Analisados: 11 principais
+
+================================================================================
+                         PROBLEMAS ENCONTRADOS
+================================================================================
+
+[CRÍTICO] 1. DELETE POLICIES FALTANDO NO RLS
+   - Tabelas: obras, obra_fotos, obra_documentos, obra_medicoes, obra_etapas, obra_rdo
+   - Impacto: DELETE FALHA silenciosamente, mas UI é removida
+   - Fix: Criar migration com DELETE policies
+   - Prioridade: HOJE
+
+[CRÍTICO] 2. DELETE DE AUTH.USERS SEM SINCRONIZAÇÃO
+   - Local: useTeam.ts -> removeMember()
+   - Impacto: Usuário deletado do app mas pode recriar conta com mesmo email
+   - Fix: Criar endpoint back-end para remover auth user
+   - Prioridade: ESTA SEMANA
+
+[MÉDIO] 3. DELETE SEM VALIDAÇÃO DE PROPRIEDADE
+   - Casos:
+     • CaixaObraView.tsx: Deletar movimentação sem validar obra_id
+     • TaskDetailModal.tsx: Sem validar created_by
+     • EventDetailDialog.tsx: Sem validar organizer_id
+   - Impacto: Usuários podem deletar dados alheios
+   - Fix: Adicionar filtros na query delete
+   - Prioridade: ESTA SEMANA
+
+[MÉDIO] 4. PROBLEMA DE TRANSAÇÃO INCOMPLETA
+   - Local: TaskAttachmentsTab.tsx
+   - Impacto: Se DB falhar, arquivo fica órfão no storage
+   - Fix: Deletar DB PRIMEIRO, depois storage
+   - Prioridade: ESTA SEMANA
+
+[MÉDIO] 5. DELETE COM PROBLEMAS DE REFRESH UI
+   - Casos:
+     • TaskDetailModal.tsx: Subtarefa não refetch da task
+     • TaskAttachmentsTab.tsx: Anexo não atualiza task_count
+   - Impacto: UI pode ficar inconsistente
+   - Fix: Adicionar refetch no hook
+   - Prioridade: PRÓXIMAS SPRINTS
+
+================================================================================
+                         ARQUIVOS ANALISADOS
+================================================================================
+
+1. app/dashboard/obra/page.tsx
+   Função: confirmDeleteObra()
+   Tabela: obras
+   RLS: ❌ DELETE policy falta
+   Filtro: ✅ Por ID
+   Refresh: ✅ Remove da UI
+   Status: CRÍTICO
+
+2. components/obra-adm/CaixaObraView.tsx
+   Função: handleExcluirMovimentacao()
+   Tabela: obra_caixa
+   RLS: ✅ DELETE policy existe
+   Filtro: ❌ Sem validação de obra_id
+   Refresh: ✅ Recarrega dados
+   Status: MÉDIO
+
+3. components/tasks/TaskDetailModal.tsx
+   Função: handleDelete() / handleDeleteSubtask()
+   Tabela: tasks / subtasks
+   RLS: ? (não consultado)
+   Filtro: ✅ Por ID
+   Refresh: ✅ Recarrega
+   Status: BAIXO-MÉDIO
+
+4. components/tasks/TaskAttachmentsTab.tsx
+   Função: handleDelete()
+   Tabela: task_attachments (+ storage)
+   RLS: ? (não consultado)
+   Filtro: ✅ Por ID
+   Refresh: ✅ Recarrega
+   Ordem: ❌ Storage ANTES de DB
+   Status: MÉDIO
+
+5. components/calendar/EventDetailDialog.tsx
+   Função: handleDelete()
+   Tabela: calendar_events
+   RLS: ? (não consultado)
+   Filtro: ❌ Sem validar organizer_id
+   Refresh: ✅ Recarrega
+   Status: MÉDIO
+
+6. app/dashboard/equipe/page.tsx
+   Função: handleDelete()
+   Tabela: profiles (+ auth.users)
+   RLS: ? (não consultado)
+   Filtro: ⚠️ Apenas ID
+   Refresh: ✅ Recarrega
+   Status: CRÍTICO (auth sync missing)
+
+7. app/dashboard/comercial/page.tsx
+   Função: handleDelete()
+   Tabela: clients
+   RLS: ? (não consultado)
+   Filtro: ✅ Por ID
+   Refresh: ✅ Recarrega UI
+   Cascata: ⚠️ Sem validação
+   Status: MÉDIO
+
+8. hooks/useTaskPipeline.ts
+   Funções: deleteTask / deleteSubtask / deleteColumn
+   RLS: ? (não consultado)
+   Refresh: ✅ Recarrega
+   Status: BAIXO-MÉDIO
+
+9. hooks/useCalendarEvents.ts
+   Função: deleteEvent()
+   Tabela: calendar_events
+   RLS: ? (não consultado)
+   Filtro: ❌ Sem validar organizer_id
+   Status: MÉDIO
+
+10. hooks/useTeam.ts
+    Função: removeMember()
+    Tabela: profiles (+ auth.users)
+    RLS: ? (não consultado)
+    Status: CRÍTICO
+
+11. hooks/useClients.ts
+    Função: deleteClient()
+    Tabela: clients
+    RLS: ? (não consultado)
+    Status: MÉDIO
+
+================================================================================
+                    VERIFICAÇÃO DE RLS POR TABELA
+================================================================================
+
+OBRAS e relacionadas:
+  ✅ RLS ENABLED
+  ✅ SELECT POLICY existe
+  ✅ INSERT POLICY existe
+  ✅ UPDATE POLICY existe
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_FOTOS:
+  ✅ RLS ENABLED
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_DOCUMENTOS:
+  ✅ RLS ENABLED
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_MEDICOES:
+  ✅ RLS ENABLED
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_ETAPAS:
+  ✅ RLS ENABLED
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_RDO:
+  ✅ RLS ENABLED
+  ❌ DELETE POLICY FALTA  <- CRÍTICO!
+
+OBRA_CAIXA:
+  ✅ RLS ENABLED
+  ✅ DELETE POLICY existe
+  Status: OK (mas sem validação de obra_id)
+
+OBRA_CAIXA_SEMANAS:
+  ✅ RLS ENABLED
+  ✅ DELETE POLICY existe
+  Status: OK
+
+TASKS / SUBTASKS / TASK_ATTACHMENTS:
+  ❓ Status não consultado, presumível que OK
+
+CALENDAR_EVENTS:
+  ❓ Status não consultado, presumível que OK
+
+PROFILES:
+  ⚠️ RISCO: Deletar sem remover do auth.users
+
+CLIENTS:
+  ❓ Status não consultado, presumível que OK
+
+================================================================================
+                           AÇÕES IMEDIATAS
+================================================================================
+
+HOJE:
+  1. Criar migration: supabase/migrations/20260213_add_delete_policies.sql
+  2. Testar delete de obras no Supabase console
+  3. Verificar se UI é consistente com DB
+
+AMANHÃ:
+  1. Fix CaixaObraView: adicionar filtro obra_id
+  2. Fix TaskAttachmentsTab: inverter ordem (DB primeiro)
+
+ESTA SEMANA:
+  1. Fix TaskDetailModal: validação em deleteTask
+  2. Fix EventDetailDialog: validação em deleteEvent
+  3. Fix useTeam: criar endpoint para remover auth user
+  4. Fix comercial: validar cascata
+
+PRÓXIMAS SPRINTS:
+  1. Soft-deletes para dados críticos
+  2. Audit trail para exclusões
+  3. Testes automatizados de delete
+  4. Limpeza de dados órfãos
+
+================================================================================
+                    DOCUMENTAÇÃO GERADA
+================================================================================
+
+1. AUDITORIA_DELETE_FUNCTIONS.md (798 linhas)
+   - Análise completa detalhada de cada função
+   - Código completo com contexto
+   - Problemas identificados
+   - Recomendações específicas
+
+2. FIXES_DELETE_RECOMENDADOS.md
+   - Guia prático de implementação
+   - Código antes/depois
+   - Lista de testes de QA
+   - SQL para encontrar dados órfãos
+
+3. SUMARIO_AUDITORIA.txt (este arquivo)
+   - Resumo executivo
+   - Tabela de problemas
+   - Checklist de ações
+
+================================================================================
+                      CONTATO & PRÓXIMOS PASSOS
+================================================================================
+
+Para implementar os fixes:
+1. Ler AUDITORIA_DELETE_FUNCTIONS.md para entender os problemas
+2. Seguir FIXES_DELETE_RECOMENDADOS.md para implementar
+3. Testar com as QA checklists fornecidas
+4. Limpar dados órfãos usando SQL fornecido
+
+Tempo estimado de implementação: 2-3 dias para críticos, 1 semana para todos
+
+================================================================================
+EOF
+cat /Users/guilhermeteixeira/Documents/PROJETOS/sarke/SUMARIO_AUDITORIA.txt

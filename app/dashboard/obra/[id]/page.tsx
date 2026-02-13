@@ -34,6 +34,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { ObraFormDialog } from '@/components/obra/ObraFormDialog'
+import { ObraStatusChanger } from '@/components/obra/ObraStatusChanger'
 import { RDOList } from '@/components/rdo/RDOList'
 import { CronogramaObraCompleto } from '@/types/cronograma-obra'
 import OrcamentoMateriaisView from '@/components/obra-adm/OrcamentoMateriaisView'
@@ -274,6 +275,9 @@ export default function ObraDetailPage() {
           {/* Aba Informações */}
           <TabsContent value="info" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
+              {/* Alteração de Status */}
+              <ObraStatusChanger obra={obra} onStatusChanged={handleObraSuccess} />
+
               {/* Informações Gerais */}
               <Card>
                 <CardHeader>
