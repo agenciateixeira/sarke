@@ -8,91 +8,54 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { TipoCronograma, StatusCronograma, UnidadeTempo } from '@/types/cronograma'
+import { CronogramaObraStatus } from '@/types/cronograma-obra'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { Loader2, ArrowLeft, Building, Briefcase, ClipboardList } from 'lucide-react'
+import { Loader2, ArrowLeft, Building } from 'lucide-react'
 import Link from 'next/link'
 
-export default function NovoCronogramaPage() {
+export default function NovoCronogramaObraPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [obras, setObras] = useState<any[]>([])
-  const [projetos, setProjetos] = useState<any[]>([])
-  const [usuarios, setUsuarios] = useState<any[]>([])
+  const [loadingObras, setLoadingObras] = useState(true)
 
   // Form state
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
-    tipo: 'geral' as TipoCronograma,
     obra_id: '',
-    project_id: '',
     data_inicio: '',
-    data_fim: '',
-    status: 'planejamento' as StatusCronograma,
-    unidade_tempo: 'dias' as UnidadeTempo,
-    exibir_caminho_critico: true,
-    exibir_folgas: true,
-    responsavel_id: '',
+    data_fim_prevista: '',
+    status: 'ativo' as CronogramaObraStatus,
   })
 
   useEffect(() => {
-    loadOptions()
+    loadObras()
   }, [])
 
-  async function loadOptions() {
+  async function loadObras() {
     try {
-      // Carregar obras
-      const { data: obrasData, error: obrasError } = await supabase
+      setLoadingObras(true)
+      const { data, error } = await supabase
         .from('obras')
-        .select('id, nome')
+        .select('id, nome, endereco')
         .order('nome')
 
-      if (obrasError) throw obrasError
-      setObras(obrasData || [])
-
-      // Carregar projetos
-      const { data: projetosData, error: projetosError } = await supabase
-        .from('projects')
-        .select('id, name')
-        .order('name')
-
-      if (projetosError) throw projetosError
-      setProjetos(projetosData || [])
-
-      // Carregar usuários (gerentes e admins)
-      const { data: usuariosData, error: usuariosError } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('role', ['admin', 'gerente'])
-        .order('name')
-
-      if (usuariosError) throw usuariosError
-      setUsuarios(usuariosData || [])
-    } catch (error) {
-      console.error('Erro ao carregar opções:', error)
+      if (error) throw error
+      setObras(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar obras:', error)
+      toast.error('Erro ao carregar obras')
+    } finally {
+      setLoadingObras(false)
     }
   }
 
   function handleChange(field: string, value: any) {
-    setFormData((prev) => {
-      const updated = { ...prev, [field]: value }
-
-      // Limpar obra_id se tipo não for 'obra'
-      if (field === 'tipo' && value !== 'obra') {
-        updated.obra_id = ''
-      }
-
-      // Limpar project_id se tipo não for 'projeto'
-      if (field === 'tipo' && value !== 'projeto') {
-        updated.project_id = ''
-      }
-
-      return updated
-    })
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -104,53 +67,46 @@ export default function NovoCronogramaPage() {
       return
     }
 
-    if (!formData.data_inicio) {
-      toast.error('Data de início é obrigatória')
+    if (!formData.obra_id) {
+      toast.error('Selecione uma obra')
       return
     }
 
-    if (!formData.data_fim) {
-      toast.error('Data de fim é obrigatória')
-      return
-    }
-
-    if (new Date(formData.data_fim) <= new Date(formData.data_inicio)) {
-      toast.error('Data de fim deve ser posterior à data de início')
-      return
-    }
-
-    if (formData.tipo === 'obra' && !formData.obra_id) {
-      toast.error('Selecione uma obra para cronograma do tipo Obra')
-      return
-    }
-
-    if (formData.tipo === 'projeto' && !formData.project_id) {
-      toast.error('Selecione um projeto para cronograma do tipo Projeto')
-      return
+    if (formData.data_inicio && formData.data_fim_prevista) {
+      if (new Date(formData.data_fim_prevista) <= new Date(formData.data_inicio)) {
+        toast.error('Data de fim prevista deve ser posterior à data de início')
+        return
+      }
     }
 
     try {
       setLoading(true)
 
+      // Verificar se já existe cronograma para esta obra (UNIQUE constraint)
+      const { data: existente } = await supabase
+        .from('cronograma_obras')
+        .select('id')
+        .eq('obra_id', formData.obra_id)
+        .single()
+
+      if (existente) {
+        toast.error('Já existe um cronograma para esta obra')
+        return
+      }
+
       const cronogramaData: any = {
         nome: formData.nome,
         descricao: formData.descricao || null,
-        tipo: formData.tipo,
-        obra_id: formData.tipo === 'obra' ? formData.obra_id : null,
-        project_id: formData.tipo === 'projeto' ? formData.project_id : null,
-        data_inicio: formData.data_inicio,
-        data_fim: formData.data_fim,
+        obra_id: formData.obra_id,
+        data_inicio: formData.data_inicio || null,
+        data_fim_prevista: formData.data_fim_prevista || null,
         status: formData.status,
-        unidade_tempo: formData.unidade_tempo,
-        exibir_caminho_critico: formData.exibir_caminho_critico,
-        exibir_folgas: formData.exibir_folgas,
-        responsavel_id: formData.responsavel_id || null,
         progresso_percentual: 0,
         created_by: user?.id,
       }
 
       const { data, error } = await supabase
-        .from('cronogramas')
+        .from('cronograma_obras')
         .insert(cronogramaData)
         .select()
         .single()
@@ -158,29 +114,34 @@ export default function NovoCronogramaPage() {
       if (error) throw error
 
       toast.success('Cronograma criado com sucesso!')
-      router.push(`/dashboard/cronograma/${data.id}`)
+      router.push(`/dashboard/obra/cronograma/${formData.obra_id}`)
     } catch (error: any) {
       console.error('Erro ao criar cronograma:', error)
-      toast.error(error.message || 'Erro ao criar cronograma')
+
+      if (error.code === '23505') {
+        toast.error('Já existe um cronograma para esta obra')
+      } else {
+        toast.error(error.message || 'Erro ao criar cronograma')
+      }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <ProtectedRoute requiredSetor="cronograma">
+    <ProtectedRoute>
       <div className="flex flex-col gap-6 p-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/cronograma">
+            <Link href="/dashboard/obra/cronograma">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Novo Cronograma</h1>
+            <h1 className="text-3xl font-bold">Novo Cronograma de Obra</h1>
             <p className="text-muted-foreground">
-              Crie um cronograma integrado para obra, projeto ou geral
+              Crie um cronograma baseado no modelo Excel para uma obra específica
             </p>
           </div>
         </div>
@@ -192,88 +153,50 @@ export default function NovoCronogramaPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Informações Básicas</CardTitle>
-                <CardDescription>Defina o nome, tipo e vinculação do cronograma</CardDescription>
+                <CardDescription>Defina o nome e vincule o cronograma a uma obra</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="nome">
-                      Nome do Cronograma <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="nome"
-                      value={formData.nome}
-                      onChange={(e) => handleChange('nome', e.target.value)}
-                      placeholder="Ex: Cronograma Residência João Silva"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo">
-                      Tipo <span className="text-red-500">*</span>
-                    </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="obra_id">
+                    Obra <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Building className="h-4 w-4 text-muted-foreground" />
                     <select
-                      id="tipo"
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background"
-                      value={formData.tipo}
-                      onChange={(e) => handleChange('tipo', e.target.value)}
+                      id="obra_id"
+                      className="flex-1 px-3 py-2 rounded-md border border-input bg-background"
+                      value={formData.obra_id}
+                      onChange={(e) => handleChange('obra_id', e.target.value)}
+                      required
+                      disabled={loadingObras}
                     >
-                      <option value="geral">Geral</option>
-                      <option value="obra">Obra</option>
-                      <option value="projeto">Projeto</option>
+                      <option value="">
+                        {loadingObras ? 'Carregando obras...' : 'Selecione uma obra'}
+                      </option>
+                      {obras.map((obra) => (
+                        <option key={obra.id} value={obra.id}>
+                          {obra.nome} {obra.endereco ? `- ${obra.endereco}` : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cada obra pode ter apenas um cronograma
+                  </p>
                 </div>
 
-                {/* Vinculação condicional */}
-                {formData.tipo === 'obra' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="obra_id">
-                      Obra <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <select
-                        id="obra_id"
-                        className="flex-1 px-3 py-2 rounded-md border border-input bg-background"
-                        value={formData.obra_id}
-                        onChange={(e) => handleChange('obra_id', e.target.value)}
-                      >
-                        <option value="">Selecione uma obra</option>
-                        {obras.map((obra) => (
-                          <option key={obra.id} value={obra.id}>
-                            {obra.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {formData.tipo === 'projeto' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="project_id">
-                      Projeto <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
-                      <select
-                        id="project_id"
-                        className="flex-1 px-3 py-2 rounded-md border border-input bg-background"
-                        value={formData.project_id}
-                        onChange={(e) => handleChange('project_id', e.target.value)}
-                      >
-                        <option value="">Selecione um projeto</option>
-                        {projetos.map((projeto) => (
-                          <option key={projeto.id} value={projeto.id}>
-                            {projeto.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="nome">
+                    Nome do Cronograma <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => handleChange('nome', e.target.value)}
+                    placeholder="Ex: Cronograma de Execução - Residência João Silva"
+                    required
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="descricao">Descrição</Label>
@@ -292,128 +215,63 @@ export default function NovoCronogramaPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Prazos</CardTitle>
-                <CardDescription>Defina as datas de início e término do cronograma</CardDescription>
+                <CardDescription>Defina as datas de início e término previsto (opcional)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="data_inicio">
-                      Data de Início <span className="text-red-500">*</span>
-                    </Label>
+                    <Label htmlFor="data_inicio">Data de Início</Label>
                     <Input
                       id="data_inicio"
                       type="date"
                       value={formData.data_inicio}
                       onChange={(e) => handleChange('data_inicio', e.target.value)}
-                      required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="data_fim">
-                      Data de Término <span className="text-red-500">*</span>
-                    </Label>
+                    <Label htmlFor="data_fim_prevista">Data de Término Prevista</Label>
                     <Input
-                      id="data_fim"
+                      id="data_fim_prevista"
                       type="date"
-                      value={formData.data_fim}
-                      onChange={(e) => handleChange('data_fim', e.target.value)}
-                      required
+                      value={formData.data_fim_prevista}
+                      onChange={(e) => handleChange('data_fim_prevista', e.target.value)}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="unidade_tempo">Unidade de Tempo</Label>
-                    <select
-                      id="unidade_tempo"
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background"
-                      value={formData.unidade_tempo}
-                      onChange={(e) => handleChange('unidade_tempo', e.target.value)}
-                    >
-                      <option value="horas">Horas</option>
-                      <option value="dias">Dias</option>
-                      <option value="semanas">Semanas</option>
-                    </select>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Responsável e Configurações */}
+            {/* Configurações */}
             <Card>
               <CardHeader>
-                <CardTitle>Responsável e Configurações</CardTitle>
-                <CardDescription>Defina o responsável e opções de visualização</CardDescription>
+                <CardTitle>Configurações</CardTitle>
+                <CardDescription>Status inicial do cronograma</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="responsavel_id">Responsável</Label>
-                    <select
-                      id="responsavel_id"
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background"
-                      value={formData.responsavel_id}
-                      onChange={(e) => handleChange('responsavel_id', e.target.value)}
-                    >
-                      <option value="">Selecione um responsável</option>
-                      {usuarios.map((usuario) => (
-                        <option key={usuario.id} value={usuario.id}>
-                          {usuario.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status Inicial</Label>
-                    <select
-                      id="status"
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background"
-                      value={formData.status}
-                      onChange={(e) => handleChange('status', e.target.value)}
-                    >
-                      <option value="planejamento">Planejamento</option>
-                      <option value="ativo">Ativo</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="exibir_caminho_critico"
-                      checked={formData.exibir_caminho_critico}
-                      onChange={(e) => handleChange('exibir_caminho_critico', e.target.checked)}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="exibir_caminho_critico" className="cursor-pointer">
-                      Exibir caminho crítico
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="exibir_folgas"
-                      checked={formData.exibir_folgas}
-                      onChange={(e) => handleChange('exibir_folgas', e.target.checked)}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="exibir_folgas" className="cursor-pointer">
-                      Exibir folgas das atividades
-                    </Label>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status Inicial</Label>
+                  <select
+                    id="status"
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background"
+                    value={formData.status}
+                    onChange={(e) => handleChange('status', e.target.value as CronogramaObraStatus)}
+                  >
+                    <option value="ativo">Ativo</option>
+                    <option value="pausado">Pausado</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
                 </div>
               </CardContent>
             </Card>
 
             {/* Botões */}
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" asChild>
-                <Link href="/dashboard/cronograma">Cancelar</Link>
+              <Button type="button" variant="outline" asChild disabled={loading}>
+                <Link href="/dashboard/obra/cronograma">Cancelar</Link>
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || loadingObras}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Criar Cronograma
               </Button>

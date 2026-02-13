@@ -96,10 +96,18 @@ export default function CronogramaObraPage() {
   return (
     <ProtectedRoute>
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Cronogramas de Obras"
-          description="Gestao de cronogramas baseados no modelo Excel"
-        />
+        <div className="flex items-center justify-between">
+          <PageHeader
+            title="Cronogramas de Obras"
+            description="Gestao de cronogramas baseados no modelo Excel"
+          />
+          <Button asChild>
+            <Link href="/dashboard/obra/cronograma/novo">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Cronograma
+            </Link>
+          </Button>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
