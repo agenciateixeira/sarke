@@ -64,6 +64,7 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   const [editMode, setEditMode] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dueDateInput, setDueDateInput] = useState('')
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>('')
@@ -93,11 +94,19 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
     }
   }, [currentTask?.id])
 
-  // Sincronizar título e descrição
+  // Sincronizar título, descrição e data
   useEffect(() => {
     if (currentTask) {
       setTitle(currentTask.title)
       setDescription(currentTask.description || '')
+      // Garante formato YYYY-MM-DD para o input[type=date]
+      const raw = currentTask.due_date || ''
+      if (raw) {
+        // due_date pode vir como '2026-03-02' ou '2026-03-02T00:00:00...'
+        setDueDateInput(raw.substring(0, 10))
+      } else {
+        setDueDateInput('')
+      }
     }
   }, [currentTask])
 
@@ -142,7 +151,17 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
   const handleUpdateField = async (field: string, value: any) => {
     if (currentTask) {
-      await updateTask(currentTask.id, { [field]: value })
+      // Campos de data: string vazia → null, e valida o ano (>= 1000)
+      let sanitized = value
+      if (field === 'due_date') {
+        if (!value) {
+          sanitized = null
+        } else {
+          const year = parseInt(value.split('-')[0], 10)
+          if (isNaN(year) || year < 1000 || year > 9999) return // ano incompleto, ignora
+        }
+      }
+      await updateTask(currentTask.id, { [field]: sanitized })
       await refreshTask()
     }
   }
@@ -329,8 +348,9 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
                   </Label>
                   <Input
                     type="date"
-                    value={currentTask.due_date || ''}
-                    onChange={(e) => handleUpdateField('due_date', e.target.value)}
+                    value={dueDateInput}
+                    onChange={(e) => setDueDateInput(e.target.value)}
+                    onBlur={(e) => handleUpdateField('due_date', e.target.value)}
                     className="h-9"
                   />
                 </div>
