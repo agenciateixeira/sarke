@@ -50,7 +50,6 @@ import {
 import {
   CronogramaObra,
   CronogramaObraAtividade,
-  CronogramaObraMaterial,
   CronogramaObraCompleto,
   AtividadeStatus,
   AtividadePrioridade,
@@ -68,7 +67,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
   const [loading, setLoading] = useState(true)
   const [cronograma, setCronograma] = useState<CronogramaObraCompleto | null>(null)
   const [atividades, setAtividades] = useState<CronogramaObraAtividade[]>([])
-  const [materiais, setMateriais] = useState<CronogramaObraMaterial[]>([])
   const [atividadeDialogOpen, setAtividadeDialogOpen] = useState(false)
   const [empresasParceiras, setEmpresasParceiras] = useState<any[]>([])
   const [novaAtividade, setNovaAtividade] = useState({
@@ -81,7 +79,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
   })
   const [editandoAtividade, setEditandoAtividade] = useState<CronogramaObraAtividade | null>(null)
   const [atividadeToDelete, setAtividadeToDelete] = useState<string | null>(null)
-  const [materialToDelete, setMaterialToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     loadCronograma()
@@ -133,15 +130,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
 
       if (atividadesError) throw atividadesError
       setAtividades(atividadesData || [])
-
-      const { data: materiaisData, error: materiaisError } = await supabase
-        .from('cronograma_obra_materiais')
-        .select('*')
-        .eq('cronograma_id', cronogramaData.id)
-        .order('data_necessaria', { ascending: true })
-
-      if (materiaisError) throw materiaisError
-      setMateriais(materiaisData || [])
     } catch (error: any) {
       console.error('Erro ao carregar cronograma:', error)
       toast.error('Erro ao carregar cronograma')
@@ -291,26 +279,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
     } catch (error: any) {
       console.error('Erro ao excluir atividade:', error)
       toast.error('Erro ao excluir atividade')
-    }
-  }
-
-  async function deletarMaterial() {
-    if (!materialToDelete) return
-
-    try {
-      const { error } = await supabase
-        .from('cronograma_obra_materiais')
-        .delete()
-        .eq('id', materialToDelete)
-
-      if (error) throw error
-
-      toast.success('Material excluído com sucesso!')
-      setMaterialToDelete(null)
-      loadCronograma()
-    } catch (error: any) {
-      console.error('Erro ao excluir material:', error)
-      toast.error('Erro ao excluir material')
     }
   }
 
@@ -538,107 +506,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Controle de Materiais e Servicos</CardTitle>
-          <CardDescription>
-            {materiais.length} material{materiais.length !== 1 ? 'is' : ''} cadastrado{materiais.length !== 1 ? 's' : ''}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {materiais.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum material cadastrado. Importe do Excel ou adicione manualmente.
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="p-2 text-left font-medium border-r">Data</th>
-                    <th className="p-2 text-left font-medium border-r">Servico</th>
-                    <th className="p-2 text-left font-medium border-r">Material</th>
-                    <th className="p-2 text-right font-medium border-r">Qtde</th>
-                    <th className="p-2 text-left font-medium border-r">Un.</th>
-                    <th className="p-2 text-right font-medium border-r">V. Unit.</th>
-                    <th className="p-2 text-right font-medium border-r">V. Total</th>
-                    <th className="p-2 text-right font-medium border-r">V. Pago</th>
-                    <th className="p-2 text-right font-medium border-r">Saldo</th>
-                    <th className="p-2 text-left font-medium border-r">Status</th>
-                    <th className="p-2 text-center font-medium">Acoes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materiais.map((material) => (
-                    <tr key={material.id} className="border-t hover:bg-muted/50">
-                      <td className="p-2 border-r">
-                        {material.data_necessaria
-                          ? format(new Date(material.data_necessaria), 'dd/MM/yyyy')
-                          : '-'}
-                      </td>
-                      <td className="p-2 border-r text-xs">{material.servico || '-'}</td>
-                      <td className="p-2 border-r font-medium">{material.descricao_material}</td>
-                      <td className="p-2 text-right border-r">{material.quantidade}</td>
-                      <td className="p-2 border-r">{material.unidade_medida}</td>
-                      <td className="p-2 text-right border-r">
-                        {material.valor_unitario
-                          ? new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(material.valor_unitario)
-                          : '-'}
-                      </td>
-                      <td className="p-2 text-right border-r font-medium">
-                        {material.valor_total
-                          ? new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(material.valor_total)
-                          : '-'}
-                      </td>
-                      <td className="p-2 text-right border-r">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(material.valor_pago)}
-                      </td>
-                      <td className="p-2 text-right border-r">
-                        {material.saldo
-                          ? new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(material.saldo)
-                          : '-'}
-                      </td>
-                      <td className="p-2 border-r">
-                        <Badge variant={getMaterialStatusVariant(material.status_compra)}>
-                          {getMaterialStatusLabel(material.status_compra)}
-                        </Badge>
-                      </td>
-                      <td className="p-2 text-center">
-                        <div className="flex gap-1 justify-center">
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled title="Edição em desenvolvimento">
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={() => setMaterialToDelete(material.id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-red-600" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Dialog Nova/Editar Atividade */}
       <Dialog open={atividadeDialogOpen} onOpenChange={fecharDialogAtividade}>
         <DialogContent className="sm:max-w-[500px]">
@@ -780,27 +647,6 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* AlertDialog - Excluir Material */}
-      <AlertDialog open={!!materialToDelete} onOpenChange={(o) => { if (!o) setMaterialToDelete(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir material?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este material? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={deletarMaterial}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
@@ -824,32 +670,6 @@ function getStatusLabel(status: string): string {
     realizado: 'Realizado',
     em_andamento: 'Em Andamento',
     atrasado: 'Atrasado',
-    cancelado: 'Cancelado',
-  }
-  return labels[status] || status
-}
-
-function getMaterialStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (status) {
-    case 'recebido':
-      return 'default'
-    case 'em_transito':
-    case 'pedido_realizado':
-      return 'secondary'
-    case 'cancelado':
-      return 'destructive'
-    default:
-      return 'outline'
-  }
-}
-
-function getMaterialStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    pendente: 'Pendente',
-    cotacao: 'Cotacao',
-    pedido_realizado: 'Pedido Realizado',
-    em_transito: 'Em Transito',
-    recebido: 'Recebido',
     cancelado: 'Cancelado',
   }
   return labels[status] || status
