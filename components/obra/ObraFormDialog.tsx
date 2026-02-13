@@ -16,7 +16,7 @@ import { Obra, StatusObra, TipoObra } from '@/types/obra'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { Loader2, Plus, X, Check, ChevronsUpDown } from 'lucide-react'
+import { Loader2, Plus, X, Check, ChevronsUpDown, Archive } from 'lucide-react'
 import { ClientDialog } from '@/components/comercial/ClientDialog'
 import {
   Popover,
@@ -26,6 +26,17 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { arquivarObra } from '@/lib/memorial'
 
 interface ObraFormDialogProps {
   open: boolean
@@ -42,6 +53,9 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
   const [empresasSelecionadas, setEmpresasSelecionadas] = useState<string[]>([])
   const [showClienteDialog, setShowClienteDialog] = useState(false)
   const [empresasPopoverOpen, setEmpresasPopoverOpen] = useState(false)
+  const [arquivarDialogOpen, setArquivarDialogOpen] = useState(false)
+  const [pendingObraData, setPendingObraData] = useState<any>(null)
+  const [arquivando, setArquivando] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -264,28 +278,40 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
       return
     }
 
+    const obraData: any = {
+      nome: formData.nome,
+      descricao: formData.descricao || null,
+      cliente_id: formData.cliente_id || null,
+      endereco: formData.endereco || null,
+      cidade: formData.cidade || null,
+      estado: formData.estado || null,
+      cep: formData.cep || null,
+      area_construida: formData.area_construida ? parseFloat(formData.area_construida) : null,
+      area_terreno: formData.area_terreno ? parseFloat(formData.area_terreno) : null,
+      tipo_obra: formData.tipo_obra,
+      valor_contrato: formData.valor_contrato ? parseFloat(formData.valor_contrato) : null,
+      data_inicio: formData.data_inicio || null,
+      data_previsao_termino: formData.data_previsao_termino || null,
+      duracao_meses: formData.duracao_meses ? parseInt(formData.duracao_meses) : null,
+      status: formData.status,
+      progresso_percentual: formData.progresso_percentual,
+      observacoes: formData.observacoes || null,
+    }
+
+    // Se está editando e mudando status para concluída/cancelada, perguntar sobre arquivamento
+    if (obra && (formData.status === 'concluida' || formData.status === 'cancelada') && obra.status !== formData.status) {
+      setPendingObraData(obraData)
+      setArquivarDialogOpen(true)
+      return
+    }
+
+    // Salvar normalmente
+    await salvarObra(obraData, false)
+  }
+
+  async function salvarObra(obraData: any, arquivar: boolean) {
     try {
       setLoading(true)
-
-      const obraData: any = {
-        nome: formData.nome,
-        descricao: formData.descricao || null,
-        cliente_id: formData.cliente_id || null,
-        endereco: formData.endereco || null,
-        cidade: formData.cidade || null,
-        estado: formData.estado || null,
-        cep: formData.cep || null,
-        area_construida: formData.area_construida ? parseFloat(formData.area_construida) : null,
-        area_terreno: formData.area_terreno ? parseFloat(formData.area_terreno) : null,
-        tipo_obra: formData.tipo_obra,
-        valor_contrato: formData.valor_contrato ? parseFloat(formData.valor_contrato) : null,
-        data_inicio: formData.data_inicio || null,
-        data_previsao_termino: formData.data_previsao_termino || null,
-        duracao_meses: formData.duracao_meses ? parseInt(formData.duracao_meses) : null,
-        status: formData.status,
-        progresso_percentual: formData.progresso_percentual,
-        observacoes: formData.observacoes || null,
-      }
 
       let obraId: string
 
@@ -309,6 +335,23 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
       // Salvar vínculos com empresas parceiras
       await salvarVinculosEmpresas(obraId)
 
+      // Se escolheu arquivar, fazer arquivamento
+      if (arquivar && user) {
+        setArquivando(true)
+        const result = await arquivarObra({
+          obra_id: obraId,
+          user_id: user.id,
+          motivo: `Obra ${obraData.status === 'concluida' ? 'concluída' : 'cancelada'}`,
+        })
+
+        if (result.success) {
+          toast.success('Obra arquivada no memorial!')
+        } else {
+          toast.error('Erro ao arquivar obra: ' + result.error)
+        }
+        setArquivando(false)
+      }
+
       onSuccess()
       onOpenChange(false)
     } catch (error: any) {
@@ -316,6 +359,14 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
       toast.error(error.message || 'Erro ao salvar obra')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleConfirmarArquivamento(arquivar: boolean) {
+    setArquivarDialogOpen(false)
+    if (pendingObraData) {
+      await salvarObra(pendingObraData, arquivar)
+      setPendingObraData(null)
     }
   }
 
@@ -717,6 +768,59 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
         onOpenChange={setShowClienteDialog}
         onSave={handleCriarCliente}
       />
+
+      {/* Dialog de Confirmação de Arquivamento */}
+      <AlertDialog open={arquivarDialogOpen} onOpenChange={setArquivarDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-pink-600" />
+              Arquivar obra no Memorial?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                A obra <strong>"{formData.nome}"</strong> está sendo marcada como{' '}
+                <strong>{formData.status === 'concluida' ? 'concluída' : 'cancelada'}</strong>.
+              </p>
+              <p>
+                Deseja arquivá-la no <strong>Memorial de Obras</strong>?
+              </p>
+              <p className="text-sm mt-2 p-3 bg-muted rounded-md">
+                <strong>Arquivar no Memorial:</strong>
+                <br />
+                • Todos os dados (fotos, documentos, cronograma, financeiro) serão movidos para o
+                Memorial
+                <br />
+                • A obra ficará em modo somente leitura
+                <br />
+                • Apenas administradores poderão desarquivar
+                <br />• A obra não aparecerá mais na lista de obras ativas
+              </p>
+              <p className="text-sm mt-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-md">
+                <strong>Não arquivar agora:</strong>
+                <br />
+                A obra permanecerá na lista com status "
+                {formData.status === 'concluida' ? 'Concluída' : 'Cancelada'}" e poderá ser
+                arquivada manualmente depois.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleConfirmarArquivamento(false)}>
+              Não arquivar agora
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleConfirmarArquivamento(true)}
+              disabled={arquivando}
+              className="bg-pink-600 hover:bg-pink-700"
+            >
+              {arquivando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Archive className="mr-2 h-4 w-4" />
+              Arquivar no Memorial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }
