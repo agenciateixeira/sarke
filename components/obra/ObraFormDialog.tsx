@@ -371,8 +371,9 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{obra ? 'Editar Obra' : 'Nova Obra'}</DialogTitle>
           <DialogDescription>
@@ -762,14 +763,15 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
         </form>
       </DialogContent>
 
-      {/* Dialog de Criação de Cliente Completo */}
-      <ClientDialog
-        open={showClienteDialog}
-        onOpenChange={setShowClienteDialog}
-        onSave={handleCriarCliente}
-      />
+        {/* Dialog de Criação de Cliente Completo */}
+        <ClientDialog
+          open={showClienteDialog}
+          onOpenChange={setShowClienteDialog}
+          onSave={handleCriarCliente}
+        />
+      </Dialog>
 
-      {/* Dialog de Confirmação de Arquivamento */}
+      {/* Dialog de Confirmação de Arquivamento - FORA do Dialog principal para evitar z-index issues */}
       <AlertDialog open={arquivarDialogOpen} onOpenChange={setArquivarDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -821,6 +823,6 @@ export function ObraFormDialog({ open, onOpenChange, obra, onSuccess }: ObraForm
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   )
 }
