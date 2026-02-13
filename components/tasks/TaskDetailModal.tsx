@@ -34,6 +34,13 @@ import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { TaskTimeTracking } from './TaskTimeTracking'
 import { TaskAttachmentsTab } from './TaskAttachmentsTab'
+import { supabase } from '@/lib/supabase'
+
+interface TeamMemberSimple {
+  id: string
+  name: string
+  avatar_url?: string
+}
 
 interface TaskDetailModalProps {
   open: boolean
@@ -59,10 +66,24 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   const [description, setDescription] = useState('')
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>('')
   const [showNewSubtask, setShowNewSubtask] = useState(false)
   const [refreshedTask, setRefreshedTask] = useState<TaskWithDetails | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMemberSimple[]>([])
 
   const currentTask = refreshedTask || task
+
+  // Carregar membros da equipe
+  useEffect(() => {
+    if (!open) return
+    supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .order('name')
+      .then(({ data }) => {
+        if (data) setTeamMembers(data as TeamMemberSimple[])
+      })
+  }, [open])
 
   // Carregar subtarefas
   useEffect(() => {
@@ -139,8 +160,10 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
       await createSubtask({
         task_id: currentTask.id,
         title: newSubtaskTitle.trim(),
+        assigned_to: newSubtaskAssignee || undefined,
       })
       setNewSubtaskTitle('')
+      setNewSubtaskAssignee('')
       setShowNewSubtask(false)
       await loadSubtasks()
       await refreshTask()
@@ -364,36 +387,65 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
                 {/* Nova subtarefa */}
                 {showNewSubtask && (
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    <Checkbox checked={false} disabled />
-                    <Input
-                      value={newSubtaskTitle}
-                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                      placeholder="Nome da subtarefa..."
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCreateSubtask()
-                        if (e.key === 'Escape') {
+                  <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={false} disabled />
+                      <Input
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        placeholder="Nome da subtarefa..."
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCreateSubtask()
+                          if (e.key === 'Escape') {
+                            setShowNewSubtask(false)
+                            setNewSubtaskTitle('')
+                            setNewSubtaskAssignee('')
+                          }
+                        }}
+                        className="flex-1 h-8"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pl-7">
+                      <Select
+                        value={newSubtaskAssignee}
+                        onValueChange={setNewSubtaskAssignee}
+                      >
+                        <SelectTrigger className="h-8 flex-1 text-xs">
+                          <SelectValue placeholder="Atribuir colaborador (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teamMembers.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={m.avatar_url} />
+                                  <AvatarFallback className="text-xs">
+                                    {m.name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{m.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" onClick={handleCreateSubtask} className="h-8">
+                        Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
                           setShowNewSubtask(false)
                           setNewSubtaskTitle('')
-                        }
-                      }}
-                      className="flex-1 h-8"
-                    />
-                    <Button size="sm" onClick={handleCreateSubtask} className="h-8">
-                      Salvar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowNewSubtask(false)
-                        setNewSubtaskTitle('')
-                      }}
-                      className="h-8"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                          setNewSubtaskAssignee('')
+                        }}
+                        className="h-8"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -405,40 +457,58 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
                     </div>
                   )}
 
-                  {subtasks.map((subtask) => (
-                    <div
-                      key={subtask.id}
-                      className={cn(
-                        'flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group',
-                        subtask.is_completed && 'opacity-60'
-                      )}
-                    >
-                      <Checkbox
-                        checked={subtask.is_completed}
-                        onCheckedChange={() => handleToggleSubtask(subtask.id, subtask.is_completed)}
-                      />
-                      <span
+                  {subtasks.map((subtask) => {
+                    const assignee = subtask.assigned_to
+                      ? teamMembers.find((m) => m.id === subtask.assigned_to)
+                      : null
+                    return (
+                      <div
+                        key={subtask.id}
                         className={cn(
-                          'flex-1 text-sm',
-                          subtask.is_completed && 'line-through text-muted-foreground'
+                          'flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group',
+                          subtask.is_completed && 'opacity-60'
                         )}
                       >
-                        {subtask.title}
-                      </span>
-
-                      {/* Ações da subtarefa */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleDeleteSubtask(subtask.id)}
+                        <Checkbox
+                          checked={subtask.is_completed}
+                          onCheckedChange={() => handleToggleSubtask(subtask.id, subtask.is_completed)}
+                        />
+                        <span
+                          className={cn(
+                            'flex-1 text-sm',
+                            subtask.is_completed && 'line-through text-muted-foreground'
+                          )}
                         >
-                          <Trash className="h-3 w-3" />
-                        </Button>
+                          {subtask.title}
+                        </span>
+
+                        {/* Colaborador atribuído */}
+                        {assignee && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={assignee.avatar_url} />
+                              <AvatarFallback className="text-xs">
+                                {assignee.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="hidden sm:inline">{assignee.name}</span>
+                          </div>
+                        )}
+
+                        {/* Ações da subtarefa */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleDeleteSubtask(subtask.id)}
+                          >
+                            <Trash className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 {/* Progress bar */}
