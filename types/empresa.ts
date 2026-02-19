@@ -14,57 +14,44 @@ export type StatusVinculoEmpresa =
   | 'cancelada'
 
 export type TipoServico =
-  // Serviços preliminares
-  | 'topografia'
-  | 'sondagem'
-  | 'projeto'
-
-  // Fundação e estrutura
-  | 'terraplenagem'
-  | 'fundacao'
+  | 'alvenaria'
+  | 'ar_condicionado'
+  | 'automacao'
+  | 'calcada'
+  | 'decoracao'
+  | 'eletrica'
+  | 'esgoto'
+  | 'esquadrias'
   | 'estrutura_concreto'
   | 'estrutura_metalica'
-  | 'alvenaria'
-
-  // Cobertura
-  | 'telhado'
-  | 'impermeabilizacao'
-
-  // Instalações
-  | 'eletrica'
-  | 'hidraulica'
-  | 'esgoto'
-  | 'gas'
-  | 'ar_condicionado'
-  | 'incendio'
-  | 'automacao'
-
-  // Acabamentos
-  | 'revestimento_piso'
-  | 'revestimento_parede'
-  | 'pintura'
-  | 'gesso'
   | 'forro'
-  | 'esquadrias'
-  | 'vidracaria'
-  | 'marcenaria'
-  | 'loucas_metais'
-  | 'serralheria'
-  | 'marmoraria'
-  | 'pedras'
-
-  // Externos
-  | 'paisagismo'
-  | 'calcada'
-  | 'muro'
-  | 'piscina'
-  | 'decoracao'
-
-  // Outros
+  | 'fundacao'
+  | 'gas'
+  | 'gesso'
+  | 'hidraulica'
+  | 'impermeabilizacao'
+  | 'incendio'
   | 'limpeza'
-  | 'transporte'
   | 'locacao_equipamentos'
+  | 'loucas_metais'
+  | 'marcenaria'
+  | 'marmoraria'
+  | 'muro'
   | 'outro'
+  | 'paisagismo'
+  | 'pedras'
+  | 'pintura'
+  | 'piscina'
+  | 'projeto'
+  | 'revestimento_parede'
+  | 'revestimento_piso'
+  | 'serralheria'
+  | 'sondagem'
+  | 'telhado'
+  | 'terraplenagem'
+  | 'topografia'
+  | 'transporte'
+  | 'vidracaria'
 
 // =====================================================
 // INTERFACE: Empresa Parceira
