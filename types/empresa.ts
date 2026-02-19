@@ -50,6 +50,8 @@ export type TipoServico =
   | 'marcenaria'
   | 'loucas_metais'
   | 'serralheria'
+  | 'marmoraria'
+  | 'pedras'
 
   // Externos
   | 'paisagismo'
