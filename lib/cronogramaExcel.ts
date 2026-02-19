@@ -176,32 +176,52 @@ export function importarCronogramaExcel(file: File): Promise<AtividadeImportada[
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
 
-        // Encontrar linha de cabeçalho (procura por "Data Prevista" ou similar)
+        // Encontrar linha de cabeçalho (procura por "Data" ou "Descrição/Serviço")
         let headerRowIndex = -1
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i]
-          if (row.some((cell: any) =>
-            String(cell).toLowerCase().includes('data') &&
-            String(cell).toLowerCase().includes('prevista')
-          )) {
+          if (row.some((cell: any) => {
+            const cellStr = String(cell).toLowerCase()
+            return (
+              cellStr.includes('data') ||
+              cellStr.includes('descrição') ||
+              cellStr.includes('descricao') ||
+              cellStr.includes('serviço') ||
+              cellStr.includes('servico') ||
+              cellStr.includes('atividade')
+            )
+          })) {
             headerRowIndex = i
             break
           }
         }
 
         if (headerRowIndex === -1) {
-          throw new Error('Cabeçalho não encontrado. Certifique-se de que há uma coluna "Data Prevista".')
+          throw new Error('Cabeçalho não encontrado. Certifique-se de que há colunas com "Data" e "Descrição" ou "Serviço".')
         }
 
         const headers = jsonData[headerRowIndex].map((h: any) => String(h).toLowerCase())
         const dataRows = jsonData.slice(headerRowIndex + 1)
 
-        // Mapear colunas
-        const dataIndex = headers.findIndex(h => h.includes('data') && h.includes('prevista'))
-        const descIndex = headers.findIndex(h => h.includes('descrição') || h.includes('descricao') || h.includes('serviço') || h.includes('servico'))
+        // Mapear colunas - busca mais flexível
+        const dataIndex = headers.findIndex(h =>
+          h.includes('data') ||
+          (h.includes('dt') && !h.includes('atualiza'))
+        )
+        const descIndex = headers.findIndex(h =>
+          h.includes('descrição') ||
+          h.includes('descricao') ||
+          h.includes('serviço') ||
+          h.includes('servico') ||
+          h.includes('atividade')
+        )
         const statusIndex = headers.findIndex(h => h.includes('status'))
         const prioridadeIndex = headers.findIndex(h => h.includes('prioridade'))
-        const obsIndex = headers.findIndex(h => h.includes('observação') || h.includes('observacao'))
+        const obsIndex = headers.findIndex(h =>
+          h.includes('observação') ||
+          h.includes('observacao') ||
+          h.includes('obs')
+        )
 
         if (dataIndex === -1 || descIndex === -1) {
           throw new Error('Colunas obrigatórias não encontradas (Data Prevista e Descrição).')
