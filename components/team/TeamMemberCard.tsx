@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreVertical, Edit, Trash2, Mail, Phone, Calendar, Clock, Hourglass } from 'lucide-react'
+import { MoreVertical, Edit, Trash2, Mail, Phone, Calendar, Clock, Hourglass, AlertCircle } from 'lucide-react'
 
 interface TeamMemberCardProps {
   member: TeamMember
@@ -41,8 +41,10 @@ export function PendingInviteCard({ invite, onDelete }: PendingInviteCardProps) 
   const getInitials = (name: string) =>
     name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 
+  const isExpired = new Date(invite.expires_at) < new Date()
+
   return (
-    <div className="border border-dashed rounded-lg p-6 bg-muted/30 opacity-80">
+    <div className={`border border-dashed rounded-lg p-6 bg-muted/30 ${isExpired ? 'opacity-60' : 'opacity-80'}`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Avatar className="h-12 w-12">
@@ -77,12 +79,19 @@ export function PendingInviteCard({ invite, onDelete }: PendingInviteCardProps) 
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary">{ROLE_LABELS[invite.role] || invite.role}</Badge>
-          <Badge variant="outline" className="text-yellow-600 border-yellow-400 bg-yellow-50">
-            <Hourglass className="h-3 w-3 mr-1" />
-            Aguardando acesso
-          </Badge>
+          {isExpired ? (
+            <Badge variant="outline" className="text-red-600 border-red-400 bg-red-50">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Expirado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-yellow-600 border-yellow-400 bg-yellow-50">
+              <Hourglass className="h-3 w-3 mr-1" />
+              Aguardando acesso
+            </Badge>
+          )}
         </div>
 
         {invite.departamento && (
@@ -105,7 +114,15 @@ export function PendingInviteCard({ invite, onDelete }: PendingInviteCardProps) 
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
           <Calendar className="h-3 w-3" />
-          Cadastrado em {new Date(invite.created_at).toLocaleDateString('pt-BR')}
+          {isExpired ? (
+            <span className="text-red-600">
+              Expirado em {new Date(invite.expires_at).toLocaleDateString('pt-BR')}
+            </span>
+          ) : (
+            <span>
+              Expira em {new Date(invite.expires_at).toLocaleDateString('pt-BR')}
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -75,7 +75,7 @@ export function useTeam() {
           .from('team_invites')
           .select('id, email, name, role, cargo, departamento, telefone, created_at, expires_at')
           .is('accepted_at', null)
-          .gt('expires_at', new Date().toISOString())
+          // Removido filtro de expiração para mostrar todos os convites pendentes
           .order('created_at', { ascending: false }),
       ])
 
