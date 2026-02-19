@@ -171,10 +171,38 @@ export function useTeam() {
 
       if (inviteError) throw inviteError
 
-      toast.success(`${data.name} cadastrado com sucesso!`, {
-        description: `Instrua ${data.name} a acessar "Primeiro Acesso" com o email ${data.email}`,
-        duration: 8000,
-      })
+      // Enviar email de convite via Edge Function
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const response = await fetch(`${supabase.supabaseUrl}/functions/v1/enviar-convite-equipe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ inviteId: inviteData.id }),
+        })
+
+        if (response.ok) {
+          toast.success(`${data.name} cadastrado com sucesso!`, {
+            description: `Um email de convite foi enviado para ${data.email}`,
+            duration: 8000,
+          })
+        } else {
+          // Email falhou, mas convite foi criado
+          toast.success(`${data.name} cadastrado com sucesso!`, {
+            description: `Instrua ${data.name} a acessar "Primeiro Acesso" com o email ${data.email}`,
+            duration: 8000,
+          })
+        }
+      } catch (emailError) {
+        console.error('Erro ao enviar email:', emailError)
+        // Email falhou, mas convite foi criado
+        toast.success(`${data.name} cadastrado com sucesso!`, {
+          description: `Instrua ${data.name} a acessar "Primeiro Acesso" com o email ${data.email}`,
+          duration: 8000,
+        })
+      }
 
       await fetchMembers()
       return inviteData
