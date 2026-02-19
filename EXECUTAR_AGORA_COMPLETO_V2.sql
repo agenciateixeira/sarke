@@ -262,9 +262,7 @@ BEGIN
   PERFORM cron.schedule(
     'cleanup-expired-invites',
     '0 3 * * *',
-    $$DELETE FROM team_invites
-      WHERE accepted_at IS NULL
-      AND expires_at < now()$$
+    $cron$DELETE FROM team_invites WHERE accepted_at IS NULL AND expires_at < now()$cron$
   );
   RAISE NOTICE '✅ Cron job agendado com sucesso!';
 EXCEPTION

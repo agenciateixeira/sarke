@@ -47,9 +47,7 @@ SELECT cron.unschedule('cleanup-expired-invites');
 SELECT cron.schedule(
   'cleanup-expired-invites',           -- nome do job
   '0 3 * * *',                         -- cron expression (3h da manhã todo dia)
-  $$DELETE FROM team_invites
-    WHERE accepted_at IS NULL
-    AND expires_at < now()$$
+  $cron$DELETE FROM team_invites WHERE accepted_at IS NULL AND expires_at < now()$cron$
 );
 
 -- =============================================

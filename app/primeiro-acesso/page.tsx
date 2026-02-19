@@ -35,16 +35,30 @@ export default function PrimeiroAcessoPage() {
         .single()
 
       if (error || !data) {
-        toast.error('Email não encontrado', {
-          description: 'Este email não está cadastrado ou já foi ativado. Entre em contato com o administrador.',
-        })
+        // Verificar se existe mas foi aceito
+        const { data: acceptedInvite } = await supabase
+          .from('team_invites')
+          .select('accepted_at')
+          .eq('email', email.trim())
+          .not('accepted_at', 'is', null)
+          .single()
+
+        if (acceptedInvite) {
+          toast.error('Convite já aceito', {
+            description: 'Esta conta já foi ativada. Faça login normalmente.',
+          })
+        } else {
+          toast.error('Email não encontrado', {
+            description: 'Este email não está cadastrado ou o convite expirou. Entre em contato com o administrador.',
+          })
+        }
         return
       }
 
       // Verificar se não expirou
       if (new Date(data.expires_at) < new Date()) {
         toast.error('Convite expirado', {
-          description: 'Solicite um novo cadastro ao administrador.',
+          description: 'Este convite expirou. Solicite um novo convite ao administrador.',
         })
         return
       }
