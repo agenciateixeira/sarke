@@ -13,15 +13,8 @@ import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { PhotoUpload } from '@/components/rdo/PhotoUpload'
+import { PhotoUploadWithGallery, PhotoFile, ObraPhoto } from '@/components/rdo/PhotoUploadWithGallery'
 import type { RDO, RDOMaoObra, RDOAtividade, RDOFoto } from '@/types/rdo'
-
-interface PhotoFile {
-  file: File
-  preview: string
-  descricao?: string
-  local?: string
-}
 
 export default function EditarRDOPage() {
   const params = useParams()
@@ -51,6 +44,7 @@ export default function EditarRDOPage() {
   // Fotos (existentes e novas)
   const [fotosExistentes, setFotosExistentes] = useState<RDOFoto[]>([])
   const [fotosNovas, setFotosNovas] = useState<PhotoFile[]>([])
+  const [selectedObraPhotos, setSelectedObraPhotos] = useState<ObraPhoto[]>([])
 
   useEffect(() => {
     loadData()
@@ -162,6 +156,7 @@ export default function EditarRDOPage() {
       }
 
       // Upload de novas fotos
+      let ordem = fotosExistentes.length
       if (fotosNovas.length > 0) {
         for (let i = 0; i < fotosNovas.length; i++) {
           const photo = fotosNovas[i]
@@ -183,10 +178,29 @@ export default function EditarRDOPage() {
             foto_url: publicUrl,
             descricao: photo.descricao || null,
             local: photo.local || null,
-            ordem: fotosExistentes.length + i,
+            ordem: ordem++,
             tamanho_bytes: photo.file.size,
             mime_type: photo.file.type,
           })
+        }
+      }
+
+      // Vincular fotos da obra selecionadas
+      if (selectedObraPhotos.length > 0) {
+        const obraFotosData = selectedObraPhotos.map((photo) => ({
+          rdo_id: rdoId,
+          foto_url: photo.url,
+          descricao: photo.titulo || photo.descricao || null,
+          local: null,
+          ordem: ordem++,
+        }))
+
+        const { error: obraFotosError } = await supabase
+          .from('rdo_fotos')
+          .insert(obraFotosData)
+
+        if (obraFotosError) {
+          console.error('Erro ao vincular fotos da obra:', obraFotosError)
         }
       }
 
@@ -565,10 +579,20 @@ export default function EditarRDOPage() {
         {/* Adicionar Novas Fotos */}
         <Card>
           <CardHeader>
-            <CardTitle>Adicionar Novas Fotos</CardTitle>
+            <CardTitle>Adicionar Fotos</CardTitle>
+            <CardDescription>
+              Adicione novas fotos ou selecione fotos já enviadas na galeria da obra
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <PhotoUpload photos={fotosNovas} onPhotosChange={setFotosNovas} maxPhotos={20} />
+            <PhotoUploadWithGallery
+              obraId={obraId}
+              photos={fotosNovas}
+              selectedObraPhotos={selectedObraPhotos}
+              onPhotosChange={setFotosNovas}
+              onObraPhotosChange={setSelectedObraPhotos}
+              maxPhotos={20}
+            />
           </CardContent>
         </Card>
 
