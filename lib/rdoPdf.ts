@@ -50,15 +50,36 @@ export async function generateRDOPDF(data: RDOPDFData): Promise<void> {
 
   let yPosition = margin
 
-  // ===== CABEÇALHO =====
-  // Logo/Título Sarke Studio
-  doc.setFontSize(20)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Sarke Studio', pageWidth / 2, yPosition, { align: 'center' })
-  yPosition += 10
+  // ===== CABEÇALHO COM LOGO =====
+  try {
+    // Carregar logo da Sarke
+    const logoWidth = 40
+    const logoHeight = 40
+    const logoX = pageWidth / 2 - logoWidth / 2
+
+    // Adicionar logo (base64 será carregada do public/logo.png)
+    const logoBase64 = await fetch('/logo.png')
+      .then(res => res.blob())
+      .then(blob => new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.readAsDataURL(blob)
+      }))
+
+    doc.addImage(logoBase64, 'PNG', logoX, yPosition, logoWidth, logoHeight)
+    yPosition += logoHeight + 5
+  } catch (error) {
+    console.error('Erro ao carregar logo:', error)
+    // Fallback: apenas texto
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Sarke Studio', pageWidth / 2, yPosition, { align: 'center' })
+    yPosition += 10
+  }
 
   // Título RDO
   doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
   doc.text('Relatório Diário de Obra (RDO)', pageWidth / 2, yPosition, { align: 'center' })
   yPosition += 12
 

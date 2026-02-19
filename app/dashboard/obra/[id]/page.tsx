@@ -39,6 +39,8 @@ import { RDOList } from '@/components/rdo/RDOList'
 import { CronogramaObraCompleto } from '@/types/cronograma-obra'
 import OrcamentoMateriaisView from '@/components/obra-adm/OrcamentoMateriaisView'
 import CaixaObraView from '@/components/obra-adm/CaixaObraView'
+import { ObraFotosView } from '@/components/obra/ObraFotosView'
+import { ObraMedicoesView } from '@/components/obra/ObraMedicoesView'
 
 const statusColors: Record<StatusObra, string> = {
   planejamento: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -640,15 +642,7 @@ export default function ObraDetailPage() {
 
           {/* Aba Fotos */}
           <TabsContent value="fotos">
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-muted-foreground">
-                  <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-semibold mb-2">Em breve!</p>
-                  <p className="text-sm">Galeria de fotos da obra em desenvolvimento</p>
-                </div>
-              </CardContent>
-            </Card>
+            <ObraFotosView obraId={obra.id} />
           </TabsContent>
 
           {/* Aba Documentos */}
@@ -666,15 +660,7 @@ export default function ObraDetailPage() {
 
           {/* Aba Medições */}
           <TabsContent value="medicoes">
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-muted-foreground">
-                  <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-semibold mb-2">Em breve!</p>
-                  <p className="text-sm">Sistema de medições da obra em desenvolvimento</p>
-                </div>
-              </CardContent>
-            </Card>
+            <ObraMedicoesView obra={obra} />
           </TabsContent>
 
           {/* Aba Etapas */}
