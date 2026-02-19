@@ -21,7 +21,9 @@ import {
   STATUS_OBRA_LABELS,
   getStatusPagamentoCor,
 } from '@/types/obra-adm-financeiro';
-import { Plus, Pencil, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Upload, Loader2 } from 'lucide-react';
+import { importarOrcamentoExcel } from '@/lib/orcamentoExcel';
+import { toast } from 'sonner';
 
 interface OrcamentoMateriaisViewProps {
   obraId: string;
@@ -34,6 +36,8 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
   const [showDialog, setShowDialog] = useState(false);
   const [editando, setEditando] = useState<ObraOrcamentoMaterial | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Carregar dados
   useEffect(() => {
@@ -119,6 +123,58 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
     }
   };
 
+  const handleImportarExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = ''; // Reset input
+
+    try {
+      setImporting(true);
+      toast.info('Importando Excel...');
+
+      const materiaisImportados = await importarOrcamentoExcel(file);
+
+      // Inserir materiais no banco
+      const materiaisParaInserir = materiaisImportados.map((mat, index) => ({
+        obra_id: obraId,
+        local: mat.local || null,
+        item: mat.item,
+        descricao: mat.descricao,
+        quantidade: mat.quantidade || null,
+        medida: mat.medida || null,
+        valor_total: mat.valor_total || 0,
+        valor_pago: mat.valor_pago || 0,
+        forma_pagamento: mat.forma_pagamento || null,
+        responsavel_sarke: mat.responsavel_sarke || null,
+        status_obra: mat.status_obra || 'PENDENTE',
+        status_pagamento: mat.status_pagamento || 'A PAGAR',
+        observacoes: mat.observacoes || null,
+        ordem: materiais.length + index,
+      }));
+
+      const { error } = await supabase
+        .from('obra_orcamento_materiais')
+        .insert(materiaisParaInserir);
+
+      if (error) throw error;
+
+      toast.success(`${materiaisImportados.length} materiais importados com sucesso!`);
+      carregarDados();
+    } catch (error: any) {
+      console.error('Erro ao importar Excel:', error);
+      toast.error('Erro ao importar Excel', {
+        description: error.message,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExportarPDF = () => {
+    toast.info('Funcionalidade de exportar PDF em desenvolvimento');
+    // TODO: Implementar exportação PDF
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -172,19 +228,42 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Orçamento de Materiais</h2>
         <div className="flex gap-2">
+          <label className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+            {importing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Importando...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" />
+                Importar Excel
+              </>
+            )}
+            <input
+              type="file"
+              className="hidden"
+              accept=".xlsx,.xls"
+              onChange={handleImportarExcel}
+              disabled={importing}
+            />
+          </label>
           <button
-            onClick={() => {/* TODO: Implementar importação Excel */}}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            onClick={handleExportarPDF}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
           >
-            <Upload className="w-4 h-4" />
-            Importar Excel
-          </button>
-          <button
-            onClick={() => {/* TODO: Implementar exportação PDF */}}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4" />
-            Exportar PDF
+            {exporting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Exportar PDF
+              </>
+            )}
           </button>
           <button
             onClick={() => {
