@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { format, parse } from 'date-fns'
+import { format } from 'date-fns'
 
 export interface MovimentacaoImportada {
   semana?: string
@@ -14,7 +14,15 @@ export interface MovimentacaoImportada {
   observacoes?: string
 }
 
-export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]> {
+export interface SemanaDetectada {
+  nome: string
+  startCol: number
+  endCol: number
+  headerRow: number
+  movimentacoes: MovimentacaoImportada[]
+}
+
+export function detectarSemanasExcel(file: File): Promise<SemanaDetectada[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
@@ -23,102 +31,132 @@ export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]>
         const data = e.target?.result
         const workbook = XLSX.read(data, { type: 'binary' })
 
-        // Usar a primeira planilha
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
 
-        // Encontrar linha de cabeçalho
-        let headerRowIndex = -1
-        for (let i = 0; i < jsonData.length; i++) {
-          const row = jsonData[i]
-          if (row.some((cell: any) => {
-            if (!cell) return false
-            const cellStr = String(cell).toLowerCase()
-            return (
-              cellStr.includes('data') ||
-              cellStr.includes('descrição') ||
-              cellStr.includes('descricao') ||
-              cellStr.includes('valor') ||
-              cellStr.includes('empresa')
-            )
-          })) {
-            headerRowIndex = i
-            break
+        const semanas: SemanaDetectada[] = []
+
+        // Procurar linhas que indicam início de semana
+        for (let rowIdx = 0; rowIdx < jsonData.length; rowIdx++) {
+          const row = jsonData[rowIdx]
+
+          // Procurar células que contenham "SEMANA" ou "CAIXA"
+          for (let colIdx = 0; colIdx < row.length; colIdx++) {
+            const cell = row[colIdx]
+            if (!cell) continue
+
+            const cellStr = String(cell).toUpperCase()
+
+            // Detectar título da semana (ex: "CAIXA DE OBRA - ITEM 14 - SEMANA 01")
+            if (cellStr.includes('SEMANA') && (cellStr.includes('CAIXA') || cellStr.includes('ITEM'))) {
+              // Extrair nome da semana
+              const semanaMatch = cellStr.match(/SEMANA\s*(\d+)/)
+              const semanaNumero = semanaMatch ? semanaMatch[1] : String(semanas.length + 1)
+
+              // Título completo
+              const tituloCompleto = cellStr.trim()
+
+              // Procurar linha de cabeçalho (próximas 3 linhas)
+              let headerRowIndex = -1
+              let startCol = colIdx
+
+              for (let i = rowIdx + 1; i < Math.min(rowIdx + 4, jsonData.length); i++) {
+                const headerRow = jsonData[i]
+                if (headerRow[colIdx] && String(headerRow[colIdx]).toLowerCase().includes('item')) {
+                  headerRowIndex = i
+                  break
+                }
+              }
+
+              if (headerRowIndex === -1) continue
+
+              // Mapear colunas deste bloco
+              const headers = jsonData[headerRowIndex]
+                .slice(startCol)
+                .map((h: any) => h ? String(h).toLowerCase() : '')
+
+              const itemIndex = headers.findIndex(h => h && h.includes('item'))
+              const dataIndex = headers.findIndex(h => h && h.includes('data'))
+              const descIndex = headers.findIndex(h => h && (h.includes('descrição') || h.includes('descricao')))
+              const empresaIndex = headers.findIndex(h => h && h.includes('empresa'))
+              const valorIndex = headers.findIndex(h => h && h.includes('valor'))
+              const reciboIndex = headers.findIndex(h => h && h.includes('recibo'))
+              const codigoIndex = headers.findIndex(h => h && (h.includes('codigo') || h.includes('código')))
+              const statusIndex = headers.findIndex(h => h && h.includes('status'))
+
+              if (dataIndex === -1 || descIndex === -1 || valorIndex === -1) continue
+
+              // Determinar coluna final (próxima coluna vazia ou fim)
+              let endCol = startCol
+              for (let c = startCol; c < headers.length + startCol; c++) {
+                if (headers[c - startCol]) {
+                  endCol = c
+                } else {
+                  break
+                }
+              }
+
+              // Ler movimentações deste bloco
+              const movimentacoes: MovimentacaoImportada[] = []
+
+              for (let dataRowIdx = headerRowIndex + 1; dataRowIdx < jsonData.length; dataRowIdx++) {
+                const dataRow = jsonData[dataRowIdx]
+
+                // Parar se encontrar outra semana
+                const firstCell = dataRow[startCol]
+                if (firstCell && String(firstCell).toUpperCase().includes('SEMANA')) {
+                  break
+                }
+
+                // Extrair valores com offset da coluna inicial
+                const data = dataRow[startCol + dataIndex]
+                const descricao = dataRow[startCol + descIndex]
+                const valor = dataRow[startCol + valorIndex]
+
+                // Pular linhas vazias
+                if (!data || !descricao || !valor) continue
+
+                // Pular totais
+                const descStr = String(descricao).toLowerCase()
+                if (descStr.includes('total') || descStr.includes('soma') || descStr.includes('saldo')) continue
+
+                const dataMovimentacao = parseExcelDate(data)
+                if (!dataMovimentacao) continue
+
+                const valorNum = parseNumber(valor)
+                if (valorNum === undefined) continue
+
+                movimentacoes.push({
+                  semana: `SEMANA ${semanaNumero}`,
+                  data: dataMovimentacao,
+                  descricao: String(descricao),
+                  empresa: empresaIndex >= 0 ? String(dataRow[startCol + empresaIndex] || '') : '',
+                  valor: valorNum,
+                  tipo_recibo: reciboIndex >= 0 ? mapTipoRecibo(String(dataRow[startCol + reciboIndex] || '')) : 'SEM NF',
+                  codigo_recibo: codigoIndex >= 0 ? String(dataRow[startCol + codigoIndex] || '') : '',
+                  status: statusIndex >= 0 ? mapStatus(String(dataRow[startCol + statusIndex] || '')) : 'PENDENTE',
+                })
+              }
+
+              if (movimentacoes.length > 0) {
+                semanas.push({
+                  nome: tituloCompleto,
+                  startCol,
+                  endCol,
+                  headerRow: headerRowIndex,
+                  movimentacoes,
+                })
+              }
+            }
           }
         }
 
-        if (headerRowIndex === -1) {
-          throw new Error('Cabeçalho não encontrado. Certifique-se de que há colunas com "Data", "Descrição" e "Valor".')
+        if (semanas.length === 0) {
+          throw new Error('Nenhuma semana detectada. Certifique-se de que o arquivo tem o formato correto com títulos contendo "SEMANA".')
         }
 
-        const headers = jsonData[headerRowIndex].map((h: any) => h ? String(h).toLowerCase() : '')
-        const dataRows = jsonData.slice(headerRowIndex + 1)
-
-        // Mapear colunas - com verificação de null/undefined
-        const semanaIndex = headers.findIndex(h => h && h.includes('semana'))
-        const categoriaIndex = headers.findIndex(h => h && (h.includes('categoria') || h.includes('tipo')))
-        const dataIndex = headers.findIndex(h =>
-          h && (h.includes('data') || (h.includes('dt') && !h.includes('atualiza')))
-        )
-        const descIndex = headers.findIndex(h =>
-          h && (h.includes('descrição') || h.includes('descricao'))
-        )
-        const empresaIndex = headers.findIndex(h =>
-          h && (h.includes('empresa') || h.includes('fornecedor'))
-        )
-        const valorIndex = headers.findIndex(h => h && h.includes('valor'))
-        const tipoReciboIndex = headers.findIndex(h =>
-          h && ((h.includes('tipo') && h.includes('recibo')) || h.includes('nf') || h.includes('nota'))
-        )
-        const codigoReciboIndex = headers.findIndex(h =>
-          h && ((h.includes('código') || h.includes('codigo') || h.includes('número') || h.includes('numero')) &&
-          (h.includes('recibo') || h.includes('nota') || h.includes('cupom')))
-        )
-        const statusIndex = headers.findIndex(h => h && h.includes('status'))
-        const obsIndex = headers.findIndex(h =>
-          h && (h.includes('observ') || h.includes('obs'))
-        )
-
-        if (dataIndex === -1 || descIndex === -1 || valorIndex === -1) {
-          throw new Error('Colunas obrigatórias não encontradas (Data, Descrição e Valor).')
-        }
-
-        const movimentacoes: MovimentacaoImportada[] = []
-
-        for (const row of dataRows) {
-          // Pular linhas vazias
-          if (!row[dataIndex] || !row[descIndex] || !row[valorIndex]) continue
-
-          // Pular linhas de total/soma
-          const descStr = String(row[descIndex]).toLowerCase()
-          if (descStr.includes('total') || descStr.includes('soma') || descStr.includes('saldo')) continue
-
-          const dataMovimentacao = parseExcelDate(row[dataIndex])
-          if (!dataMovimentacao) continue
-
-          const valor = parseNumber(row[valorIndex])
-          if (valor === undefined) continue
-
-          movimentacoes.push({
-            semana: semanaIndex >= 0 ? String(row[semanaIndex] || '') : '',
-            categoria: categoriaIndex >= 0 ? String(row[categoriaIndex] || '') : '',
-            data: dataMovimentacao,
-            descricao: String(row[descIndex]),
-            empresa: empresaIndex >= 0 ? String(row[empresaIndex] || '') : '',
-            valor: valor,
-            tipo_recibo: tipoReciboIndex >= 0 ? mapTipoRecibo(String(row[tipoReciboIndex] || '')) : 'SEM NF',
-            codigo_recibo: codigoReciboIndex >= 0 ? String(row[codigoReciboIndex] || '') : '',
-            status: statusIndex >= 0 ? mapStatus(String(row[statusIndex] || '')) : 'PENDENTE',
-            observacoes: obsIndex >= 0 ? String(row[obsIndex] || '') : '',
-          })
-        }
-
-        if (movimentacoes.length === 0) {
-          throw new Error('Nenhuma movimentação válida encontrada no arquivo.')
-        }
-
-        resolve(movimentacoes)
+        resolve(semanas)
       } catch (error: any) {
         reject(error)
       }
@@ -129,6 +167,26 @@ export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]>
     }
 
     reader.readAsBinaryString(file)
+  })
+}
+
+export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Detectar todas as semanas
+      const semanas = await detectarSemanasExcel(file)
+
+      // Retornar todas as movimentações de todas as semanas
+      const todasMovimentacoes = semanas.flatMap(s => s.movimentacoes)
+
+      if (todasMovimentacoes.length === 0) {
+        throw new Error('Nenhuma movimentação válida encontrada no arquivo.')
+      }
+
+      resolve(todasMovimentacoes)
+    } catch (error: any) {
+      reject(error)
+    }
   })
 }
 
@@ -151,6 +209,15 @@ function parseExcelDate(value: any): string | null {
     const date = XLSX.SSF.parse_date_code(value)
     if (date) {
       return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`
+    }
+  }
+
+  // Se é string de data do Excel (ex: "2025-06-09 00:00:00")
+  if (typeof value === 'string' && value.includes(' ')) {
+    const datePart = value.split(' ')[0]
+    const dateMatch = datePart.match(/(\d{4})-(\d{2})-(\d{2})/)
+    if (dateMatch) {
+      return `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`
     }
   }
 

@@ -29,8 +29,18 @@ import {
   getStatusComprovanteCor,
 } from '@/types/obra-adm-financeiro';
 import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
-import { importarCaixaExcel } from '@/lib/caixaExcel';
+import { importarCaixaExcel, detectarSemanasExcel, SemanaDetectada } from '@/lib/caixaExcel';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface CaixaObraViewProps {
   obraId: string;
@@ -47,6 +57,9 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [editandoMovimentacao, setEditandoMovimentacao] = useState<ObraCaixa | null>(null);
   const [movToDelete, setMovToDelete] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [semanaDetectada, setSemanaDetectada] = useState<SemanaDetectada[] | null>(null);
+  const [showDialogImport, setShowDialogImport] = useState(false);
+  const [semanasParaImportar, setSemanasParaImportar] = useState<string[]>([]);
 
   // Carregar semanas
   useEffect(() => {
@@ -182,45 +195,109 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
     if (!file) return;
     event.target.value = ''; // Reset input
 
-    if (!semanaSelecionada) {
-      toast.error('Selecione uma semana antes de importar');
-      return;
+    try {
+      setImporting(true);
+      toast.info('Analisando Excel...');
+
+      // Detectar semanas no arquivo
+      const semanasDetectadas = await detectarSemanasExcel(file);
+
+      setSemanaDetectada(semanasDetectadas);
+      setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
+      setShowDialogImport(true);
+
+      toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
+    } catch (error: any) {
+      console.error('Erro ao importar:', error);
+      toast.error('Erro ao importar Excel', {
+        description: error.message,
+      });
+    } finally {
+      setImporting(false);
     }
+  };
+
+  const confirmarImportacao = async () => {
+    if (!semanaDetectada) return;
 
     try {
       setImporting(true);
-      toast.info('Importando Excel...');
+      toast.info('Importando semanas selecionadas...');
 
-      const movimentacoesImportadas = await importarCaixaExcel(file);
+      // Filtrar apenas semanas selecionadas
+      const semanasParaInserirData = semanaDetectada.filter(s =>
+        semanasParaImportar.includes(s.nome)
+      );
 
-      // Inserir movimentações no banco
-      const movimentacoesParaInserir = movimentacoesImportadas.map((mov, index) => ({
-        obra_id: obraId,
-        semana: mov.semana || semanaSelecionada,
-        categoria: mov.categoria || null,
-        item_numero: movimentacoes.length + index + 1,
-        data: mov.data,
-        descricao: mov.descricao,
-        empresa: mov.empresa || null,
-        valor: mov.valor,
-        tipo_recibo: mov.tipo_recibo || 'SEM NF',
-        codigo_recibo: mov.codigo_recibo || null,
-        status: mov.status || 'PENDENTE',
-        observacoes: mov.observacoes || null,
-      }));
+      let totalImportado = 0;
 
-      const { error } = await supabase
-        .from('obra_caixa')
-        .insert(movimentacoesParaInserir);
+      for (const semanaData of semanasParaInserirData) {
+        // Criar semana se não existir
+        const nomeSemana = semanaData.nome;
 
-      if (error) throw error;
+        // Verificar se semana já existe
+        const { data: semanaExistente } = await supabase
+          .from('obra_caixa_semanas')
+          .select('nome')
+          .eq('obra_id', obraId)
+          .eq('nome', nomeSemana)
+          .single();
 
-      toast.success(`${movimentacoesImportadas.length} movimentações importadas com sucesso!`);
+        if (!semanaExistente) {
+          // Extrair número da semana
+          const numeroMatch = nomeSemana.match(/SEMANA\s*(\d+)/i);
+          const numeroSemana = numeroMatch ? parseInt(numeroMatch[1]) : semanas.length + 1;
+
+          const { error: semanaError } = await supabase
+            .from('obra_caixa_semanas')
+            .insert({
+              obra_id: obraId,
+              nome: nomeSemana,
+              numero_semana: numeroSemana,
+            });
+
+          if (semanaError) {
+            console.error('Erro ao criar semana:', semanaError);
+            continue;
+          }
+        }
+
+        // Inserir movimentações desta semana
+        const movimentacoesParaInserir = semanaData.movimentacoes.map((mov, index) => ({
+          obra_id: obraId,
+          semana: nomeSemana,
+          data: mov.data,
+          descricao: mov.descricao,
+          empresa: mov.empresa || null,
+          valor: mov.valor,
+          tipo_recibo: mov.tipo_recibo || 'SEM NF',
+          codigo_recibo: mov.codigo_recibo || null,
+          status: mov.status || 'PENDENTE',
+          observacoes: mov.observacoes || null,
+          item_numero: index + 1,
+        }));
+
+        const { error } = await supabase
+          .from('obra_caixa')
+          .insert(movimentacoesParaInserir);
+
+        if (error) {
+          console.error('Erro ao inserir movimentações:', error);
+          continue;
+        }
+
+        totalImportado += movimentacoesParaInserir.length;
+      }
+
+      toast.success(`${totalImportado} movimentações importadas!`);
+      setShowDialogImport(false);
+      setSemanaDetectada(null);
+      setSemanasParaImportar([]);
       carregarMovimentacoes();
       carregarSemanas();
     } catch (error: any) {
-      console.error('Erro ao importar Excel:', error);
-      toast.error('Erro ao importar Excel', {
+      console.error('Erro ao confirmar importação:', error);
+      toast.error('Erro ao confirmar importação', {
         description: error.message,
       });
     } finally {
@@ -1062,5 +1139,101 @@ function FormularioMovimentacao({ movimentacao, obraId, semanaSelecionada, onSal
         </div>
       </div>
     </div>
+
+    {/* Dialog de Seleção de Semanas para Importar */}
+    <Dialog open={showDialogImport} onOpenChange={setShowDialogImport}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Selecionar Semanas para Importar</DialogTitle>
+          <DialogDescription>
+            Foram detectadas {semanaDetectada?.length || 0} semana(s) no arquivo Excel.
+            Selecione quais deseja importar:
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {semanaDetectada?.map((semana) => {
+            const isSelected = semanasParaImportar.includes(semana.nome);
+
+            return (
+              <div
+                key={semana.nome}
+                className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  if (isSelected) {
+                    setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
+                  } else {
+                    setSemanasParaImportar(prev => [...prev, semana.nome]);
+                  }
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSemanasParaImportar(prev => [...prev, semana.nome]);
+                      } else {
+                        setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{semana.nome}</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {semana.movimentacoes.length} movimentação(ões) detectada(s)
+                    </p>
+
+                    {/* Preview das primeiras movimentações */}
+                    <div className="mt-2 space-y-1">
+                      {semana.movimentacoes.slice(0, 3).map((mov, idx) => (
+                        <div key={idx} className="text-xs text-gray-500 flex justify-between">
+                          <span className="truncate flex-1">{mov.descricao}</span>
+                          <span className={`ml-2 ${mov.valor < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatarMoeda(mov.valor)}
+                          </span>
+                        </div>
+                      ))}
+                      {semana.movimentacoes.length > 3 && (
+                        <p className="text-xs text-gray-400">
+                          ...e mais {semana.movimentacoes.length - 3}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDialogImport(false);
+              setSemanaDetectada(null);
+              setSemanasParaImportar([]);
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmarImportacao}
+            disabled={semanasParaImportar.length === 0 || importing}
+          >
+            {importing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Importando...
+              </>
+            ) : (
+              `Importar ${semanasParaImportar.length} semana(s)`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
