@@ -200,7 +200,7 @@ export function importarCronogramaExcel(file: File): Promise<AtividadeImportada[
           throw new Error('Cabeçalho não encontrado. Certifique-se de que há colunas com "Data" e "Descrição" ou "Serviço".')
         }
 
-        const headers = jsonData[headerRowIndex].map((h: any) => String(h).toLowerCase())
+        const headers = jsonData[headerRowIndex].map((h: any) => h ? String(h).toLowerCase() : '')
         const dataRows = jsonData.slice(headerRowIndex + 1)
 
         // Mapear colunas - busca mais flexível

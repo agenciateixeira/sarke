@@ -33,6 +33,7 @@ export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]>
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i]
           if (row.some((cell: any) => {
+            if (!cell) return false
             const cellStr = String(cell).toLowerCase()
             return (
               cellStr.includes('data') ||
@@ -51,38 +52,32 @@ export function importarCaixaExcel(file: File): Promise<MovimentacaoImportada[]>
           throw new Error('Cabeçalho não encontrado. Certifique-se de que há colunas com "Data", "Descrição" e "Valor".')
         }
 
-        const headers = jsonData[headerRowIndex].map((h: any) => String(h).toLowerCase())
+        const headers = jsonData[headerRowIndex].map((h: any) => h ? String(h).toLowerCase() : '')
         const dataRows = jsonData.slice(headerRowIndex + 1)
 
-        // Mapear colunas
-        const semanaIndex = headers.findIndex(h => h.includes('semana'))
-        const categoriaIndex = headers.findIndex(h => h.includes('categoria') || h.includes('tipo'))
+        // Mapear colunas - com verificação de null/undefined
+        const semanaIndex = headers.findIndex(h => h && h.includes('semana'))
+        const categoriaIndex = headers.findIndex(h => h && (h.includes('categoria') || h.includes('tipo')))
         const dataIndex = headers.findIndex(h =>
-          h.includes('data') ||
-          (h.includes('dt') && !h.includes('atualiza'))
+          h && (h.includes('data') || (h.includes('dt') && !h.includes('atualiza')))
         )
         const descIndex = headers.findIndex(h =>
-          h.includes('descrição') ||
-          h.includes('descricao')
+          h && (h.includes('descrição') || h.includes('descricao'))
         )
         const empresaIndex = headers.findIndex(h =>
-          h.includes('empresa') ||
-          h.includes('fornecedor')
+          h && (h.includes('empresa') || h.includes('fornecedor'))
         )
-        const valorIndex = headers.findIndex(h => h.includes('valor'))
+        const valorIndex = headers.findIndex(h => h && h.includes('valor'))
         const tipoReciboIndex = headers.findIndex(h =>
-          (h.includes('tipo') && h.includes('recibo')) ||
-          h.includes('nf') ||
-          h.includes('nota')
+          h && ((h.includes('tipo') && h.includes('recibo')) || h.includes('nf') || h.includes('nota'))
         )
         const codigoReciboIndex = headers.findIndex(h =>
-          (h.includes('código') || h.includes('codigo') || h.includes('número') || h.includes('numero')) &&
-          (h.includes('recibo') || h.includes('nota') || h.includes('cupom'))
+          h && ((h.includes('código') || h.includes('codigo') || h.includes('número') || h.includes('numero')) &&
+          (h.includes('recibo') || h.includes('nota') || h.includes('cupom')))
         )
-        const statusIndex = headers.findIndex(h => h.includes('status'))
+        const statusIndex = headers.findIndex(h => h && h.includes('status'))
         const obsIndex = headers.findIndex(h =>
-          h.includes('observ') ||
-          h.includes('obs')
+          h && (h.includes('observ') || h.includes('obs'))
         )
 
         if (dataIndex === -1 || descIndex === -1 || valorIndex === -1) {
