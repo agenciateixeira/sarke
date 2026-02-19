@@ -28,7 +28,9 @@ import {
   calcularDiasRestantes,
   getStatusComprovanteCor,
 } from '@/types/obra-adm-financeiro';
-import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { importarCaixaExcel } from '@/lib/caixaExcel';
+import { toast } from 'sonner';
 
 interface CaixaObraViewProps {
   obraId: string;
@@ -44,6 +46,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [showDialogSemana, setShowDialogSemana] = useState(false);
   const [editandoMovimentacao, setEditandoMovimentacao] = useState<ObraCaixa | null>(null);
   const [movToDelete, setMovToDelete] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   // Carregar semanas
   useEffect(() => {
@@ -174,6 +177,57 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
     }
   };
 
+  const handleImportarExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = ''; // Reset input
+
+    if (!semanaSelecionada) {
+      toast.error('Selecione uma semana antes de importar');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      toast.info('Importando Excel...');
+
+      const movimentacoesImportadas = await importarCaixaExcel(file);
+
+      // Inserir movimentações no banco
+      const movimentacoesParaInserir = movimentacoesImportadas.map((mov, index) => ({
+        obra_id: obraId,
+        semana: mov.semana || semanaSelecionada,
+        categoria: mov.categoria || null,
+        item_numero: movimentacoes.length + index + 1,
+        data: mov.data,
+        descricao: mov.descricao,
+        empresa: mov.empresa || null,
+        valor: mov.valor,
+        tipo_recibo: mov.tipo_recibo || 'SEM NF',
+        codigo_recibo: mov.codigo_recibo || null,
+        status: mov.status || 'PENDENTE',
+        observacoes: mov.observacoes || null,
+      }));
+
+      const { error } = await supabase
+        .from('obra_caixa')
+        .insert(movimentacoesParaInserir);
+
+      if (error) throw error;
+
+      toast.success(`${movimentacoesImportadas.length} movimentações importadas com sucesso!`);
+      carregarMovimentacoes();
+      carregarSemanas();
+    } catch (error: any) {
+      console.error('Erro ao importar Excel:', error);
+      toast.error('Erro ao importar Excel', {
+        description: error.message,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const semanaAtual = semanas.find(s => s.nome === semanaSelecionada);
 
   if (loading) {
@@ -212,16 +266,38 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             Nova Semana
           </button>
           {semanaSelecionada && (
-            <button
-              onClick={() => {
-                setEditandoMovimentacao(null);
-                setShowDialogMovimentacao(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              Nova Movimentação
-            </button>
+            <>
+              <label className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Importar Excel
+                  </>
+                )}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportarExcel}
+                  disabled={importing}
+                />
+              </label>
+              <button
+                onClick={() => {
+                  setEditandoMovimentacao(null);
+                  setShowDialogMovimentacao(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                Nova Movimentação
+              </button>
+            </>
           )}
         </div>
       </div>
