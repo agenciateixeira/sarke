@@ -58,12 +58,15 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { exportarCronogramaExcel, importarCronogramaExcel, AtividadeImportada } from '@/lib/cronogramaExcel'
+import { generateCronogramaPDF } from '@/lib/cronogramaPdf'
 
 interface CronogramaObraViewProps {
   obraId: string
+  obraNome?: string
 }
 
-export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
+export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps) {
   const [loading, setLoading] = useState(true)
   const [cronograma, setCronograma] = useState<CronogramaObraCompleto | null>(null)
   const [atividades, setAtividades] = useState<CronogramaObraAtividade[]>([])
@@ -79,6 +82,8 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
   })
   const [editandoAtividade, setEditandoAtividade] = useState<CronogramaObraAtividade | null>(null)
   const [atividadeToDelete, setAtividadeToDelete] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     loadCronograma()
@@ -308,6 +313,107 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
     })
   }
 
+  // ===== FUNÇÕES DE EXPORTAÇÃO =====
+  async function handleExportarExcel() {
+    if (!cronograma) return
+
+    try {
+      setExporting(true)
+      exportarCronogramaExcel({
+        cronograma,
+        atividades,
+        obraNome,
+      })
+      toast.success('Excel exportado com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao exportar Excel:', error)
+      toast.error('Erro ao exportar Excel')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleExportarPDF() {
+    if (!cronograma) return
+
+    try {
+      setExporting(true)
+      toast.info('Gerando PDF...')
+      await generateCronogramaPDF({
+        cronograma,
+        atividades,
+        obraNome,
+      })
+      toast.success('PDF gerado com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error)
+      toast.error('Erro ao gerar PDF')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // ===== FUNÇÃO DE IMPORTAÇÃO =====
+  async function handleImportarExcel(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Resetar input
+    event.target.value = ''
+
+    if (!cronograma) {
+      toast.error('Crie um cronograma antes de importar atividades')
+      return
+    }
+
+    try {
+      setImporting(true)
+      toast.info('Importando Excel...')
+
+      const atividadesImportadas = await importarCronogramaExcel(file)
+
+      if (atividadesImportadas.length === 0) {
+        toast.error('Nenhuma atividade encontrada no arquivo')
+        return
+      }
+
+      // Inserir atividades no banco
+      const atividadesParaInserir = atividadesImportadas.map((ativ, index) => {
+        const data = new Date(ativ.data_prevista)
+        const mes = format(data, 'MMMM', { locale: ptBR })
+        const diaSemana = format(data, 'EEEE', { locale: ptBR })
+
+        return {
+          cronograma_id: cronograma.id,
+          mes,
+          dia_semana: diaSemana,
+          data_prevista: ativ.data_prevista,
+          descricao_servico: ativ.descricao_servico,
+          observacao: ativ.observacao || null,
+          status: (ativ.status as AtividadeStatus) || 'pendente',
+          prioridade: (ativ.prioridade as AtividadePrioridade) || 'normal',
+          ordem: atividades.length + index,
+        }
+      })
+
+      const { error } = await supabase
+        .from('cronograma_obra_atividades')
+        .insert(atividadesParaInserir)
+
+      if (error) throw error
+
+      toast.success(`${atividadesImportadas.length} atividades importadas com sucesso!`)
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao importar Excel:', error)
+      toast.error('Erro ao importar Excel', {
+        description: error.message,
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -334,11 +440,14 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
               <Plus className="mr-2 h-4 w-4" />
               Criar Cronograma
             </Button>
-            <Button variant="outline" className="flex-1">
-              <Upload className="mr-2 h-4 w-4" />
-              Importar do Excel
+            <Button variant="outline" className="flex-1" onClick={handleExportarExcel}>
+              <Download className="mr-2 h-4 w-4" />
+              Baixar Template Excel
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Baixe o template para preencher off-line e depois crie um cronograma para importar
+          </p>
         </CardContent>
       </Card>
     )
@@ -409,17 +518,26 @@ export function CronogramaObraView({ obraId }: CronogramaObraViewProps) {
           <Plus className="mr-2 h-4 w-4" />
           Nova Atividade
         </Button>
-        <Button variant="outline">
-          <Upload className="mr-2 h-4 w-4" />
-          Importar Excel
+        <Button variant="outline" asChild disabled={importing}>
+          <label className="cursor-pointer">
+            <Upload className="mr-2 h-4 w-4" />
+            {importing ? 'Importando...' : 'Importar Excel'}
+            <input
+              type="file"
+              className="hidden"
+              accept=".xlsx,.xls"
+              onChange={handleImportarExcel}
+              disabled={importing}
+            />
+          </label>
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportarExcel} disabled={exporting}>
           <Download className="mr-2 h-4 w-4" />
-          Exportar Excel
+          {exporting ? 'Exportando...' : 'Exportar Excel'}
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportarPDF} disabled={exporting}>
           <Download className="mr-2 h-4 w-4" />
-          Exportar PDF
+          {exporting ? 'Gerando...' : 'Exportar PDF'}
         </Button>
       </div>
 
