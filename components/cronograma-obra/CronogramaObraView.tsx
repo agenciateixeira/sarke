@@ -284,6 +284,23 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
     }
   }
 
+  async function atualizarStatusAtividade(atividadeId: string, novoStatus: string) {
+    try {
+      const { error } = await supabase
+        .from('cronograma_obra_atividades')
+        .update({ status: novoStatus })
+        .eq('id', atividadeId)
+
+      if (error) throw error
+
+      toast.success('Status atualizado!')
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error)
+      toast.error('Erro ao atualizar status')
+    }
+  }
+
   async function deletarAtividade() {
     if (!atividadeToDelete) return
 
@@ -414,6 +431,23 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
     } catch (error: any) {
       console.error('Erro ao vincular empresa:', error)
       toast.error('Erro ao vincular empresa')
+    }
+  }
+
+  async function atualizarStatusVinculo(vinculoId: string, novoStatus: string) {
+    try {
+      const { error } = await supabase
+        .from('cronograma_empresas_vinculos')
+        .update({ status: novoStatus })
+        .eq('id', vinculoId)
+
+      if (error) throw error
+
+      toast.success('Status do vínculo atualizado!')
+      loadEmpresasVinculadas()
+    } catch (error: any) {
+      console.error('Erro ao atualizar status do vínculo:', error)
+      toast.error('Erro ao atualizar status')
     }
   }
 
@@ -769,9 +803,25 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                           : '-'}
                       </td>
                       <td className="p-2 border-r">
-                        <Badge className={getVinculoStatusColor(vinculo.status)}>
-                          {getVinculoStatusLabel(vinculo.status)}
-                        </Badge>
+                        <Select
+                          value={vinculo.status}
+                          onValueChange={(novoStatus) => atualizarStatusVinculo(vinculo.id, novoStatus)}
+                        >
+                          <SelectTrigger className={`h-7 w-full border-none ${getVinculoStatusColor(vinculo.status)}`}>
+                            <SelectValue>
+                              {getVinculoStatusLabel(vinculo.status)}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                            <SelectItem value="proposta_enviada">Proposta Enviada</SelectItem>
+                            <SelectItem value="em_negociacao">Em Negociação</SelectItem>
+                            <SelectItem value="contratada">Contratada</SelectItem>
+                            <SelectItem value="em_execucao">Em Execução</SelectItem>
+                            <SelectItem value="concluida">Concluída</SelectItem>
+                            <SelectItem value="cancelada">Cancelada</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="p-2 text-center">
                         <div className="flex gap-1 justify-center">
@@ -855,9 +905,24 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                         {(atividade as any).empresa_parceira?.nome || '-'}
                       </td>
                       <td className="p-2 border-r">
-                        <Badge className={getStatusColor(atividade.status)}>
-                          {getStatusLabel(atividade.status)}
-                        </Badge>
+                        <Select
+                          value={atividade.status}
+                          onValueChange={(novoStatus) => atualizarStatusAtividade(atividade.id, novoStatus)}
+                        >
+                          <SelectTrigger className={`h-7 w-full border-none ${getStatusColor(atividade.status)}`}>
+                            <SelectValue>
+                              {getStatusLabel(atividade.status)}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                            <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                            <SelectItem value="concluida">Concluída</SelectItem>
+                            <SelectItem value="atrasada">Atrasada</SelectItem>
+                            <SelectItem value="pausada">Pausada</SelectItem>
+                            <SelectItem value="cancelada">Cancelada</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="p-2 text-center">
                         <div className="flex gap-1 justify-center">
