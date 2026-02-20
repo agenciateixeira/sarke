@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress'
 import {
   ArrowLeft,
   Edit,
+  Trash2,
   FileText,
   Palette,
   Box,
@@ -24,6 +25,17 @@ import {
   TrendingUp,
   AlertCircle,
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { ProjetoCompleto, etapaLabels, etapaCores, areaLabels, formatarFrente } from '@/types/projeto'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -36,6 +48,7 @@ export default function ProjetoDetalhePage() {
   const router = useRouter()
   const [projeto, setProjeto] = useState<ProjetoCompleto | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState('informacoes')
 
   useEffect(() => {
@@ -60,6 +73,28 @@ export default function ProjetoDetalhePage() {
       router.push('/dashboard/projetos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      setDeleting(true)
+
+      // Deletar projeto (cascade vai deletar tarefas vinculadas automaticamente)
+      const { error } = await supabase
+        .from('projetos')
+        .delete()
+        .eq('id', params.id)
+
+      if (error) throw error
+
+      toast.success('Projeto excluído com sucesso!')
+      router.push('/dashboard/projetos')
+    } catch (error: any) {
+      console.error('Erro ao excluir projeto:', error)
+      toast.error('Erro ao excluir projeto')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -102,6 +137,34 @@ export default function ProjetoDetalhePage() {
                 Editar
               </Link>
             </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:bg-destructive/10">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. O projeto <strong>{projeto.nome}</strong> e todas as
+                    tarefas vinculadas serão permanentemente excluídos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? 'Excluindo...' : 'Sim, excluir projeto'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
