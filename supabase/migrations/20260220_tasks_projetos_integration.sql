@@ -7,129 +7,47 @@
 -- =====================================================
 
 -- =====================================================
--- 1. CRIAR TABELAS DE TAREFAS (SE NÃO EXISTIREM)
+-- 1. ADICIONAR CAMPOS NOVOS ÀS TABELAS EXISTENTES
 -- =====================================================
 
--- Colunas do Pipeline (Kanban)
-CREATE TABLE IF NOT EXISTS pipeline_columns (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  order_index INTEGER NOT NULL,
-  color TEXT DEFAULT '#94a3b8',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Adicionar campos na tabela tasks (se não existirem)
+DO $$
+BEGIN
+  -- Campo is_project_task
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'tasks' AND column_name = 'is_project_task'
+  ) THEN
+    ALTER TABLE tasks ADD COLUMN is_project_task BOOLEAN DEFAULT false;
+  END IF;
 
--- Tarefas
-CREATE TABLE IF NOT EXISTS tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Campo projeto_area
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'tasks' AND column_name = 'projeto_area'
+  ) THEN
+    ALTER TABLE tasks ADD COLUMN projeto_area TEXT;
+  END IF;
 
-  -- Informações básicas
-  title TEXT NOT NULL,
-  description TEXT,
+  -- Verificar se coluna project_id existe e criar se necessário
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'tasks' AND column_name = 'project_id'
+  ) THEN
+    ALTER TABLE tasks ADD COLUMN project_id UUID REFERENCES projetos(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
-  -- Pipeline
-  column_id UUID REFERENCES pipeline_columns(id) ON DELETE SET NULL,
-  order_in_column INTEGER DEFAULT 0,
-
-  -- Metadados
-  status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'review', 'completed', 'blocked')),
-  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-
-  -- Responsável e datas
-  assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  due_date DATE,
-  start_date DATE,
-  completed_date TIMESTAMP WITH TIME ZONE,
-
-  -- Tracking de tempo
-  estimated_time_minutes INTEGER,
-  tracked_time_minutes INTEGER DEFAULT 0,
-
-  -- Relacionamentos
-  client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-  project_id UUID REFERENCES projetos(id) ON DELETE CASCADE,
-
-  -- NOVOS CAMPOS PARA INTEGRAÇÃO COM PROJETOS
-  is_project_task BOOLEAN DEFAULT false, -- Marca tarefas criadas automaticamente para projetos
-  projeto_area TEXT, -- 'residencial', 'comercial', 'corporativo' (cópia do projeto)
-
-  -- Flags
-  is_completed BOOLEAN DEFAULT false,
-  is_archived BOOLEAN DEFAULT false,
-
-  -- Metadados
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Subtarefas
-CREATE TABLE IF NOT EXISTS subtasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-
-  -- Informações básicas
-  title TEXT NOT NULL,
-  description TEXT,
-
-  -- NOVO CAMPO: Indica qual etapa do projeto esta subtarefa representa
-  projeto_etapa TEXT CHECK (projeto_etapa IN ('planejamento', 'planta_baixa', '3d', 'executivo')),
-
-  -- Metadados
-  order_index INTEGER DEFAULT 0,
-  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-
-  -- Responsável e datas
-  assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  due_date DATE,
-
-  -- Flags
-  is_completed BOOLEAN DEFAULT false,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  completed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-
-  -- Metadados
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Comentários
-CREATE TABLE IF NOT EXISTS task_comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Anexos
-CREATE TABLE IF NOT EXISTS task_attachments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  file_name TEXT NOT NULL,
-  file_path TEXT NOT NULL,
-  file_type TEXT,
-  file_size BIGINT,
-  uploaded_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Time tracking
-CREATE TABLE IF NOT EXISTS task_time_entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  started_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  ended_at TIMESTAMP WITH TIME ZONE,
-  duration_minutes INTEGER,
-  notes TEXT,
-  is_running BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Adicionar campo projeto_etapa na tabela subtasks (se não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'subtasks' AND column_name = 'projeto_etapa'
+  ) THEN
+    ALTER TABLE subtasks ADD COLUMN projeto_etapa TEXT CHECK (projeto_etapa IN ('planejamento', 'planta_baixa', '3d', 'executivo'));
+  END IF;
+END $$;
 
 -- =====================================================
 -- 2. CRIAR ÍNDICES
@@ -341,151 +259,11 @@ CREATE TRIGGER trigger_sync_projeto_subtask_insert
   EXECUTE FUNCTION sync_projeto_from_subtask();
 
 -- =====================================================
--- 5. RLS POLICIES (Row Level Security)
+-- 5. ATUALIZAR VIEW EXISTENTE (se existir)
 -- =====================================================
 
--- Tasks
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Todos podem visualizar tarefas" ON tasks;
-CREATE POLICY "Todos podem visualizar tarefas"
-  ON tasks FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem criar tarefas" ON tasks;
-CREATE POLICY "Colaboradores podem criar tarefas"
-  ON tasks FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem atualizar tarefas" ON tasks;
-CREATE POLICY "Colaboradores podem atualizar tarefas"
-  ON tasks FOR UPDATE
-  USING (true);
-
-DROP POLICY IF EXISTS "Admin e gerente podem deletar tarefas" ON tasks;
-CREATE POLICY "Admin e gerente podem deletar tarefas"
-  ON tasks FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('admin', 'gerente')
-    )
-  );
-
--- Subtasks
-ALTER TABLE subtasks ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Todos podem visualizar subtarefas" ON subtasks;
-CREATE POLICY "Todos podem visualizar subtarefas"
-  ON subtasks FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem criar subtarefas" ON subtasks;
-CREATE POLICY "Colaboradores podem criar subtarefas"
-  ON subtasks FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem atualizar subtarefas" ON subtasks;
-CREATE POLICY "Colaboradores podem atualizar subtarefas"
-  ON subtasks FOR UPDATE
-  USING (true);
-
-DROP POLICY IF EXISTS "Admin e gerente podem deletar subtarefas" ON subtasks;
-CREATE POLICY "Admin e gerente podem deletar subtarefas"
-  ON subtasks FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('admin', 'gerente')
-    )
-  );
-
--- Task Comments
-ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Todos podem visualizar comentários" ON task_comments;
-CREATE POLICY "Todos podem visualizar comentários"
-  ON task_comments FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem criar comentários" ON task_comments;
-CREATE POLICY "Colaboradores podem criar comentários"
-  ON task_comments FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Autor pode atualizar seus comentários" ON task_comments;
-CREATE POLICY "Autor pode atualizar seus comentários"
-  ON task_comments FOR UPDATE
-  USING (created_by = auth.uid());
-
-DROP POLICY IF EXISTS "Autor pode deletar seus comentários" ON task_comments;
-CREATE POLICY "Autor pode deletar seus comentários"
-  ON task_comments FOR DELETE
-  USING (created_by = auth.uid());
-
--- Task Attachments
-ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Todos podem visualizar anexos" ON task_attachments;
-CREATE POLICY "Todos podem visualizar anexos"
-  ON task_attachments FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Colaboradores podem criar anexos" ON task_attachments;
-CREATE POLICY "Colaboradores podem criar anexos"
-  ON task_attachments FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Uploader pode deletar anexos" ON task_attachments;
-CREATE POLICY "Uploader pode deletar anexos"
-  ON task_attachments FOR DELETE
-  USING (uploaded_by = auth.uid());
-
--- Time Entries
-ALTER TABLE task_time_entries ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Usuário pode ver seus time entries" ON task_time_entries;
-CREATE POLICY "Usuário pode ver seus time entries"
-  ON task_time_entries FOR SELECT
-  USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'gerente')
-  ));
-
-DROP POLICY IF EXISTS "Usuário pode criar seus time entries" ON task_time_entries;
-CREATE POLICY "Usuário pode criar seus time entries"
-  ON task_time_entries FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Usuário pode atualizar seus time entries" ON task_time_entries;
-CREATE POLICY "Usuário pode atualizar seus time entries"
-  ON task_time_entries FOR UPDATE
-  USING (user_id = auth.uid());
-
--- Pipeline Columns
-ALTER TABLE pipeline_columns ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Todos podem visualizar colunas" ON pipeline_columns;
-CREATE POLICY "Todos podem visualizar colunas"
-  ON pipeline_columns FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "Admin pode gerenciar colunas" ON pipeline_columns;
-CREATE POLICY "Admin pode gerenciar colunas"
-  ON pipeline_columns FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
-
--- =====================================================
--- 6. VIEWS PARA FACILITAR QUERIES
--- =====================================================
-
+-- Recriar view tasks_with_details para incluir campos de projeto
+DROP VIEW IF EXISTS tasks_with_details;
 CREATE OR REPLACE VIEW tasks_with_details AS
 SELECT
   t.*,
@@ -497,9 +275,11 @@ SELECT
   pc.color as column_color,
   -- Cliente
   c.name as client_name,
-  -- Projeto
+  -- Projeto (NOVOS CAMPOS)
   proj.nome as project_name,
   proj.area as project_area,
+  proj.etapa_atual as project_etapa_atual,
+  proj.progresso_percentual as project_progresso,
   -- Contadores
   (SELECT COUNT(*) FROM subtasks WHERE subtasks.task_id = t.id) as subtasks_count,
   (SELECT COUNT(*) FROM subtasks WHERE subtasks.task_id = t.id AND subtasks.is_completed = true) as completed_subtasks_count,
@@ -517,20 +297,6 @@ LEFT JOIN pipeline_columns pc ON t.column_id = pc.id
 LEFT JOIN clients c ON t.client_id = c.id
 LEFT JOIN projetos proj ON t.project_id = proj.id
 LEFT JOIN profiles p_created ON t.created_by = p_created.id;
-
--- =====================================================
--- 7. INSERIR COLUNAS PADRÃO DO PIPELINE (SE NÃO EXISTIREM)
--- =====================================================
-
-INSERT INTO pipeline_columns (name, order_index, color)
-SELECT * FROM (VALUES
-  ('A Fazer', 1, '#94a3b8'),
-  ('Em Andamento', 2, '#3b82f6'),
-  ('Em Revisão', 3, '#f59e0b'),
-  ('Concluído', 4, '#10b981'),
-  ('Bloqueado', 5, '#ef4444')
-) AS v(name, order_index, color)
-WHERE NOT EXISTS (SELECT 1 FROM pipeline_columns LIMIT 1);
 
 -- =====================================================
 -- MIGRATION COMPLETA
