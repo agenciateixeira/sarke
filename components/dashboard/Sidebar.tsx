@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasPermission, SetorType } from '@/types'
 import { cn } from '@/lib/utils'
@@ -179,7 +179,7 @@ const menuItems: MenuItem[] = [
 export const Sidebar = () => {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const { resolvedTheme } = useTheme()
+  const { theme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(true)
   const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
@@ -261,7 +261,7 @@ export const Sidebar = () => {
         {isExpanded ? (
           <Link href="/dashboard">
             <Image
-              src={mounted && resolvedTheme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+              src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
               alt="Sarke"
               width={140}
               height={46}

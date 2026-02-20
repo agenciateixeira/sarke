@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ export const LoginForm = () => {
   const [mounted, setMounted] = useState(false)
   const { signIn } = useAuth()
   const router = useRouter()
-  const { resolvedTheme } = useTheme()
+  const { theme } = useTheme()
 
   useEffect(() => {
     setMounted(true)
@@ -49,7 +49,7 @@ export const LoginForm = () => {
     <Card className="w-full max-w-md">
       <div className="flex justify-center pt-8 pb-6">
         <Image
-          src={mounted && resolvedTheme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+          src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
           alt="Sarke"
           width={200}
           height={66}
