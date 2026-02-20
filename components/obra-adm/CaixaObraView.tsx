@@ -285,8 +285,9 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       let proximoNumero = maiorNumero + 1;
 
       for (const semanaData of semanasParaInserirData) {
-        // Criar semana se não existir
         const nomeSemana = semanaData.nome;
+        const numeroParaEssaSemana = proximoNumero;
+        proximoNumero++; // Incrementar ANTES para evitar conflitos
 
         // Verificar se semana já existe pelo nome
         const { data: semanaExistente } = await supabase
@@ -307,7 +308,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             .insert({
               obra_id: obraId,
               nome: nomeSemana,
-              numero_semana: proximoNumero,
+              numero_semana: numeroParaEssaSemana,
               data_inicio: dataInicio.toISOString().split('T')[0],
               data_fim: dataFim.toISOString().split('T')[0],
               status: 'EM_ANDAMENTO',
@@ -318,8 +319,6 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             toast.error(`Erro ao criar semana ${nomeSemana}: ${semanaError.message}`);
             continue;
           }
-
-          proximoNumero++; // Incrementar para próxima semana
         }
 
         // Inserir movimentações desta semana
