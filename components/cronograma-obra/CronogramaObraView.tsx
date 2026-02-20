@@ -903,7 +903,6 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                             <SelectItem value="em_andamento">Em Andamento</SelectItem>
                             <SelectItem value="realizado">Realizado</SelectItem>
                             <SelectItem value="atrasado">Atrasado</SelectItem>
-                            <SelectItem value="pausado">Pausado</SelectItem>
                             <SelectItem value="cancelado">Cancelado</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1019,7 +1018,6 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                     <SelectItem value="em_andamento">Em Andamento</SelectItem>
                     <SelectItem value="realizado">Realizado</SelectItem>
                     <SelectItem value="atrasado">Atrasado</SelectItem>
-                    <SelectItem value="pausado">Pausado</SelectItem>
                     <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1244,7 +1242,6 @@ function getStatusColor(status: string): string {
     em_andamento: 'bg-blue-500 text-white hover:bg-blue-600',
     realizado: 'bg-green-500 text-white hover:bg-green-600',
     atrasado: 'bg-red-500 text-white hover:bg-red-600',
-    pausado: 'bg-yellow-500 text-white hover:bg-yellow-600',
     cancelado: 'bg-orange-500 text-white hover:bg-orange-600',
   }
   return colors[status] || 'bg-gray-400 text-white'
@@ -1256,7 +1253,6 @@ function getStatusLabel(status: string): string {
     em_andamento: 'Em Andamento',
     realizado: 'Realizado',
     atrasado: 'Atrasado',
-    pausado: 'Pausado',
     cancelado: 'Cancelado',
   }
   return labels[status] || status
