@@ -58,6 +58,8 @@ export default function NovaEmpresaPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [loadingCnpj, setLoadingCnpj] = useState(false)
+  const [loadingCep, setLoadingCep] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -101,6 +103,90 @@ export default function NovaEmpresaPage() {
         ? prev.servicos.filter((s) => s !== servico)
         : [...prev.servicos, servico],
     }))
+  }
+
+  async function buscarCNPJ() {
+    const cnpjLimpo = formData.cnpj.replace(/\D/g, '')
+
+    if (cnpjLimpo.length !== 14) {
+      toast.error('CNPJ deve ter 14 dígitos')
+      return
+    }
+
+    try {
+      setLoadingCnpj(true)
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`)
+
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado')
+      }
+
+      const data = await response.json()
+
+      // Preencher formulário com dados da empresa
+      setFormData((prev) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        nome_fantasia: data.nome_fantasia || data.razao_social || prev.nome_fantasia,
+        email: data.email || prev.email,
+        telefone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.slice(0, 2)}) ${data.ddd_telefone_1.slice(2)}` : prev.telefone,
+        endereco: data.logradouro || prev.endereco,
+        numero: data.numero || prev.numero,
+        complemento: data.complemento || prev.complemento,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        estado: data.uf || prev.estado,
+        cep: data.cep || prev.cep,
+      }))
+
+      toast.success('Dados da empresa carregados com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao buscar CNPJ:', error)
+      toast.error(error.message || 'Erro ao buscar dados do CNPJ')
+    } finally {
+      setLoadingCnpj(false)
+    }
+  }
+
+  async function buscarCEP() {
+    const cepLimpo = formData.cep.replace(/\D/g, '')
+
+    if (cepLimpo.length !== 8) {
+      toast.error('CEP deve ter 8 dígitos')
+      return
+    }
+
+    try {
+      setLoadingCep(true)
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+
+      if (!response.ok) {
+        throw new Error('CEP não encontrado')
+      }
+
+      const data = await response.json()
+
+      if (data.erro) {
+        throw new Error('CEP não encontrado')
+      }
+
+      // Preencher formulário com dados do endereço
+      setFormData((prev) => ({
+        ...prev,
+        endereco: data.logradouro || prev.endereco,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        estado: data.uf || prev.estado,
+        complemento: data.complemento || prev.complemento,
+      }))
+
+      toast.success('Endereço carregado com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao buscar CEP:', error)
+      toast.error(error.message || 'Erro ao buscar CEP')
+    } finally {
+      setLoadingCep(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -224,12 +310,33 @@ export default function NovaEmpresaPage() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
-                      id="cnpj"
-                      value={formData.cnpj}
-                      onChange={(e) => handleChange('cnpj', e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="cnpj"
+                        value={formData.cnpj}
+                        onChange={(e) => handleChange('cnpj', e.target.value)}
+                        placeholder="00.000.000/0000-00"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            buscarCNPJ()
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={buscarCNPJ}
+                        disabled={loadingCnpj || !formData.cnpj}
+                        className="shrink-0"
+                      >
+                        {loadingCnpj ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Buscar'
+                        )}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -387,14 +494,35 @@ export default function NovaEmpresaPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 max-w-xs">
+                <div className="space-y-2 max-w-md">
                   <Label htmlFor="cep">CEP</Label>
-                  <Input
-                    id="cep"
-                    value={formData.cep}
-                    onChange={(e) => handleChange('cep', e.target.value)}
-                    placeholder="00000-000"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="cep"
+                      value={formData.cep}
+                      onChange={(e) => handleChange('cep', e.target.value)}
+                      placeholder="00000-000"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          buscarCEP()
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={buscarCEP}
+                      disabled={loadingCep || !formData.cep}
+                      className="shrink-0"
+                    >
+                      {loadingCep ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Buscar'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
