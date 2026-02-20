@@ -215,7 +215,7 @@ export function SubtaskStageView({
                   <SelectTrigger className="h-7 border-0 shadow-none hover:bg-accent text-xs">
                     <SelectValue>
                       <div className="flex items-center gap-1.5">
-                        {priorityIcons[subtask.priority]}
+                        {priorityIcons[subtask.priority] || priorityIcons.medium}
                         <span className="capitalize">
                           {subtask.priority === 'low' ? 'Baixa' : subtask.priority === 'medium' ? 'Média' : 'Alta'}
                         </span>
