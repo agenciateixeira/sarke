@@ -245,12 +245,12 @@ export default function NovoProjetoPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="cliente">Cliente</Label>
-                  <Select value={clienteId} onValueChange={setClienteId}>
+                  <Select value={clienteId || 'none'} onValueChange={(value) => setClienteId(value === 'none' ? '' : value)}>
                     <SelectTrigger id="cliente">
                       <SelectValue placeholder="Selecione o cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem cliente</SelectItem>
+                      <SelectItem value="none">Sem cliente</SelectItem>
                       {clientes.map((cliente) => (
                         <SelectItem key={cliente.id} value={cliente.id}>
                           {cliente.name}
@@ -527,12 +527,12 @@ export default function NovoProjetoPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="arquiteto">Arquiteto Responsável</Label>
-                  <Select value={arquitetoId} onValueChange={setArquitetoId}>
+                  <Select value={arquitetoId || 'none'} onValueChange={(value) => setArquitetoId(value === 'none' ? '' : value)}>
                     <SelectTrigger id="arquiteto">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {usuarios.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
@@ -544,12 +544,12 @@ export default function NovoProjetoPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="designer">Designer Responsável</Label>
-                  <Select value={designerId} onValueChange={setDesignerId}>
+                  <Select value={designerId || 'none'} onValueChange={(value) => setDesignerId(value === 'none' ? '' : value)}>
                     <SelectTrigger id="designer">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {usuarios.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
@@ -561,12 +561,12 @@ export default function NovoProjetoPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="coordenador">Coordenador</Label>
-                  <Select value={coordenadorId} onValueChange={setCoordenadorId}>
+                  <Select value={coordenadorId || 'none'} onValueChange={(value) => setCoordenadorId(value === 'none' ? '' : value)}>
                     <SelectTrigger id="coordenador">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {usuarios.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
