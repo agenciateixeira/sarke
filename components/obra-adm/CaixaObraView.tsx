@@ -41,6 +41,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 interface CaixaObraViewProps {
   obraId: string;
@@ -377,35 +384,37 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowDialogSemana(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <Calendar className="w-4 h-4" />
-            Nova Semana
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                <Calendar className="w-4 h-4" />
+                Nova Semana
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowDialogSemana(true)}>
+                <Calendar className="w-4 h-4 mr-2" />
+                Criar Manualmente
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <label className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar do Excel
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls"
+                    onChange={handleImportarExcel}
+                    disabled={importing}
+                  />
+                </label>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {semanaSelecionada && (
             <>
-              <label className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
-                {importing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Importando...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Importar Excel
-                  </>
-                )}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                  onChange={handleImportarExcel}
-                  disabled={importing}
-                />
-              </label>
               <button
                 onClick={() => {
                   setEditandoMovimentacao(null);
