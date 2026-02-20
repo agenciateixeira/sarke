@@ -999,7 +999,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
 
       {/* Dialog - Vincular Empresa */}
       <Dialog open={empresaDialogOpen} onOpenChange={setEmpresaDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editandoVinculo ? 'Editar Vínculo' : 'Vincular Empresa ao Cronograma'}</DialogTitle>
             <DialogDescription>
@@ -1007,7 +1007,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 px-1">
             <div className="grid gap-2">
               <Label htmlFor="empresa">Empresa *</Label>
               <Select
@@ -1039,7 +1039,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                     <SelectValue placeholder="Selecione a quantidade" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
                       <SelectItem key={num} value={num.toString()}>
                         {num} {num === 1 ? 'vez' : 'vezes'}
                       </SelectItem>
@@ -1049,42 +1049,46 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
               </div>
             )}
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               <Label className="text-base font-semibold">
                 Períodos de Atuação {quantidadePeriodos > 1 && `(${quantidadePeriodos} períodos)`}
               </Label>
 
-              {novoVinculo.periodos.map((periodo, index) => (
-                <div key={index} className="grid gap-3 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {quantidadePeriodos > 1 ? `Período ${index + 1}` : 'Período de Atuação'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor={`data_inicio_${index}`}>Data de Início *</Label>
-                      <Input
-                        id={`data_inicio_${index}`}
-                        type="date"
-                        value={periodo.data_inicio_prevista}
-                        onChange={(e) => updatePeriodo(index, 'data_inicio_prevista', e.target.value)}
-                      />
+              <div className={`grid gap-3 ${quantidadePeriodos > 5 ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
+                {novoVinculo.periodos.map((periodo, index) => (
+                  <div key={index} className="grid gap-2 p-3 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">
+                        {quantidadePeriodos > 1 ? `Período ${index + 1}` : 'Período de Atuação'}
+                      </span>
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor={`data_fim_${index}`}>Data de Fim *</Label>
-                      <Input
-                        id={`data_fim_${index}`}
-                        type="date"
-                        value={periodo.data_fim_prevista}
-                        onChange={(e) => updatePeriodo(index, 'data_fim_prevista', e.target.value)}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor={`data_inicio_${index}`} className="text-xs">Data de Início *</Label>
+                        <Input
+                          id={`data_inicio_${index}`}
+                          type="date"
+                          value={periodo.data_inicio_prevista}
+                          onChange={(e) => updatePeriodo(index, 'data_inicio_prevista', e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor={`data_fim_${index}`} className="text-xs">Data de Fim *</Label>
+                        <Input
+                          id={`data_fim_${index}`}
+                          type="date"
+                          value={periodo.data_fim_prevista}
+                          onChange={(e) => updatePeriodo(index, 'data_fim_prevista', e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-2">
