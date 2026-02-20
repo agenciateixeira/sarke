@@ -17,9 +17,9 @@ BEGIN
     UNION
 
     -- Colaboradores (arquitetos, designers, coordenadores) de projetos
-    SELECT DISTINCT arquiteto_id as user_id FROM projetos WHERE arquiteto_id IS NOT NULL
+    SELECT DISTINCT arquiteto_responsavel_id as user_id FROM projetos WHERE arquiteto_responsavel_id IS NOT NULL
     UNION
-    SELECT DISTINCT designer_id as user_id FROM projetos WHERE designer_id IS NOT NULL
+    SELECT DISTINCT designer_responsavel_id as user_id FROM projetos WHERE designer_responsavel_id IS NOT NULL
     UNION
     SELECT DISTINCT coordenador_id as user_id FROM projetos WHERE coordenador_id IS NOT NULL
   LOOP
@@ -32,8 +32,8 @@ BEGIN
         p.data_previsao_entrega,
         p.etapa_atual,
         p.progresso_percentual,
-        p.arquiteto_id,
-        p.designer_id,
+        p.arquiteto_responsavel_id,
+        p.designer_responsavel_id,
         p.coordenador_id
       FROM projetos p
       WHERE p.data_previsao_entrega IS NOT NULL
@@ -46,8 +46,8 @@ BEGIN
             SELECT 1 FROM profiles
             WHERE id = user_record.user_id AND role = 'admin'
           )
-          OR p.arquiteto_id = user_record.user_id
-          OR p.designer_id = user_record.user_id
+          OR p.arquiteto_responsavel_id = user_record.user_id
+          OR p.designer_responsavel_id = user_record.user_id
           OR p.coordenador_id = user_record.user_id
         )
         AND NOT EXISTS (
@@ -164,9 +164,9 @@ BEGIN
 
     UNION
 
-    SELECT DISTINCT arquiteto_id as user_id FROM projetos WHERE arquiteto_id IS NOT NULL
+    SELECT DISTINCT arquiteto_responsavel_id as user_id FROM projetos WHERE arquiteto_responsavel_id IS NOT NULL
     UNION
-    SELECT DISTINCT designer_id as user_id FROM projetos WHERE designer_id IS NOT NULL
+    SELECT DISTINCT designer_responsavel_id as user_id FROM projetos WHERE designer_responsavel_id IS NOT NULL
     UNION
     SELECT DISTINCT coordenador_id as user_id FROM projetos WHERE coordenador_id IS NOT NULL
   LOOP
@@ -177,8 +177,8 @@ BEGIN
         p.data_previsao_entrega,
         p.etapa_atual,
         p.progresso_percentual,
-        p.arquiteto_id,
-        p.designer_id,
+        p.arquiteto_responsavel_id,
+        p.designer_responsavel_id,
         p.coordenador_id
       FROM projetos p
       WHERE p.data_previsao_entrega IS NOT NULL
@@ -191,8 +191,8 @@ BEGIN
             SELECT 1 FROM profiles
             WHERE id = user_record.user_id AND role = 'admin'
           )
-          OR p.arquiteto_id = user_record.user_id
-          OR p.designer_id = user_record.user_id
+          OR p.arquiteto_responsavel_id = user_record.user_id
+          OR p.designer_responsavel_id = user_record.user_id
           OR p.coordenador_id = user_record.user_id
         )
         AND NOT EXISTS (
