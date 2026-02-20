@@ -343,8 +343,9 @@ export const Sidebar = () => {
                     {isExpanded && isMenuExpanded && (
                       <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
                         {item.subItems!.map((subItem) => {
+                          // Lógica especial para páginas exatas (não usar startsWith)
                           const isSubActive =
-                            subItem.href === '/dashboard/obra'
+                            subItem.href === '/dashboard/obra' || subItem.href === '/dashboard/projetos'
                               ? pathname === subItem.href
                               : pathname.startsWith(subItem.href)
 
