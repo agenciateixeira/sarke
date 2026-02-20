@@ -89,12 +89,11 @@ export function TaskAttachmentsTab({ taskId }: TaskAttachmentsTabProps) {
       for (const file of Array.from(files)) {
         const fileExt = file.name.split('.').pop()
         const fileName = `${taskId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `task-attachments/${fileName}`
 
         // Upload para o Supabase Storage
         const { error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file)
+          .from('task-attachments')
+          .upload(fileName, file)
 
         if (uploadError) throw uploadError
 
@@ -104,7 +103,7 @@ export function TaskAttachmentsTab({ taskId }: TaskAttachmentsTabProps) {
           .insert({
             task_id: taskId,
             file_name: file.name,
-            file_path: filePath,
+            file_path: fileName,
             file_type: file.type,
             file_size: file.size,
             uploaded_by: user?.id,
@@ -134,7 +133,7 @@ export function TaskAttachmentsTab({ taskId }: TaskAttachmentsTabProps) {
       const attachment = attachmentToDelete
       // Deletar do storage
       const { error: storageError } = await supabase.storage
-        .from('documents')
+        .from('task-attachments')
         .remove([attachment.file_path])
 
       if (storageError) throw storageError
@@ -160,11 +159,11 @@ export function TaskAttachmentsTab({ taskId }: TaskAttachmentsTabProps) {
   const handlePreview = async (attachment: TaskAttachment) => {
     try {
       const { data } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(attachment.file_path, 60)
+        .from('task-attachments')
+        .getPublicUrl(attachment.file_path)
 
-      if (data?.signedUrl) {
-        setPreviewUrl(data.signedUrl)
+      if (data?.publicUrl) {
+        setPreviewUrl(data.publicUrl)
         if (attachment.file_type.startsWith('image/')) {
           setPreviewType('image')
         } else if (attachment.file_type === 'application/pdf') {
@@ -183,12 +182,12 @@ export function TaskAttachmentsTab({ taskId }: TaskAttachmentsTabProps) {
   const handleDownload = async (attachment: TaskAttachment) => {
     try {
       const { data } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(attachment.file_path, 60)
+        .from('task-attachments')
+        .getPublicUrl(attachment.file_path)
 
-      if (data?.signedUrl) {
+      if (data?.publicUrl) {
         const a = document.createElement('a')
-        a.href = data.signedUrl
+        a.href = data.publicUrl
         a.download = attachment.file_name
         a.click()
         toast.success('Download iniciado')
