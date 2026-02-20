@@ -1,7 +1,7 @@
 'use client'
 
 import { TeamMember, PendingInvite } from '@/hooks/useTeam'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
