@@ -181,7 +181,9 @@ export default function PrimeiroAcessoPage() {
             alt="Sarke"
             width={200}
             height={66}
-            className="object-contain transition-all duration-300 cursor-pointer"
+            className={`object-contain transition-all duration-300 cursor-pointer ${
+              isLogoHovered ? 'scale-110' : ''
+            }`}
             priority
           />
         </div>

@@ -276,7 +276,10 @@ export const Sidebar = () => {
               alt="Sarke"
               width={140}
               height={46}
-              className="object-contain cursor-pointer transition-all duration-300"
+              className={cn(
+                "object-contain cursor-pointer transition-all duration-300",
+                isLogoHovered && "scale-110"
+              )}
               priority
             />
           </Link>
