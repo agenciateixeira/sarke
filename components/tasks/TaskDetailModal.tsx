@@ -468,7 +468,7 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
       {/* AlertDialog: excluir tarefa */}
       <AlertDialog open={deleteTaskOpen} onOpenChange={setDeleteTaskOpen}>
-        <AlertDialogContent className="z-[9999]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -490,7 +490,7 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
       {/* AlertDialog: excluir subtarefa */}
       <AlertDialog open={!!deleteSubtaskId} onOpenChange={(o) => { if (!o) setDeleteSubtaskId(null) }}>
-        <AlertDialogContent className="z-[9999]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir subtarefa?</AlertDialogTitle>
             <AlertDialogDescription>
