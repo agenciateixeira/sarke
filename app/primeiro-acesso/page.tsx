@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import { useTheme } from '@/contexts/ThemeContext'
+import { ThemeToggle } from '@/components/auth/ThemeToggle'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +15,7 @@ import { toast } from 'sonner'
 
 export default function PrimeiroAcessoPage() {
   const router = useRouter()
+  const { theme } = useTheme()
 
   const [step, setStep] = useState<'email' | 'password'>('email')
   const [email, setEmail] = useState('')
@@ -20,6 +23,11 @@ export default function PrimeiroAcessoPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Verificar se email existe e está pendente
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -150,14 +158,18 @@ export default function PrimeiroAcessoPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <Card className="w-full max-w-md">
         <div className="flex justify-center pt-8 pb-4">
           <Image
-            src="/logo.png"
+            src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
             alt="Sarke"
-            width={180}
-            height={60}
+            width={200}
+            height={66}
             className="object-contain"
             priority
           />
