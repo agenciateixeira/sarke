@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +44,7 @@ interface User {
 
 export default function NovoProjetoPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [usuarios, setUsuarios] = useState<User[]>([])
@@ -251,6 +253,9 @@ export default function NovoProjetoPage() {
           executivo_status: 'pendente',
           executivo_progresso: 0,
           valor_recebido: 0,
+
+          // Usuário criador (IMPORTANTE para o trigger funcionar!)
+          created_by: user?.id,
         })
         .select()
         .single()
