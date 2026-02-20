@@ -84,34 +84,51 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
     try {
       setLoading(true)
 
-      // Buscar empresas vinculadas via cronograma
-      const { data: cronogramaData, error: cronogramaError } = await supabase
-        .from('cronograma_empresa_vinculos')
-        .select(
-          `
-          id,
-          empresa_id,
-          data_inicio_prevista,
-          data_fim_prevista,
-          valor_contratado,
-          valor_pago,
-          status,
-          observacoes,
-          empresas_parceiras (
-            id,
-            nome,
-            telefone,
-            celular,
-            email,
-            logo_url,
-            responsavel,
-            servicos
-          )
-        `
-        )
-        .eq('cronograma_id', obraId)
+      // Primeiro, buscar o cronograma da obra
+      const { data: cronogramaObra, error: cronogramaObraError } = await supabase
+        .from('cronogramas')
+        .select('id')
+        .eq('obra_id', obraId)
+        .single()
 
-      if (cronogramaError) throw cronogramaError
+      if (cronogramaObraError && cronogramaObraError.code !== 'PGRST116') {
+        throw cronogramaObraError
+      }
+
+      const cronogramaId = cronogramaObra?.id
+
+      // Buscar empresas vinculadas via cronograma
+      let cronogramaData: any[] = []
+      if (cronogramaId) {
+        const { data, error: cronogramaError } = await supabase
+          .from('cronograma_empresa_vinculos')
+          .select(
+            `
+            id,
+            empresa_id,
+            data_inicio_prevista,
+            data_fim_prevista,
+            valor_contratado,
+            valor_pago,
+            status,
+            observacoes,
+            empresas_parceiras (
+              id,
+              nome,
+              telefone,
+              celular,
+              email,
+              logo_url,
+              responsavel,
+              servicos
+            )
+          `
+          )
+          .eq('cronograma_id', cronogramaId)
+
+        if (cronogramaError) throw cronogramaError
+        cronogramaData = data || []
+      }
 
       // Buscar empresas vinculadas diretamente à obra
       const { data: obraData, error: obraError } = await supabase
