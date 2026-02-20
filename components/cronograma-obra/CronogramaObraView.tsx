@@ -734,9 +734,21 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                   </tr>
                 </thead>
                 <tbody>
-                  {empresasVinculadas.map((vinculo) => (
-                    <tr key={vinculo.id} className="border-t hover:bg-muted/50">
-                      <td className="p-2 border-r font-medium">{vinculo.empresa?.nome || '-'}</td>
+                  {empresasVinculadas.map((vinculo) => {
+                    // Verificar se vínculo está atrasado
+                    const vinculoAtrasado =
+                      vinculo.status !== 'concluida' &&
+                      vinculo.data_fim_prevista &&
+                      new Date(vinculo.data_fim_prevista) < new Date()
+
+                    return (
+                      <tr
+                        key={vinculo.id}
+                        className={`border-t hover:bg-muted/50 ${
+                          vinculoAtrasado ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''
+                        }`}
+                      >
+                        <td className="p-2 border-r font-medium">{vinculo.empresa?.nome || '-'}</td>
                       <td className="p-2 border-r text-xs text-muted-foreground">
                         {vinculo.empresa?.servicos?.slice(0, 3).join(', ') || '-'}
                         {vinculo.empresa?.servicos?.length > 3 && ' ...'}
@@ -757,13 +769,8 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                           : '-'}
                       </td>
                       <td className="p-2 border-r">
-                        <Badge variant={
-                          vinculo.status === 'contratada' ? 'default' :
-                          vinculo.status === 'em_execucao' ? 'secondary' :
-                          vinculo.status === 'concluida' ? 'default' :
-                          'outline'
-                        }>
-                          {vinculo.status}
+                        <Badge className={getVinculoStatusColor(vinculo.status)}>
+                          {getVinculoStatusLabel(vinculo.status)}
                         </Badge>
                       </td>
                       <td className="p-2 text-center">
@@ -785,7 +792,8 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -825,7 +833,11 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                     <tr
                       key={atividade.id}
                       className={`border-t hover:bg-muted/50 ${
-                        atividade.status === 'atrasado' ? 'bg-red-50 dark:bg-red-950/20' : ''
+                        atividade.status === 'atrasada' || (
+                          atividade.status !== 'concluida' &&
+                          atividade.data_prevista &&
+                          new Date(atividade.data_prevista) < new Date()
+                        ) ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''
                       }`}
                     >
                       <td className="p-2 border-r">{atividade.mes}</td>
@@ -843,7 +855,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                         {(atividade as any).empresa_parceira?.nome || '-'}
                       </td>
                       <td className="p-2 border-r">
-                        <Badge variant={getStatusVariant(atividade.status)}>
+                        <Badge className={getStatusColor(atividade.status)}>
                           {getStatusLabel(atividade.status)}
                         </Badge>
                       </td>
@@ -1176,17 +1188,16 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   )
 }
 
-function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (status) {
-    case 'realizado':
-      return 'default'
-    case 'em_andamento':
-      return 'secondary'
-    case 'atrasado':
-      return 'destructive'
-    default:
-      return 'outline'
+function getStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    pendente: 'bg-gray-500 text-white hover:bg-gray-600',
+    em_andamento: 'bg-blue-500 text-white hover:bg-blue-600',
+    concluida: 'bg-green-500 text-white hover:bg-green-600',
+    atrasada: 'bg-red-500 text-white hover:bg-red-600',
+    pausada: 'bg-yellow-500 text-white hover:bg-yellow-600',
+    cancelada: 'bg-orange-500 text-white hover:bg-orange-600',
   }
+  return colors[status] || 'bg-gray-400 text-white'
 }
 
 function getStatusLabel(status: string): string {
@@ -1196,6 +1207,32 @@ function getStatusLabel(status: string): string {
     em_andamento: 'Em Andamento',
     atrasado: 'Atrasado',
     cancelado: 'Cancelado',
+  }
+  return labels[status] || status
+}
+
+function getVinculoStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    pendente: 'bg-gray-500 text-white hover:bg-gray-600',
+    proposta_enviada: 'bg-purple-500 text-white hover:bg-purple-600',
+    em_negociacao: 'bg-yellow-500 text-white hover:bg-yellow-600',
+    contratada: 'bg-blue-500 text-white hover:bg-blue-600',
+    em_execucao: 'bg-cyan-500 text-white hover:bg-cyan-600',
+    concluida: 'bg-green-500 text-white hover:bg-green-600',
+    cancelada: 'bg-red-500 text-white hover:bg-red-600',
+  }
+  return colors[status] || 'bg-gray-400 text-white'
+}
+
+function getVinculoStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pendente: 'Pendente',
+    proposta_enviada: 'Proposta Enviada',
+    em_negociacao: 'Em Negociação',
+    contratada: 'Contratada',
+    em_execucao: 'Em Execução',
+    concluida: 'Concluída',
+    cancelada: 'Cancelada',
   }
   return labels[status] || status
 }

@@ -28,10 +28,10 @@ import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 
 const statusColors: Record<CronogramaObraStatus, string> = {
-  ativo: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  pausado: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  concluido: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
-  cancelado: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  ativo: 'bg-blue-500 text-white hover:bg-blue-600',
+  pausado: 'bg-yellow-500 text-white hover:bg-yellow-600',
+  concluido: 'bg-green-500 text-white hover:bg-green-600',
+  cancelado: 'bg-red-500 text-white hover:bg-red-600',
 }
 
 const statusLabels: Record<CronogramaObraStatus, string> = {
@@ -222,9 +222,21 @@ export default function CronogramaObraPage() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {cronogramasFiltrados.map((cronograma) => (
-              <Card key={cronograma.id} className="hover:border-primary/50 transition-all">
-                <CardHeader>
+            {cronogramasFiltrados.map((cronograma) => {
+              // Verificar se está atrasado
+              const estaAtrasado =
+                cronograma.status !== 'concluido' &&
+                cronograma.data_fim_prevista &&
+                new Date(cronograma.data_fim_prevista) < new Date()
+
+              return (
+                <Card
+                  key={cronograma.id}
+                  className={`hover:border-primary/50 transition-all ${
+                    estaAtrasado ? 'border-l-4 border-l-red-500' : ''
+                  }`}
+                >
+                  <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
                       <Building className="h-5 w-5 mt-0.5 flex-shrink-0 text-muted-foreground" />
@@ -288,7 +300,8 @@ export default function CronogramaObraPage() {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
