@@ -88,7 +88,7 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
 
       // Primeiro, buscar o cronograma da obra
       const { data: cronogramaObra, error: cronogramaObraError } = await supabase
-        .from('cronogramas')
+        .from('cronograma_obras')
         .select('id')
         .eq('obra_id', obraId)
         .single()
