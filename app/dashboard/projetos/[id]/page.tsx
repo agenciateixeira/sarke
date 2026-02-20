@@ -102,6 +102,7 @@ export default function ProjetoDetalhePage() {
       setTeamMembers(data || [])
     } catch (error: any) {
       console.error('Erro ao carregar membros da equipe:', error)
+      setTeamMembers([]) // Garantir que sempre tenha um array vazio
     }
   }
 

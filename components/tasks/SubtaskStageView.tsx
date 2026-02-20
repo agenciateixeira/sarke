@@ -50,7 +50,7 @@ export function SubtaskStageView({
   subtasks,
   stageName,
   stageIcon,
-  teamMembers,
+  teamMembers = [],
   onToggleComplete,
   onUpdateSubtask,
   onDeleteSubtask,
