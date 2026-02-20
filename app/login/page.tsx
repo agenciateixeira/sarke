@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTheme } from 'next-themes'
-import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { ThemeToggle } from '@/components/auth/ThemeToggle'
@@ -11,12 +9,6 @@ import { ThemeToggle } from '@/components/auth/ThemeToggle'
 export default function LoginPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (!loading && user) {
@@ -38,20 +30,7 @@ export default function LoginPage() {
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex justify-center">
-          <Image
-            src={mounted && resolvedTheme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
-            alt="Sarke"
-            width={200}
-            height={66}
-            className="object-contain"
-            priority
-          />
-        </div>
-
-        <LoginForm />
-      </div>
+      <LoginForm />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,8 +16,14 @@ export const LoginForm = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { signIn } = useAuth()
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,18 +47,17 @@ export const LoginForm = () => {
 
   return (
     <Card className="w-full max-w-md">
-      <div className="flex justify-center pt-8 pb-4">
+      <div className="flex justify-center pt-8 pb-6">
         <Image
-          src="/logo.png"
+          src={mounted && resolvedTheme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
           alt="Sarke"
-          width={180}
-          height={60}
+          width={200}
+          height={66}
           className="object-contain"
           priority
         />
       </div>
       <CardHeader className="space-y-1 pt-0">
-        <CardTitle className="text-2xl font-bold text-center">Bem-vindo</CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
