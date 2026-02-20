@@ -104,7 +104,7 @@ export function SubtaskStageView({
         />
 
         <div className="flex items-center gap-2 flex-1">
-          {stageIcon}
+          {stageIcon || null}
           <span className="font-semibold text-sm uppercase tracking-wide">
             {stageName}
           </span>
