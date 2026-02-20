@@ -412,15 +412,15 @@ export default function ProjetoDetalhePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Área</label>
-                    <p className="text-sm mt-1">
+                    <div className="text-sm mt-1">
                       <Badge variant="outline">{areaLabels[projeto.area]}</Badge>
-                    </p>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Frente</label>
-                    <p className="text-sm mt-1">
+                    <div className="text-sm mt-1">
                       <Badge variant="outline">{formatarFrente(projeto.frente)}</Badge>
-                    </p>
+                    </div>
                   </div>
                 </div>
 
