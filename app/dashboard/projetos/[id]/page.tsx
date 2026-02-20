@@ -41,6 +41,7 @@ import {
 import { ProjetoCompleto, etapaLabels, etapaCores, areaLabels, formatarFrente } from '@/types/projeto'
 import { Subtask, TeamMember } from '@/types/tasks'
 import { SubtaskStageView } from '@/components/tasks/SubtaskStageView'
+import { ProjectTimeline } from '@/components/projetos/ProjectTimeline'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -64,7 +65,7 @@ export default function ProjetoDetalhePage() {
   }, [params.id])
 
   useEffect(() => {
-    if (projeto?.id && (activeTab === 'planejamento' || activeTab === 'planta_baixa' || activeTab === '3d' || activeTab === 'executivo')) {
+    if (projeto?.id && (activeTab === 'planejamento' || activeTab === 'planta_baixa' || activeTab === '3d' || activeTab === 'executivo' || activeTab === 'timeline')) {
       loadSubtasks()
     }
   }, [projeto?.id, activeTab])
@@ -851,20 +852,20 @@ export default function ProjetoDetalhePage() {
           </TabsContent>
 
           <TabsContent value="timeline">
-            <Card>
-              <CardHeader>
-                <CardTitle>Timeline do Projeto</CardTitle>
-                <CardDescription>Histórico de eventos e mudanças</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingSubtasks ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando timeline...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <ProjectTimeline
+                subtasks={subtasks}
+                startDate={projeto.data_inicio}
+                endDate={projeto.data_previsao_entrega}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>
