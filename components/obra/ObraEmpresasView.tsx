@@ -84,16 +84,12 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
     try {
       setLoading(true)
 
-      console.log('🔍 Buscando empresas para obra:', obraId)
-
       // Primeiro, buscar o cronograma da obra
       const { data: cronogramaObra, error: cronogramaObraError } = await supabase
         .from('cronograma_obras')
         .select('id')
         .eq('obra_id', obraId)
         .single()
-
-      console.log('📊 Cronograma encontrado:', cronogramaObra, 'Erro:', cronogramaObraError)
 
       if (cronogramaObraError && cronogramaObraError.code !== 'PGRST116') {
         throw cronogramaObraError
@@ -104,8 +100,6 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
       // Buscar empresas vinculadas via cronograma (vínculos diretos)
       let cronogramaData: any[] = []
       if (cronogramaId) {
-        console.log('🔎 Buscando empresas para cronograma_id:', cronogramaId)
-
         const { data, error: cronogramaError } = await supabase
           .from('cronograma_empresa_vinculos')
           .select(
@@ -132,18 +126,13 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
           )
           .eq('cronograma_id', cronogramaId)
 
-        console.log('📡 Resposta raw da query (vínculos diretos):', { data, error: cronogramaError })
-
         if (cronogramaError) throw cronogramaError
         cronogramaData = data || []
-        console.log('🏢 Empresas do cronograma (vínculos diretos):', cronogramaData)
       }
 
       // Buscar empresas vinculadas às ATIVIDADES do cronograma
       let atividadesData: any[] = []
       if (cronogramaId) {
-        console.log('🔎 Buscando empresas nas atividades do cronograma_id:', cronogramaId)
-
         const { data, error: atividadesError } = await supabase
           .from('cronograma_obra_atividades')
           .select(
@@ -171,11 +160,8 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
           .eq('cronograma_id', cronogramaId)
           .not('empresa_parceira_id', 'is', null)
 
-        console.log('📡 Resposta raw da query (atividades):', { data, error: atividadesError })
-
         if (atividadesError) throw atividadesError
         atividadesData = data || []
-        console.log('🏗️ Atividades com empresas:', atividadesData)
       }
 
       // Buscar empresas vinculadas diretamente à obra
@@ -208,8 +194,6 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
         .eq('obra_id', obraId)
 
       if (obraError) throw obraError
-
-      console.log('🏭 Empresas da obra (vínculo direto):', obraData)
 
       // Combinar dados do cronograma e obra_empresas
       const empresasMap = new Map<string, ObraEmpresa>()
@@ -313,10 +297,9 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
       })
 
       const empresasArray = Array.from(empresasMap.values())
-      console.log('✅ Total de empresas encontradas:', empresasArray.length, empresasArray)
       setEmpresas(empresasArray)
     } catch (error: any) {
-      console.error('❌ Erro ao carregar empresas:', error)
+      console.error('Erro ao carregar empresas:', error)
       toast.error('Erro ao carregar empresas da obra')
     } finally {
       setLoading(false)
