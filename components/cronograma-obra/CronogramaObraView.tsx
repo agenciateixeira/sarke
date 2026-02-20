@@ -901,10 +901,10 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                           <SelectContent>
                             <SelectItem value="pendente">Pendente</SelectItem>
                             <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                            <SelectItem value="concluida">Concluída</SelectItem>
-                            <SelectItem value="atrasada">Atrasada</SelectItem>
-                            <SelectItem value="pausada">Pausada</SelectItem>
-                            <SelectItem value="cancelada">Cancelada</SelectItem>
+                            <SelectItem value="realizado">Realizado</SelectItem>
+                            <SelectItem value="atrasado">Atrasado</SelectItem>
+                            <SelectItem value="pausado">Pausado</SelectItem>
+                            <SelectItem value="cancelado">Cancelado</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>
@@ -1017,10 +1017,10 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                   <SelectContent>
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                    <SelectItem value="concluida">Concluída</SelectItem>
-                    <SelectItem value="atrasada">Atrasada</SelectItem>
-                    <SelectItem value="pausada">Pausada</SelectItem>
-                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                    <SelectItem value="realizado">Realizado</SelectItem>
+                    <SelectItem value="atrasado">Atrasado</SelectItem>
+                    <SelectItem value="pausado">Pausado</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1242,10 +1242,10 @@ function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     pendente: 'bg-gray-500 text-white hover:bg-gray-600',
     em_andamento: 'bg-blue-500 text-white hover:bg-blue-600',
-    concluida: 'bg-green-500 text-white hover:bg-green-600',
-    atrasada: 'bg-red-500 text-white hover:bg-red-600',
-    pausada: 'bg-yellow-500 text-white hover:bg-yellow-600',
-    cancelada: 'bg-orange-500 text-white hover:bg-orange-600',
+    realizado: 'bg-green-500 text-white hover:bg-green-600',
+    atrasado: 'bg-red-500 text-white hover:bg-red-600',
+    pausado: 'bg-yellow-500 text-white hover:bg-yellow-600',
+    cancelado: 'bg-orange-500 text-white hover:bg-orange-600',
   }
   return colors[status] || 'bg-gray-400 text-white'
 }
@@ -1254,14 +1254,10 @@ function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     pendente: 'Pendente',
     em_andamento: 'Em Andamento',
-    concluida: 'Concluída',
-    atrasada: 'Atrasada',
-    pausada: 'Pausada',
-    cancelada: 'Cancelada',
-    // Manter compatibilidade com valores antigos
-    realizado: 'Concluída',
-    atrasado: 'Atrasada',
-    cancelado: 'Cancelada',
+    realizado: 'Realizado',
+    atrasado: 'Atrasado',
+    pausado: 'Pausado',
+    cancelado: 'Cancelado',
   }
   return labels[status] || status
 }
@@ -1293,17 +1289,17 @@ function getVinculoStatusLabel(status: string): string {
 }
 
 function getTarjaClass(status: string, dataPrevista?: string): string {
-  // Concluída: tarja verde (aceita "concluida" e "realizado" para compatibilidade)
-  if (status === 'concluida' || status === 'realizado') {
+  // Realizado: tarja verde
+  if (status === 'realizado') {
     return 'bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500'
   }
 
-  // Cancelada: tarja laranja (aceita "cancelada" e "cancelado" para compatibilidade)
-  if (status === 'cancelada' || status === 'cancelado') {
+  // Cancelado: tarja laranja
+  if (status === 'cancelado') {
     return 'bg-orange-50 dark:bg-orange-950/20 border-l-4 border-l-orange-500'
   }
 
-  // Verifica se está atrasada (data passou e não está concluída nem cancelada)
+  // Verifica se está atrasado (data passou e não está realizado nem cancelado)
   if (dataPrevista && new Date(dataPrevista) < new Date()) {
     return 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500'
   }
