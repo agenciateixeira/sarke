@@ -71,7 +71,7 @@ const PRIORITY_CONFIG = {
 
 export function SubtaskGroupedList({
   subtasks,
-  teamMembers,
+  teamMembers = [],
   onToggleComplete,
   onUpdateSubtask,
   onDeleteSubtask,
