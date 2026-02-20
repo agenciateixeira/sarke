@@ -74,7 +74,14 @@ CREATE OR REPLACE FUNCTION criar_tarefa_projeto()
 RETURNS TRIGGER AS $$
 DECLARE
   nova_tarefa_id UUID;
+  primeira_coluna_id UUID;
 BEGIN
+  -- Buscar a primeira coluna do pipeline (menor order_index)
+  SELECT id INTO primeira_coluna_id
+  FROM pipeline_columns
+  ORDER BY order_index ASC
+  LIMIT 1;
+
   -- Criar 1 tarefa principal para o projeto
   INSERT INTO tasks (
     title,
@@ -83,6 +90,7 @@ BEGIN
     client_id,
     is_project_task,
     projeto_area,
+    column_id,
     status,
     priority,
     created_by
@@ -97,6 +105,7 @@ BEGIN
     NEW.cliente_id,
     true,
     NEW.area,
+    primeira_coluna_id,
     'todo',
     'high',
     NEW.created_by

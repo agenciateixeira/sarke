@@ -9,7 +9,7 @@
    - Se NÃO aparecer a função `criar_tarefa_projeto`, você precisa executar a migration
    - Se NÃO aparecer o trigger `trigger_criar_tarefa_projeto`, você precisa executar a migration
 
-## Passo 2: Executar a Migration
+## Passo 2: Executar a Migration ATUALIZADA
 
 1. No **SQL Editor** do Supabase
 2. Abra o arquivo `supabase/migrations/20260220_tasks_projetos_integration.sql`
@@ -17,22 +17,34 @@
 4. Clique em **RUN** para executar
 5. Aguarde a confirmação de sucesso
 
-## Passo 3: Verificar se funcionou
+⚠️ **IMPORTANTE**: A migration foi atualizada para incluir `column_id` automaticamente!
+
+## Passo 3: Corrigir tarefas de projeto antigas (se houver)
+
+Se você JÁ criou projetos ANTES de atualizar a migration:
+
+1. No **SQL Editor** do Supabase
+2. Abra o arquivo `supabase/fix_project_tasks_column.sql`
+3. Cole o conteúdo no SQL Editor
+4. Clique em **RUN** para executar
+5. Isso vai atribuir as tarefas existentes à primeira coluna do pipeline
+
+## Passo 4: Verificar se funcionou
 
 1. Execute novamente o `diagnostico_trigger.sql`
 2. Você deve ver:
    - ✅ Função `criar_tarefa_projeto` criada
-   - ✅ Função `sync_projeto_from_subtask` criada  
+   - ✅ Função `sync_projeto_from_subtask` criada
    - ✅ Trigger `trigger_criar_tarefa_projeto` criado
    - ✅ Trigger `trigger_sync_projeto_subtask_insert` criado
    - ✅ Campos `is_project_task`, `projeto_area`, `project_id` na tabela tasks
    - ✅ Campo `projeto_etapa` na tabela subtasks
 
-## Passo 4: Testar
+## Passo 5: Testar
 
 1. Crie um novo projeto no sistema
 2. Vá em **Tarefas**
-3. Você deve ver uma nova tarefa criada automaticamente
+3. Você deve ver uma nova tarefa criada automaticamente **na primeira coluna**
 4. A tarefa deve ter 4 subtarefas:
    - 1. Planejamento
    - 2. Planta Baixa
