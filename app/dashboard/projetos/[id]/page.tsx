@@ -24,6 +24,9 @@ import {
   Calendar,
   TrendingUp,
   AlertCircle,
+  ClipboardCheck,
+  Layers,
+  Cube,
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -37,6 +40,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { ProjetoCompleto, etapaLabels, etapaCores, areaLabels, formatarFrente } from '@/types/projeto'
+import { Subtask, TeamMember } from '@/types/tasks'
+import { SubtaskStageView } from '@/components/tasks/SubtaskStageView'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -50,10 +55,20 @@ export default function ProjetoDetalhePage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState('informacoes')
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [loadingSubtasks, setLoadingSubtasks] = useState(false)
 
   useEffect(() => {
     loadProjeto()
+    loadTeamMembers()
   }, [params.id])
+
+  useEffect(() => {
+    if (projeto?.id && (activeTab === 'planejamento' || activeTab === 'planta_baixa' || activeTab === '3d' || activeTab === 'executivo')) {
+      loadSubtasks()
+    }
+  }, [projeto?.id, activeTab])
 
   async function loadProjeto() {
     try {
@@ -73,6 +88,157 @@ export default function ProjetoDetalhePage() {
       router.push('/dashboard/projetos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadTeamMembers() {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .order('name')
+
+      if (error) throw error
+      setTeamMembers(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar membros da equipe:', error)
+    }
+  }
+
+  async function loadSubtasks() {
+    try {
+      setLoadingSubtasks(true)
+
+      // Buscar a tarefa principal do projeto
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projeto?.id)
+        .eq('is_project_task', true)
+        .single()
+
+      if (taskError) throw taskError
+      if (!taskData) return
+
+      // Buscar subtasks da tarefa
+      const { data: subtasksData, error: subtasksError } = await supabase
+        .from('subtasks')
+        .select('*')
+        .eq('task_id', taskData.id)
+        .order('order_index')
+
+      if (subtasksError) throw subtasksError
+      setSubtasks(subtasksData || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar subtarefas:', error)
+      toast.error('Erro ao carregar subtarefas')
+    } finally {
+      setLoadingSubtasks(false)
+    }
+  }
+
+  async function handleToggleSubtask(subtaskId: string, isCompleted: boolean) {
+    try {
+      const { error } = await supabase
+        .from('subtasks')
+        .update({
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null
+        })
+        .eq('id', subtaskId)
+
+      if (error) throw error
+      await loadSubtasks()
+      toast.success(isCompleted ? 'Subtarefa concluída' : 'Subtarefa reaberta')
+    } catch (error: any) {
+      console.error('Erro ao atualizar subtarefa:', error)
+      toast.error('Erro ao atualizar subtarefa')
+    }
+  }
+
+  async function handleUpdateSubtask(subtaskId: string, data: Partial<Subtask>) {
+    try {
+      const { error } = await supabase
+        .from('subtasks')
+        .update(data)
+        .eq('id', subtaskId)
+
+      if (error) throw error
+      await loadSubtasks()
+    } catch (error: any) {
+      console.error('Erro ao atualizar subtarefa:', error)
+      toast.error('Erro ao atualizar subtarefa')
+    }
+  }
+
+  async function handleDeleteSubtask(subtaskId: string) {
+    try {
+      const { error } = await supabase
+        .from('subtasks')
+        .delete()
+        .eq('id', subtaskId)
+
+      if (error) throw error
+      await loadSubtasks()
+      toast.success('Subtarefa excluída')
+    } catch (error: any) {
+      console.error('Erro ao excluir subtarefa:', error)
+      toast.error('Erro ao excluir subtarefa')
+    }
+  }
+
+  async function handleCreateSubtask(data: {
+    title: string
+    projeto_etapa: string
+    assigned_to?: string
+    priority?: string
+    due_date?: string
+  }) {
+    try {
+      // Buscar a tarefa principal do projeto
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projeto?.id)
+        .eq('is_project_task', true)
+        .single()
+
+      if (taskError) throw taskError
+      if (!taskData) {
+        toast.error('Tarefa principal não encontrada')
+        return
+      }
+
+      // Buscar maior order_index
+      const { data: lastSubtask } = await supabase
+        .from('subtasks')
+        .select('order_index')
+        .eq('task_id', taskData.id)
+        .order('order_index', { ascending: false })
+        .limit(1)
+        .single()
+
+      const nextOrderIndex = (lastSubtask?.order_index || 0) + 1
+
+      // Criar subtask
+      const { error } = await supabase
+        .from('subtasks')
+        .insert({
+          task_id: taskData.id,
+          title: data.title,
+          projeto_etapa: data.projeto_etapa,
+          assigned_to: data.assigned_to,
+          priority: data.priority || 'medium',
+          due_date: data.due_date,
+          order_index: nextOrderIndex,
+        })
+
+      if (error) throw error
+      await loadSubtasks()
+      toast.success('Subtarefa criada')
+    } catch (error: any) {
+      console.error('Erro ao criar subtarefa:', error)
+      toast.error('Erro ao criar subtarefa')
     }
   }
 
@@ -571,73 +737,100 @@ export default function ProjetoDetalhePage() {
             </Card>
           </TabsContent>
 
-          {/* Outras Abas - Placeholder */}
+          {/* Aba Planejamento */}
           <TabsContent value="planejamento">
-            <Card>
-              <CardHeader>
-                <CardTitle>Planejamento</CardTitle>
-                <CardDescription>Formulário inicial, visita técnica, briefing e referências</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingSubtasks ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando subtarefas...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <SubtaskStageView
+                subtasks={subtasks.filter((s) => s.projeto_etapa === 'planejamento')}
+                stageName="Planejamento"
+                stageIcon={<ClipboardCheck className="h-5 w-5" />}
+                teamMembers={teamMembers}
+                onToggleComplete={handleToggleSubtask}
+                onUpdateSubtask={handleUpdateSubtask}
+                onDeleteSubtask={handleDeleteSubtask}
+                onCreateSubtask={handleCreateSubtask}
+                projeto_etapa="planejamento"
+              />
+            )}
           </TabsContent>
 
+          {/* Aba Planta Baixa */}
           <TabsContent value="planta_baixa">
-            <Card>
-              <CardHeader>
-                <CardTitle>Planta Baixa</CardTitle>
-                <CardDescription>Conceito, estudos, análise normativa e versões</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingSubtasks ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando subtarefas...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <SubtaskStageView
+                subtasks={subtasks.filter((s) => s.projeto_etapa === 'planta_baixa')}
+                stageName="Planta Baixa"
+                stageIcon={<Layers className="h-5 w-5" />}
+                teamMembers={teamMembers}
+                onToggleComplete={handleToggleSubtask}
+                onUpdateSubtask={handleUpdateSubtask}
+                onDeleteSubtask={handleDeleteSubtask}
+                onCreateSubtask={handleCreateSubtask}
+                projeto_etapa="planta_baixa"
+              />
+            )}
           </TabsContent>
 
+          {/* Aba 3D */}
           <TabsContent value="3d">
-            <Card>
-              <CardHeader>
-                <CardTitle>Modelo 3D</CardTitle>
-                <CardDescription>Modelagem, renderização, VR e vídeos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingSubtasks ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Cube className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando subtarefas...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <SubtaskStageView
+                subtasks={subtasks.filter((s) => s.projeto_etapa === '3d')}
+                stageName="Modelo 3D"
+                stageIcon={<Cube className="h-5 w-5" />}
+                teamMembers={teamMembers}
+                onToggleComplete={handleToggleSubtask}
+                onUpdateSubtask={handleUpdateSubtask}
+                onDeleteSubtask={handleDeleteSubtask}
+                onCreateSubtask={handleCreateSubtask}
+                projeto_etapa="3d"
+              />
+            )}
           </TabsContent>
 
+          {/* Aba Executivo */}
           <TabsContent value="executivo">
-            <Card>
-              <CardHeader>
-                <CardTitle>Projeto Executivo</CardTitle>
-                <CardDescription>Detalhamentos ARQ e INT, memorial técnico</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingSubtasks ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando subtarefas...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <SubtaskStageView
+                subtasks={subtasks.filter((s) => s.projeto_etapa === 'executivo')}
+                stageName="Projeto Executivo"
+                stageIcon={<Building2 className="h-5 w-5" />}
+                teamMembers={teamMembers}
+                onToggleComplete={handleToggleSubtask}
+                onUpdateSubtask={handleUpdateSubtask}
+                onDeleteSubtask={handleDeleteSubtask}
+                onCreateSubtask={handleCreateSubtask}
+                projeto_etapa="executivo"
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="arquivos">
