@@ -84,11 +84,28 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   const [atividadeToDelete, setAtividadeToDelete] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [empresasVinculadas, setEmpresasVinculadas] = useState<any[]>([])
+  const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false)
+  const [novoVinculo, setNovoVinculo] = useState({
+    empresa_id: '',
+    data_inicio_prevista: '',
+    data_fim_prevista: '',
+    valor_contratado: '',
+    observacoes: '',
+  })
+  const [editandoVinculo, setEditandoVinculo] = useState<any | null>(null)
+  const [vinculoToDelete, setVinculoToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     loadCronograma()
     loadEmpresasParceiras()
   }, [obraId])
+
+  useEffect(() => {
+    if (cronograma?.id) {
+      loadEmpresasVinculadas()
+    }
+  }, [cronograma?.id])
 
   async function loadEmpresasParceiras() {
     try {
@@ -313,6 +330,116 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
     })
   }
 
+  // ===== FUNÇÕES DE EMPRESAS PARCEIRAS =====
+  async function loadEmpresasVinculadas() {
+    if (!cronograma?.id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('cronograma_empresas_vinculos')
+        .select(`
+          *,
+          empresa:empresas_parceiras(id, nome, telefone, email, servicos)
+        `)
+        .eq('cronograma_id', cronograma.id)
+        .order('data_inicio_prevista', { ascending: true })
+
+      if (error) throw error
+      setEmpresasVinculadas(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar empresas vinculadas:', error)
+    }
+  }
+
+  async function vincularEmpresa() {
+    if (!cronograma?.id || !novoVinculo.empresa_id) {
+      toast.error('Selecione uma empresa')
+      return
+    }
+
+    try {
+      const vinculoData = {
+        cronograma_id: cronograma.id,
+        empresa_id: novoVinculo.empresa_id,
+        data_inicio_prevista: novoVinculo.data_inicio_prevista || null,
+        data_fim_prevista: novoVinculo.data_fim_prevista || null,
+        valor_contratado: novoVinculo.valor_contratado ? parseFloat(novoVinculo.valor_contratado) : null,
+        observacoes: novoVinculo.observacoes || null,
+        status: 'pendente',
+        valor_executado: 0,
+        valor_pago: 0,
+        percentual_conclusao: 0,
+      }
+
+      if (editandoVinculo) {
+        const { error } = await supabase
+          .from('cronograma_empresas_vinculos')
+          .update(vinculoData)
+          .eq('id', editandoVinculo.id)
+
+        if (error) throw error
+        toast.success('Vínculo atualizado com sucesso!')
+      } else {
+        const { error } = await supabase
+          .from('cronograma_empresas_vinculos')
+          .insert(vinculoData)
+
+        if (error) throw error
+        toast.success('Empresa vinculada com sucesso!')
+      }
+
+      fecharDialogEmpresa()
+      loadEmpresasVinculadas()
+    } catch (error: any) {
+      console.error('Erro ao vincular empresa:', error)
+      toast.error('Erro ao vincular empresa')
+    }
+  }
+
+  async function deletarVinculo() {
+    if (!vinculoToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('cronograma_empresas_vinculos')
+        .delete()
+        .eq('id', vinculoToDelete)
+
+      if (error) throw error
+
+      toast.success('Vínculo removido com sucesso!')
+      setVinculoToDelete(null)
+      loadEmpresasVinculadas()
+    } catch (error: any) {
+      console.error('Erro ao excluir vínculo:', error)
+      toast.error('Erro ao excluir vínculo')
+    }
+  }
+
+  function abrirEditarVinculo(vinculo: any) {
+    setEditandoVinculo(vinculo)
+    setNovoVinculo({
+      empresa_id: vinculo.empresa_id,
+      data_inicio_prevista: vinculo.data_inicio_prevista || '',
+      data_fim_prevista: vinculo.data_fim_prevista || '',
+      valor_contratado: vinculo.valor_contratado?.toString() || '',
+      observacoes: vinculo.observacoes || '',
+    })
+    setEmpresaDialogOpen(true)
+  }
+
+  function fecharDialogEmpresa() {
+    setEmpresaDialogOpen(false)
+    setEditandoVinculo(null)
+    setNovoVinculo({
+      empresa_id: '',
+      data_inicio_prevista: '',
+      data_fim_prevista: '',
+      valor_contratado: '',
+      observacoes: '',
+    })
+  }
+
   // ===== FUNÇÕES DE EXPORTAÇÃO =====
   async function handleExportarExcel() {
     if (!cronograma) return
@@ -513,10 +640,14 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
         </Card>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button variant="outline" onClick={() => setAtividadeDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Atividade
+        </Button>
+        <Button variant="outline" onClick={() => setEmpresaDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Vincular Empresa
         </Button>
         <Button variant="outline" asChild disabled={importing}>
           <label className="cursor-pointer">
@@ -540,6 +671,89 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
           {exporting ? 'Gerando...' : 'Exportar PDF'}
         </Button>
       </div>
+
+      {/* Card de Empresas Parceiras Vinculadas */}
+      {empresasVinculadas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas Parceiras Vinculadas</CardTitle>
+            <CardDescription>
+              {empresasVinculadas.length} empresa{empresasVinculadas.length !== 1 ? 's' : ''} vinculada{empresasVinculadas.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="p-2 text-left font-medium border-r">Empresa</th>
+                    <th className="p-2 text-left font-medium border-r">Serviços</th>
+                    <th className="p-2 text-left font-medium border-r">Data Início</th>
+                    <th className="p-2 text-left font-medium border-r">Data Fim</th>
+                    <th className="p-2 text-left font-medium border-r">Valor Contratado</th>
+                    <th className="p-2 text-left font-medium border-r">Status</th>
+                    <th className="p-2 text-center font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {empresasVinculadas.map((vinculo) => (
+                    <tr key={vinculo.id} className="border-t hover:bg-muted/50">
+                      <td className="p-2 border-r font-medium">{vinculo.empresa?.nome || '-'}</td>
+                      <td className="p-2 border-r text-xs text-muted-foreground">
+                        {vinculo.empresa?.servicos?.slice(0, 3).join(', ') || '-'}
+                        {vinculo.empresa?.servicos?.length > 3 && ' ...'}
+                      </td>
+                      <td className="p-2 border-r">
+                        {vinculo.data_inicio_prevista
+                          ? format(new Date(vinculo.data_inicio_prevista), 'dd/MM/yyyy')
+                          : '-'}
+                      </td>
+                      <td className="p-2 border-r">
+                        {vinculo.data_fim_prevista
+                          ? format(new Date(vinculo.data_fim_prevista), 'dd/MM/yyyy')
+                          : '-'}
+                      </td>
+                      <td className="p-2 border-r">
+                        {vinculo.valor_contratado
+                          ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vinculo.valor_contratado)
+                          : '-'}
+                      </td>
+                      <td className="p-2 border-r">
+                        <Badge variant={
+                          vinculo.status === 'contratada' ? 'default' :
+                          vinculo.status === 'em_execucao' ? 'secondary' :
+                          vinculo.status === 'concluida' ? 'default' :
+                          'outline'
+                        }>
+                          {vinculo.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => abrirEditarVinculo(vinculo)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setVinculoToDelete(vinculo.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -744,6 +958,115 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog - Vincular Empresa */}
+      <Dialog open={empresaDialogOpen} onOpenChange={setEmpresaDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editandoVinculo ? 'Editar Vínculo' : 'Vincular Empresa ao Cronograma'}</DialogTitle>
+            <DialogDescription>
+              Defina as datas que a empresa irá atuar na obra e o valor contratado
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="empresa">Empresa *</Label>
+              <Select
+                value={novoVinculo.empresa_id}
+                onValueChange={(value) => setNovoVinculo({ ...novoVinculo, empresa_id: value })}
+                disabled={!!editandoVinculo}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresasParceiras.map((empresa) => (
+                    <SelectItem key={empresa.id} value={empresa.id}>
+                      {empresa.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="data_inicio">Data de Início Prevista *</Label>
+                <Input
+                  id="data_inicio"
+                  type="date"
+                  value={novoVinculo.data_inicio_prevista}
+                  onChange={(e) => setNovoVinculo({ ...novoVinculo, data_inicio_prevista: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="data_fim">Data de Fim Prevista *</Label>
+                <Input
+                  id="data_fim"
+                  type="date"
+                  value={novoVinculo.data_fim_prevista}
+                  onChange={(e) => setNovoVinculo({ ...novoVinculo, data_fim_prevista: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="valor">Valor Contratado (R$)</Label>
+              <Input
+                id="valor"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={novoVinculo.valor_contratado}
+                onChange={(e) => setNovoVinculo({ ...novoVinculo, valor_contratado: e.target.value })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea
+                id="observacoes"
+                placeholder="Informações adicionais sobre o contrato..."
+                value={novoVinculo.observacoes}
+                onChange={(e) => setNovoVinculo({ ...novoVinculo, observacoes: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={fecharDialogEmpresa}>
+              Cancelar
+            </Button>
+            <Button onClick={vincularEmpresa}>
+              {editandoVinculo ? 'Salvar Alterações' : 'Vincular Empresa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog - Excluir Vínculo */}
+      <AlertDialog open={!!vinculoToDelete} onOpenChange={(o) => { if (!o) setVinculoToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover vínculo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta empresa do cronograma? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deletarVinculo}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* AlertDialog - Excluir Atividade */}
       <AlertDialog open={!!atividadeToDelete} onOpenChange={(o) => { if (!o) setAtividadeToDelete(null) }}>
