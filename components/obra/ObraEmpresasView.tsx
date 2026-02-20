@@ -104,6 +104,8 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
       // Buscar empresas vinculadas via cronograma
       let cronogramaData: any[] = []
       if (cronogramaId) {
+        console.log('🔎 Buscando empresas para cronograma_id:', cronogramaId)
+
         const { data, error: cronogramaError } = await supabase
           .from('cronograma_empresa_vinculos')
           .select(
@@ -130,9 +132,11 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
           )
           .eq('cronograma_id', cronogramaId)
 
+        console.log('📡 Resposta raw da query:', { data, error: cronogramaError })
+
         if (cronogramaError) throw cronogramaError
         cronogramaData = data || []
-        console.log('🏢 Empresas do cronograma:', cronogramaData)
+        console.log('🏢 Empresas do cronograma processadas:', cronogramaData)
       }
 
       // Buscar empresas vinculadas diretamente à obra
