@@ -14,6 +14,11 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Sarke',
   description: 'CRM para Arquitetura',
+  icons: {
+    icon: '/k.png',
+    shortcut: '/k.png',
+    apple: '/k.png',
+  },
 }
 
 export default function RootLayout({
