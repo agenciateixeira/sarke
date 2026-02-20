@@ -162,24 +162,12 @@ export default function ProjetoDetalhePage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="informacoes">Informações</TabsTrigger>
-            <TabsTrigger value="planejamento">
-              <Palette className="h-4 w-4 mr-2" />
-              Planejamento
-            </TabsTrigger>
-            <TabsTrigger value="planta_baixa">
-              <FileText className="h-4 w-4 mr-2" />
-              Planta Baixa
-            </TabsTrigger>
-            <TabsTrigger value="3d">
-              <Box className="h-4 w-4 mr-2" />
-              3D
-            </TabsTrigger>
-            <TabsTrigger value="executivo">
-              <Building2 className="h-4 w-4 mr-2" />
-              Executivo
-            </TabsTrigger>
+            <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
+            <TabsTrigger value="planta_baixa">Planta Baixa</TabsTrigger>
+            <TabsTrigger value="3d">3D</TabsTrigger>
+            <TabsTrigger value="executivo">Executivo</TabsTrigger>
             <TabsTrigger value="arquivos">Arquivos</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
           </TabsList>
