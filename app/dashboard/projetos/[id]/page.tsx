@@ -41,7 +41,9 @@ import {
 import { ProjetoCompleto, etapaLabels, etapaCores, areaLabels, formatarFrente } from '@/types/projeto'
 import { Subtask, TeamMember } from '@/types/tasks'
 import { SubtaskStageView } from '@/components/tasks/SubtaskStageView'
+import { SubtaskFilters } from '@/components/tasks/SubtaskFilters'
 import { ProjectTimeline } from '@/components/projetos/ProjectTimeline'
+import { useSubtaskFilters } from '@/hooks/useSubtaskFilters'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -58,6 +60,12 @@ export default function ProjetoDetalhePage() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loadingSubtasks, setLoadingSubtasks] = useState(false)
+
+  // Filtros para cada etapa
+  const planejamentoFilters = useSubtaskFilters(subtasks.filter((s) => s.projeto_etapa === 'planejamento'))
+  const plantaBaixaFilters = useSubtaskFilters(subtasks.filter((s) => s.projeto_etapa === 'planta_baixa'))
+  const modelo3dFilters = useSubtaskFilters(subtasks.filter((s) => s.projeto_etapa === '3d'))
+  const executivoFilters = useSubtaskFilters(subtasks.filter((s) => s.projeto_etapa === 'executivo'))
 
   useEffect(() => {
     loadProjeto()
@@ -748,17 +756,30 @@ export default function ProjetoDetalhePage() {
                 </CardContent>
               </Card>
             ) : (
-              <SubtaskStageView
-                subtasks={subtasks.filter((s) => s.projeto_etapa === 'planejamento')}
-                stageName="Planejamento"
-                stageIcon={<ClipboardCheck className="h-5 w-5" />}
-                teamMembers={teamMembers}
-                onToggleComplete={handleToggleSubtask}
-                onUpdateSubtask={handleUpdateSubtask}
-                onDeleteSubtask={handleDeleteSubtask}
-                onCreateSubtask={handleCreateSubtask}
-                projeto_etapa="planejamento"
-              />
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <SubtaskFilters
+                      filters={planejamentoFilters.filters}
+                      teamMembers={teamMembers}
+                      onFiltersChange={planejamentoFilters.setFilters}
+                      totalCount={planejamentoFilters.totalCount}
+                      filteredCount={planejamentoFilters.filteredCount}
+                    />
+                  </CardContent>
+                </Card>
+                <SubtaskStageView
+                  subtasks={planejamentoFilters.filteredSubtasks}
+                  stageName="Planejamento"
+                  stageIcon={<ClipboardCheck className="h-5 w-5" />}
+                  teamMembers={teamMembers}
+                  onToggleComplete={handleToggleSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onDeleteSubtask={handleDeleteSubtask}
+                  onCreateSubtask={handleCreateSubtask}
+                  projeto_etapa="planejamento"
+                />
+              </div>
             )}
           </TabsContent>
 
@@ -772,17 +793,30 @@ export default function ProjetoDetalhePage() {
                 </CardContent>
               </Card>
             ) : (
-              <SubtaskStageView
-                subtasks={subtasks.filter((s) => s.projeto_etapa === 'planta_baixa')}
-                stageName="Planta Baixa"
-                stageIcon={<Layers className="h-5 w-5" />}
-                teamMembers={teamMembers}
-                onToggleComplete={handleToggleSubtask}
-                onUpdateSubtask={handleUpdateSubtask}
-                onDeleteSubtask={handleDeleteSubtask}
-                onCreateSubtask={handleCreateSubtask}
-                projeto_etapa="planta_baixa"
-              />
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <SubtaskFilters
+                      filters={plantaBaixaFilters.filters}
+                      teamMembers={teamMembers}
+                      onFiltersChange={plantaBaixaFilters.setFilters}
+                      totalCount={plantaBaixaFilters.totalCount}
+                      filteredCount={plantaBaixaFilters.filteredCount}
+                    />
+                  </CardContent>
+                </Card>
+                <SubtaskStageView
+                  subtasks={plantaBaixaFilters.filteredSubtasks}
+                  stageName="Planta Baixa"
+                  stageIcon={<Layers className="h-5 w-5" />}
+                  teamMembers={teamMembers}
+                  onToggleComplete={handleToggleSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onDeleteSubtask={handleDeleteSubtask}
+                  onCreateSubtask={handleCreateSubtask}
+                  projeto_etapa="planta_baixa"
+                />
+              </div>
             )}
           </TabsContent>
 
@@ -796,17 +830,30 @@ export default function ProjetoDetalhePage() {
                 </CardContent>
               </Card>
             ) : (
-              <SubtaskStageView
-                subtasks={subtasks.filter((s) => s.projeto_etapa === '3d')}
-                stageName="Modelo 3D"
-                stageIcon={<Box className="h-5 w-5" />}
-                teamMembers={teamMembers}
-                onToggleComplete={handleToggleSubtask}
-                onUpdateSubtask={handleUpdateSubtask}
-                onDeleteSubtask={handleDeleteSubtask}
-                onCreateSubtask={handleCreateSubtask}
-                projeto_etapa="3d"
-              />
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <SubtaskFilters
+                      filters={modelo3dFilters.filters}
+                      teamMembers={teamMembers}
+                      onFiltersChange={modelo3dFilters.setFilters}
+                      totalCount={modelo3dFilters.totalCount}
+                      filteredCount={modelo3dFilters.filteredCount}
+                    />
+                  </CardContent>
+                </Card>
+                <SubtaskStageView
+                  subtasks={modelo3dFilters.filteredSubtasks}
+                  stageName="Modelo 3D"
+                  stageIcon={<Box className="h-5 w-5" />}
+                  teamMembers={teamMembers}
+                  onToggleComplete={handleToggleSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onDeleteSubtask={handleDeleteSubtask}
+                  onCreateSubtask={handleCreateSubtask}
+                  projeto_etapa="3d"
+                />
+              </div>
             )}
           </TabsContent>
 
@@ -820,17 +867,30 @@ export default function ProjetoDetalhePage() {
                 </CardContent>
               </Card>
             ) : (
-              <SubtaskStageView
-                subtasks={subtasks.filter((s) => s.projeto_etapa === 'executivo')}
-                stageName="Projeto Executivo"
-                stageIcon={<Building2 className="h-5 w-5" />}
-                teamMembers={teamMembers}
-                onToggleComplete={handleToggleSubtask}
-                onUpdateSubtask={handleUpdateSubtask}
-                onDeleteSubtask={handleDeleteSubtask}
-                onCreateSubtask={handleCreateSubtask}
-                projeto_etapa="executivo"
-              />
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <SubtaskFilters
+                      filters={executivoFilters.filters}
+                      teamMembers={teamMembers}
+                      onFiltersChange={executivoFilters.setFilters}
+                      totalCount={executivoFilters.totalCount}
+                      filteredCount={executivoFilters.filteredCount}
+                    />
+                  </CardContent>
+                </Card>
+                <SubtaskStageView
+                  subtasks={executivoFilters.filteredSubtasks}
+                  stageName="Projeto Executivo"
+                  stageIcon={<Building2 className="h-5 w-5" />}
+                  teamMembers={teamMembers}
+                  onToggleComplete={handleToggleSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onDeleteSubtask={handleDeleteSubtask}
+                  onCreateSubtask={handleCreateSubtask}
+                  projeto_etapa="executivo"
+                />
+              </div>
             )}
           </TabsContent>
 
