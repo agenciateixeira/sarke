@@ -74,6 +74,7 @@ export interface Subtask {
   // Metadados
   order_index: number
   priority: TaskPriority
+  projeto_etapa?: 'planejamento' | 'planta_baixa' | '3d' | 'executivo' | null
 
   // Responsável e datas
   assigned_to?: string

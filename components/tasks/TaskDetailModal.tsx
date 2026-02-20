@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { TaskWithDetails, Subtask, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/types/tasks'
+import { SubtaskGroupedList } from './SubtaskGroupedList'
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -78,9 +79,6 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false)
   const [deleteSubtaskId, setDeleteSubtaskId] = useState<string | null>(null)
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
-  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>('')
-  const [showNewSubtask, setShowNewSubtask] = useState(false)
   const [refreshedTask, setRefreshedTask] = useState<TaskWithDetails | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMemberSimple[]>([])
 
@@ -186,19 +184,21 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
   }
 
   // Subtarefas
-  const handleCreateSubtask = async () => {
-    if (currentTask && newSubtaskTitle.trim()) {
+  const handleCreateSubtask = async (data: { title: string; projeto_etapa: string; assigned_to?: string; priority?: string; due_date?: string }) => {
+    if (currentTask) {
       await createSubtask({
         task_id: currentTask.id,
-        title: newSubtaskTitle.trim(),
-        assigned_to: newSubtaskAssignee || undefined,
+        ...data,
       })
-      setNewSubtaskTitle('')
-      setNewSubtaskAssignee('')
-      setShowNewSubtask(false)
       await loadSubtasks()
       await refreshTask()
     }
+  }
+
+  const handleUpdateSubtask = async (subtaskId: string, data: Partial<Subtask>) => {
+    await updateSubtask(subtaskId, data)
+    await loadSubtasks()
+    await refreshTask()
   }
 
   const handleToggleSubtask = async (subtaskId: string, isCompleted: boolean) => {
@@ -398,172 +398,20 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
 
               <Separator />
 
-              {/* Subtarefas (Checklist) */}
+              {/* Subtarefas Agrupadas por Etapa */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">
-                    Subtarefas ({currentTask.completed_subtasks_count}/{currentTask.subtasks_count})
-                  </Label>
-                  {!showNewSubtask && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowNewSubtask(true)}
-                      className="h-8"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Adicionar
-                    </Button>
-                  )}
-                </div>
+                <Label className="text-sm font-semibold">
+                  Subtarefas do Projeto ({currentTask.completed_subtasks_count}/{currentTask.subtasks_count})
+                </Label>
 
-                {/* Nova subtarefa */}
-                {showNewSubtask && (
-                  <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={false} disabled />
-                      <Input
-                        value={newSubtaskTitle}
-                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                        placeholder="Nome da subtarefa..."
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleCreateSubtask()
-                          if (e.key === 'Escape') {
-                            setShowNewSubtask(false)
-                            setNewSubtaskTitle('')
-                            setNewSubtaskAssignee('')
-                          }
-                        }}
-                        className="flex-1 h-8"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 pl-7">
-                      <Select
-                        value={newSubtaskAssignee}
-                        onValueChange={setNewSubtaskAssignee}
-                      >
-                        <SelectTrigger className="h-8 flex-1 text-xs">
-                          <SelectValue placeholder="Atribuir colaborador (opcional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teamMembers.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage src={m.avatar_url} />
-                                  <AvatarFallback className="text-xs">
-                                    {m.name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{m.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" onClick={handleCreateSubtask} className="h-8">
-                        Salvar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setShowNewSubtask(false)
-                          setNewSubtaskTitle('')
-                          setNewSubtaskAssignee('')
-                        }}
-                        className="h-8"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Lista de subtarefas */}
-                <div className="space-y-2">
-                  {subtasks.length === 0 && !showNewSubtask && (
-                    <div className="text-center py-8 text-sm text-muted-foreground">
-                      Nenhuma subtarefa ainda. Clique em "Adicionar" para criar.
-                    </div>
-                  )}
-
-                  {subtasks.map((subtask) => {
-                    const assignee = subtask.assigned_to
-                      ? teamMembers.find((m) => m.id === subtask.assigned_to)
-                      : null
-                    return (
-                      <div
-                        key={subtask.id}
-                        className={cn(
-                          'flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group',
-                          subtask.is_completed && 'opacity-60'
-                        )}
-                      >
-                        <Checkbox
-                          checked={subtask.is_completed}
-                          onCheckedChange={() => handleToggleSubtask(subtask.id, subtask.is_completed)}
-                        />
-                        <span
-                          className={cn(
-                            'flex-1 text-sm',
-                            subtask.is_completed && 'line-through text-muted-foreground'
-                          )}
-                        >
-                          {subtask.title}
-                        </span>
-
-                        {/* Colaborador atribuído */}
-                        {assignee && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={assignee.avatar_url} />
-                              <AvatarFallback className="text-xs">
-                                {assignee.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="hidden sm:inline">{assignee.name}</span>
-                          </div>
-                        )}
-
-                        {/* Ações da subtarefa */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteSubtaskId(subtask.id)}
-                          >
-                            <Trash className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Progress bar */}
-                {currentTask.subtasks_count > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">
-                        Progresso
-                      </span>
-                      <span className="text-xs font-semibold">
-                        {Math.round((currentTask.completed_subtasks_count / currentTask.subtasks_count) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all"
-                        style={{
-                          width: `${(currentTask.completed_subtasks_count / currentTask.subtasks_count) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
+                <SubtaskGroupedList
+                  subtasks={subtasks}
+                  teamMembers={teamMembers}
+                  onToggleComplete={handleToggleSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onDeleteSubtask={(id) => setDeleteSubtaskId(id)}
+                  onCreateSubtask={handleCreateSubtask}
+                />
               </div>
 
               <Separator />
