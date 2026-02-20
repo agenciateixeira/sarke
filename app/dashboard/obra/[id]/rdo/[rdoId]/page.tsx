@@ -21,6 +21,7 @@ import {
   MapPin,
   Image as ImageIcon,
   Droplets,
+  FileStack,
 } from 'lucide-react'
 import { RDO, RDOMaoObra, RDOAtividade, RDOFoto, StatusRDO, StatusAtividade } from '@/types/rdo'
 import { supabase } from '@/lib/supabase'
@@ -29,6 +30,9 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { generateRDOPDF } from '@/lib/rdoPdf'
+import { generateUnifiedPDF } from '@/lib/unifiedPdf'
+import { UnifiedPDFExport } from '@/components/pdf/UnifiedPDFExport'
+import { supabase as supabaseClient } from '@/lib/supabase'
 
 const statusColors: Record<StatusRDO, string> = {
   rascunho: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
@@ -80,6 +84,8 @@ export default function RDODetailPage() {
   const [maoObra, setMaoObra] = useState<RDOMaoObra[]>([])
   const [atividades, setAtividades] = useState<RDOAtividade[]>([])
   const [fotos, setFotos] = useState<RDOFoto[]>([])
+  const [fotosObra, setFotosObra] = useState<RDOFoto[]>([])
+  const [unifiedExportOpen, setUnifiedExportOpen] = useState(false)
 
   useEffect(() => {
     if (params.rdoId) {
@@ -124,7 +130,7 @@ export default function RDODetailPage() {
       if (atividadesError) throw atividadesError
       setAtividades(atividadesData || [])
 
-      // Carregar fotos
+      // Carregar fotos do RDO
       const { data: fotosData, error: fotosError } = await supabase
         .from('rdo_fotos')
         .select('*')
@@ -133,6 +139,28 @@ export default function RDODetailPage() {
 
       if (fotosError) throw fotosError
       setFotos(fotosData || [])
+
+      // Carregar fotos da obra (para incluir no RDO)
+      const { data: fotosObraData, error: fotosObraError } = await supabase
+        .from('obra_fotos')
+        .select('*')
+        .eq('obra_id', params.id)
+        .order('data_foto', { ascending: false })
+
+      if (fotosObraError) throw fotosObraError
+
+      // Converter fotos da obra para formato RDOFoto
+      const fotosObraFormatadas: RDOFoto[] =
+        fotosObraData?.map((foto, index) => ({
+          id: foto.id,
+          rdo_id: params.rdoId as string,
+          url: foto.url,
+          descricao: foto.descricao || foto.titulo,
+          ordem: fotosData?.length ? fotosData.length + index : index,
+          created_at: foto.created_at,
+        })) || []
+
+      setFotosObra(fotosObraFormatadas)
     } catch (error: any) {
       console.error('Erro ao carregar RDO:', error)
       toast.error('Erro ao carregar RDO')
@@ -147,16 +175,102 @@ export default function RDODetailPage() {
 
     try {
       toast.info('Gerando PDF...')
+
+      // Combinar fotos do RDO com fotos da obra
+      const todasFotos = [...fotos, ...fotosObra]
+
       await generateRDOPDF({
         rdo,
         maoObra,
         atividades,
-        fotos,
+        fotos: todasFotos,
       })
       toast.success('PDF gerado com sucesso!')
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error)
       toast.error('Erro ao gerar PDF')
+    }
+  }
+
+  async function handleUnifiedExport(sections: string[]) {
+    if (!rdo) return
+
+    try {
+      // Buscar dados de cada seção selecionada
+      const unifiedData: any = {
+        obra: rdo.obra,
+        sections,
+      }
+
+      // RDO
+      if (sections.includes('rdo')) {
+        const todasFotos = [...fotos, ...fotosObra]
+        unifiedData.rdoData = {
+          rdo,
+          maoObra,
+          atividades,
+          fotos: todasFotos,
+        }
+      }
+
+      // Financeiro (Caixa)
+      if (sections.includes('financeiro')) {
+        const { data: caixaData } = await supabaseClient
+          .from('obra_caixa')
+          .select('*')
+          .eq('obra_id', params.id)
+          .order('data')
+
+        const totalDespesas =
+          caixaData?.reduce((sum, mov) => (mov.valor < 0 ? sum + Math.abs(mov.valor) : sum), 0) ||
+          0
+        const totalReceitas =
+          caixaData?.reduce((sum, mov) => (mov.valor > 0 ? sum + mov.valor : sum), 0) || 0
+
+        unifiedData.financeiroData = {
+          movimentacoes: caixaData || [],
+          totalDespesas,
+          totalReceitas,
+          saldo: totalReceitas - totalDespesas,
+        }
+      }
+
+      // Orçamento
+      if (sections.includes('orcamento')) {
+        const { data: orcamentoData } = await supabaseClient
+          .from('obra_orcamento_materiais')
+          .select('*')
+          .eq('obra_id', params.id)
+
+        unifiedData.orcamentoData = orcamentoData || []
+      }
+
+      // Cronograma
+      if (sections.includes('cronograma')) {
+        const { data: cronogramaData } = await supabaseClient
+          .from('cronograma_obras_completo')
+          .select('*')
+          .eq('obra_id', params.id)
+          .single()
+
+        unifiedData.cronogramaData = cronogramaData
+      }
+
+      // Fotos
+      if (sections.includes('fotos')) {
+        const { data: fotosObraData } = await supabaseClient
+          .from('obra_fotos')
+          .select('*')
+          .eq('obra_id', params.id)
+          .order('data_foto', { ascending: false })
+
+        unifiedData.fotosData = fotosObraData || []
+      }
+
+      await generateUnifiedPDF(unifiedData)
+    } catch (error: any) {
+      console.error('Erro ao gerar documento unificado:', error)
+      throw error
     }
   }
 
@@ -225,12 +339,26 @@ export default function RDODetailPage() {
                 Editar
               </Link>
             </Button>
-            <Button onClick={handleExportPDF}>
+            <Button variant="outline" onClick={handleExportPDF}>
               <Download className="mr-2 h-4 w-4" />
-              Exportar PDF
+              Exportar RDO
+            </Button>
+            <Button onClick={() => setUnifiedExportOpen(true)}>
+              <FileStack className="mr-2 h-4 w-4" />
+              Exportar Unificado
             </Button>
           </div>
         </div>
+
+        {/* Modal de Exportação Unificada */}
+        <UnifiedPDFExport
+          open={unifiedExportOpen}
+          onOpenChange={setUnifiedExportOpen}
+          obraId={params.id as string}
+          obraNome={rdo.obra?.nome || 'Obra'}
+          rdoId={rdo.id}
+          onExport={handleUnifiedExport}
+        />
 
         {/* Cards de Resumo */}
         <div className="grid gap-4 md:grid-cols-4">

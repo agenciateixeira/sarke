@@ -41,6 +41,7 @@ import OrcamentoMateriaisView from '@/components/obra-adm/OrcamentoMateriaisView
 import CaixaObraView from '@/components/obra-adm/CaixaObraView'
 import { ObraFotosView } from '@/components/obra/ObraFotosView'
 import { ObraMedicoesView } from '@/components/obra/ObraMedicoesView'
+import { ObraEmpresasView } from '@/components/obra/ObraEmpresasView'
 
 const statusColors: Record<StatusObra, string> = {
   planejamento: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -616,28 +617,7 @@ export default function ObraDetailPage() {
 
           {/* Aba Empresas */}
           <TabsContent value="empresas">
-            <Card>
-              <CardHeader>
-                <CardTitle>Empresas Parceiras</CardTitle>
-                <CardDescription>
-                  Empresas que participaram ou estão participando desta obra
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12 text-muted-foreground">
-                  <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-semibold mb-2">Em desenvolvimento</p>
-                  <p className="text-sm mb-4">
-                    Sistema de gestão de empresas parceiras em implementação
-                  </p>
-                  <p className="text-xs">
-                    Em breve você poderá ver todas as empresas que trabalharam nesta obra,
-                    <br />
-                    com telefones, serviços executados e avaliações.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <ObraEmpresasView obraId={obra.id} />
           </TabsContent>
 
           {/* Aba Fotos */}
