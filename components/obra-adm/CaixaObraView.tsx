@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +68,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [showDialogImport, setShowDialogImport] = useState(false);
   const [semanasParaImportar, setSemanasParaImportar] = useState<string[]>([]);
   const [semanaToDelete, setSemanaToDelete] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Carregar semanas
   useEffect(() => {
@@ -384,6 +385,15 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
         </div>
 
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".xlsx,.xls"
+            onChange={handleImportarExcel}
+            disabled={importing}
+          />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -397,18 +407,9 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
                 <Calendar className="w-4 h-4 mr-2" />
                 Criar Manualmente
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <label className="cursor-pointer">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importar do Excel
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".xlsx,.xls"
-                    onChange={handleImportarExcel}
-                    disabled={importing}
-                  />
-                </label>
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-2" />
+                Importar do Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
