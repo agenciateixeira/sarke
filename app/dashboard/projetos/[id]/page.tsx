@@ -180,6 +180,33 @@ export default function ProjetoDetalhePage() {
     }
   }
 
+  async function handleReorderSubtasks(subtaskIds: string[]) {
+    try {
+      // Atualizar ordem das subtasks no banco
+      const updates = subtaskIds.map((id, index) => ({
+        id,
+        order_index: index,
+      }))
+
+      // Fazer update em batch
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('subtasks')
+          .update({ order_index: update.order_index })
+          .eq('id', update.id)
+
+        if (error) throw error
+      }
+
+      // Recarregar subtasks para refletir a nova ordem
+      await loadSubtasks()
+      toast.success('Ordem das tarefas atualizada')
+    } catch (error: any) {
+      console.error('Erro ao reordenar subtarefas:', error)
+      toast.error('Erro ao reordenar tarefas')
+    }
+  }
+
   async function handleDeleteSubtask(subtaskId: string) {
     try {
       const { error } = await supabase
@@ -777,6 +804,7 @@ export default function ProjetoDetalhePage() {
                   onUpdateSubtask={handleUpdateSubtask}
                   onDeleteSubtask={handleDeleteSubtask}
                   onCreateSubtask={handleCreateSubtask}
+                  onReorderSubtasks={handleReorderSubtasks}
                   projeto_etapa="planejamento"
                 />
               </div>
@@ -814,6 +842,7 @@ export default function ProjetoDetalhePage() {
                   onUpdateSubtask={handleUpdateSubtask}
                   onDeleteSubtask={handleDeleteSubtask}
                   onCreateSubtask={handleCreateSubtask}
+                  onReorderSubtasks={handleReorderSubtasks}
                   projeto_etapa="planta_baixa"
                 />
               </div>
@@ -851,6 +880,7 @@ export default function ProjetoDetalhePage() {
                   onUpdateSubtask={handleUpdateSubtask}
                   onDeleteSubtask={handleDeleteSubtask}
                   onCreateSubtask={handleCreateSubtask}
+                  onReorderSubtasks={handleReorderSubtasks}
                   projeto_etapa="3d"
                 />
               </div>
@@ -888,6 +918,7 @@ export default function ProjetoDetalhePage() {
                   onUpdateSubtask={handleUpdateSubtask}
                   onDeleteSubtask={handleDeleteSubtask}
                   onCreateSubtask={handleCreateSubtask}
+                  onReorderSubtasks={handleReorderSubtasks}
                   projeto_etapa="executivo"
                 />
               </div>
