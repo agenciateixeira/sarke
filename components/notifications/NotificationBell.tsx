@@ -37,6 +37,16 @@ export function NotificationBell() {
         return '@'
       case 'task_assigned':
         return '📋'
+      case 'task_due_soon':
+        return '⏰'
+      case 'task_overdue':
+        return '⚠️'
+      case 'task_completed':
+        return '✅'
+      case 'comment_added':
+        return '💬'
+      case 'project_updated':
+        return '📊'
       case 'message':
         return '💬'
       default:
