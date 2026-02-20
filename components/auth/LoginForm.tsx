@@ -17,6 +17,7 @@ export const LoginForm = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isLogoHovered, setIsLogoHovered] = useState(false)
   const { signIn } = useAuth()
   const router = useRouter()
   const { theme } = useTheme()
@@ -47,13 +48,23 @@ export const LoginForm = () => {
 
   return (
     <Card className="w-full max-w-md">
-      <div className="flex justify-center pt-8 pb-6">
+      <div
+        className="flex justify-center pt-8 pb-6"
+        onMouseEnter={() => setIsLogoHovered(true)}
+        onMouseLeave={() => setIsLogoHovered(false)}
+      >
         <Image
-          src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+          src={
+            mounted
+              ? isLogoHovered
+                ? (theme === 'dark' ? '/logozoomaltdark.png' : '/logozoomalt.png')
+                : (theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png')
+              : '/Artboard.png'
+          }
           alt="Sarke"
           width={200}
           height={66}
-          className="object-contain"
+          className="object-contain transition-all duration-300 cursor-pointer"
           priority
         />
       </div>

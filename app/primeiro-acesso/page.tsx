@@ -24,6 +24,7 @@ export default function PrimeiroAcessoPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isLogoHovered, setIsLogoHovered] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -164,13 +165,23 @@ export default function PrimeiroAcessoPage() {
       </div>
 
       <Card className="w-full max-w-md">
-        <div className="flex justify-center pt-8 pb-4">
+        <div
+          className="flex justify-center pt-8 pb-4"
+          onMouseEnter={() => setIsLogoHovered(true)}
+          onMouseLeave={() => setIsLogoHovered(false)}
+        >
           <Image
-            src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+            src={
+              mounted
+                ? isLogoHovered
+                  ? (theme === 'dark' ? '/logozoomaltdark.png' : '/logozoomalt.png')
+                  : (theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png')
+                : '/Artboard.png'
+            }
             alt="Sarke"
             width={200}
             height={66}
-            className="object-contain"
+            className="object-contain transition-all duration-300 cursor-pointer"
             priority
           />
         </div>

@@ -184,6 +184,7 @@ export const Sidebar = () => {
   const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [mounted, setMounted] = useState(false)
+  const [isLogoHovered, setIsLogoHovered] = useState(false)
   const { accessRequests, isAdmin } = useNotifications()
 
   // Prevenir flash durante hidratação
@@ -259,13 +260,23 @@ export const Sidebar = () => {
       {/* Header da Sidebar - Logo */}
       <div className="flex items-center justify-center h-28 px-4 border-b">
         {isExpanded ? (
-          <Link href="/dashboard">
+          <Link
+            href="/dashboard"
+            onMouseEnter={() => setIsLogoHovered(true)}
+            onMouseLeave={() => setIsLogoHovered(false)}
+          >
             <Image
-              src={mounted && theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+              src={
+                mounted
+                  ? isLogoHovered
+                    ? (theme === 'dark' ? '/logozoomaltdark.png' : '/logozoomalt.png')
+                    : (theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png')
+                  : '/Artboard.png'
+              }
               alt="Sarke"
               width={140}
               height={46}
-              className="object-contain cursor-pointer"
+              className="object-contain cursor-pointer transition-all duration-300"
               priority
             />
           </Link>
