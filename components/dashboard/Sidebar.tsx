@@ -179,11 +179,17 @@ const menuItems: MenuItem[] = [
 export const Sidebar = () => {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const { theme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const [isExpanded, setIsExpanded] = useState(true)
   const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [mounted, setMounted] = useState(false)
   const { accessRequests, isAdmin } = useNotifications()
+
+  // Prevenir flash durante hidratação
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Carregar preferência do localStorage
   useEffect(() => {
@@ -255,7 +261,7 @@ export const Sidebar = () => {
         {isExpanded ? (
           <Link href="/dashboard">
             <Image
-              src={theme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
+              src={mounted && resolvedTheme === 'dark' ? '/logosarkebranca.png' : '/Artboard.png'}
               alt="Sarke"
               width={140}
               height={46}
