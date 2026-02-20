@@ -41,6 +41,26 @@ const statusLabels: Record<CronogramaObraStatus, string> = {
   cancelado: 'Cancelado',
 }
 
+function getTarjaClass(status: string, dataPrevista?: string): string {
+  // Concluído: tarja verde
+  if (status === 'concluido') {
+    return 'bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500'
+  }
+
+  // Cancelado: tarja laranja
+  if (status === 'cancelado') {
+    return 'bg-orange-50 dark:bg-orange-950/20 border-l-4 border-l-orange-500'
+  }
+
+  // Verifica se está atrasado (data passou e não está concluído nem cancelado)
+  if (dataPrevista && new Date(dataPrevista) < new Date()) {
+    return 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500'
+  }
+
+  // Ativo ou pausado sem atraso: sem tarja (branco)
+  return ''
+}
+
 export default function CronogramaObraPage() {
   const [cronogramas, setCronogramas] = useState<CronogramaObraCompleto[]>([])
   const [loading, setLoading] = useState(true)
@@ -222,20 +242,11 @@ export default function CronogramaObraPage() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {cronogramasFiltrados.map((cronograma) => {
-              // Verificar se está atrasado
-              const estaAtrasado =
-                cronograma.status !== 'concluido' &&
-                cronograma.data_fim_prevista &&
-                new Date(cronograma.data_fim_prevista) < new Date()
-
-              return (
-                <Card
-                  key={cronograma.id}
-                  className={`hover:border-primary/50 transition-all ${
-                    estaAtrasado ? 'border-l-4 border-l-red-500' : ''
-                  }`}
-                >
+            {cronogramasFiltrados.map((cronograma) => (
+              <Card
+                key={cronograma.id}
+                className={`hover:border-primary/50 transition-all ${getTarjaClass(cronograma.status, cronograma.data_fim_prevista)}`}
+              >
                   <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -300,8 +311,7 @@ export default function CronogramaObraPage() {
                   </Button>
                 </CardContent>
               </Card>
-              )
-            })}
+            ))}
           </div>
         )}
       </div>

@@ -353,7 +353,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
 
     try {
       const { data, error } = await supabase
-        .from('cronograma_empresas_vinculos')
+        .from('cronograma_empresa_vinculos')
         .select(`
           *,
           empresa:empresas_parceiras(id, nome, telefone, email, servicos)
@@ -397,7 +397,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
         }
 
         const { error } = await supabase
-          .from('cronograma_empresas_vinculos')
+          .from('cronograma_empresa_vinculos')
           .update(vinculoData)
           .eq('id', editandoVinculo.id)
 
@@ -419,7 +419,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
         }))
 
         const { error } = await supabase
-          .from('cronograma_empresas_vinculos')
+          .from('cronograma_empresa_vinculos')
           .insert(vinculosParaInserir)
 
         if (error) throw error
@@ -437,7 +437,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   async function atualizarStatusVinculo(vinculoId: string, novoStatus: string) {
     try {
       const { error } = await supabase
-        .from('cronograma_empresas_vinculos')
+        .from('cronograma_empresa_vinculos')
         .update({ status: novoStatus })
         .eq('id', vinculoId)
 
@@ -456,7 +456,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
 
     try {
       const { error } = await supabase
-        .from('cronograma_empresas_vinculos')
+        .from('cronograma_empresa_vinculos')
         .delete()
         .eq('id', vinculoToDelete)
 
@@ -768,20 +768,11 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                   </tr>
                 </thead>
                 <tbody>
-                  {empresasVinculadas.map((vinculo) => {
-                    // Verificar se vínculo está atrasado
-                    const vinculoAtrasado =
-                      vinculo.status !== 'concluida' &&
-                      vinculo.data_fim_prevista &&
-                      new Date(vinculo.data_fim_prevista) < new Date()
-
-                    return (
-                      <tr
-                        key={vinculo.id}
-                        className={`border-t hover:bg-muted/50 ${
-                          vinculoAtrasado ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''
-                        }`}
-                      >
+                  {empresasVinculadas.map((vinculo) => (
+                    <tr
+                      key={vinculo.id}
+                      className={`border-t hover:bg-muted/50 ${getTarjaClass(vinculo.status, vinculo.data_fim_prevista)}`}
+                    >
                         <td className="p-2 border-r font-medium">{vinculo.empresa?.nome || '-'}</td>
                       <td className="p-2 border-r text-xs text-muted-foreground">
                         {vinculo.empresa?.servicos?.slice(0, 3).join(', ') || '-'}
@@ -842,8 +833,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                         </div>
                       </td>
                     </tr>
-                    )
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -882,13 +872,7 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                   {atividades.map((atividade) => (
                     <tr
                       key={atividade.id}
-                      className={`border-t hover:bg-muted/50 ${
-                        atividade.status === 'atrasada' || (
-                          atividade.status !== 'concluida' &&
-                          atividade.data_prevista &&
-                          new Date(atividade.data_prevista) < new Date()
-                        ) ? 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''
-                      }`}
+                      className={`border-t hover:bg-muted/50 ${getTarjaClass(atividade.status, atividade.data_prevista)}`}
                     >
                       <td className="p-2 border-r">{atividade.mes}</td>
                       <td className="p-2 border-r">{atividade.dia_semana}</td>
@@ -1300,4 +1284,24 @@ function getVinculoStatusLabel(status: string): string {
     cancelada: 'Cancelada',
   }
   return labels[status] || status
+}
+
+function getTarjaClass(status: string, dataPrevista?: string): string {
+  // Concluída: tarja verde
+  if (status === 'concluida') {
+    return 'bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500'
+  }
+
+  // Cancelada: tarja laranja
+  if (status === 'cancelada') {
+    return 'bg-orange-50 dark:bg-orange-950/20 border-l-4 border-l-orange-500'
+  }
+
+  // Verifica se está atrasada (data passou e não está concluída nem cancelada)
+  if (dataPrevista && new Date(dataPrevista) < new Date()) {
+    return 'bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500'
+  }
+
+  // Em andamento ou pendente sem atraso: sem tarja (branco)
+  return ''
 }
