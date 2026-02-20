@@ -73,6 +73,35 @@ const menuItems: MenuItem[] = [
     icon: CheckSquare,
     setor: 'tarefas',
   },
+  // OBRA - Menu hierárquico (movido para após Tarefas)
+  {
+    title: 'Obra',
+    href: '/dashboard/obra',
+    icon: Building,
+    setor: 'gestao_obra',
+    subItems: [
+      {
+        title: 'Gestão de Obra',
+        href: '/dashboard/obra',
+        setor: 'gestao_obra',
+      },
+      {
+        title: 'Cronograma',
+        href: '/dashboard/obra/cronograma',
+        setor: 'cronograma',
+      },
+      {
+        title: 'Empresas Parceiras',
+        href: '/dashboard/obra/empresas',
+        setor: 'gestao_obra',
+      },
+      {
+        title: 'Memorial',
+        href: '/dashboard/obra/memorial',
+        setor: 'memorial',
+      },
+    ],
+  },
   {
     title: 'Clientes',
     href: '/dashboard/comercial',
@@ -114,35 +143,6 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/ferramentas',
     icon: Wrench,
     setor: 'ferramentas',
-  },
-  // OBRA - Menu hierárquico
-  {
-    title: 'Obra',
-    href: '/dashboard/obra',
-    icon: Building,
-    setor: 'gestao_obra',
-    subItems: [
-      {
-        title: 'Gestão de Obra',
-        href: '/dashboard/obra',
-        setor: 'gestao_obra',
-      },
-      {
-        title: 'Cronograma',
-        href: '/dashboard/obra/cronograma',
-        setor: 'cronograma',
-      },
-      {
-        title: 'Empresas Parceiras',
-        href: '/dashboard/obra/empresas',
-        setor: 'gestao_obra',
-      },
-      {
-        title: 'Memorial',
-        href: '/dashboard/obra/memorial',
-        setor: 'memorial',
-      },
-    ],
   },
 ]
 
