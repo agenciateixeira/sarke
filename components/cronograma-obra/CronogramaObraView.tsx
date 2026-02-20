@@ -86,12 +86,12 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   const [exporting, setExporting] = useState(false)
   const [empresasVinculadas, setEmpresasVinculadas] = useState<any[]>([])
   const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false)
+  const [quantidadePeriodos, setQuantidadePeriodos] = useState(1)
   const [novoVinculo, setNovoVinculo] = useState({
     empresa_id: '',
-    data_inicio_prevista: '',
-    data_fim_prevista: '',
     valor_contratado: '',
     observacoes: '',
+    periodos: [{ data_inicio_prevista: '', data_fim_prevista: '' }],
   })
   const [editandoVinculo, setEditandoVinculo] = useState<any | null>(null)
   const [vinculoToDelete, setVinculoToDelete] = useState<string | null>(null)
@@ -357,21 +357,28 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
       return
     }
 
-    try {
-      const vinculoData = {
-        cronograma_id: cronograma.id,
-        empresa_id: novoVinculo.empresa_id,
-        data_inicio_prevista: novoVinculo.data_inicio_prevista || null,
-        data_fim_prevista: novoVinculo.data_fim_prevista || null,
-        valor_contratado: novoVinculo.valor_contratado ? parseFloat(novoVinculo.valor_contratado) : null,
-        observacoes: novoVinculo.observacoes || null,
-        status: 'pendente',
-        valor_executado: 0,
-        valor_pago: 0,
-        percentual_conclusao: 0,
-      }
+    // Validar se todos os períodos têm datas preenchidas
+    const periodosValidos = novoVinculo.periodos.filter(
+      p => p.data_inicio_prevista && p.data_fim_prevista
+    )
 
+    if (periodosValidos.length === 0) {
+      toast.error('Preencha pelo menos um período com data de início e fim')
+      return
+    }
+
+    try {
       if (editandoVinculo) {
+        // Modo edição: atualizar vínculo existente
+        const vinculoData = {
+          cronograma_id: cronograma.id,
+          empresa_id: novoVinculo.empresa_id,
+          data_inicio_prevista: novoVinculo.periodos[0]?.data_inicio_prevista || null,
+          data_fim_prevista: novoVinculo.periodos[0]?.data_fim_prevista || null,
+          valor_contratado: novoVinculo.valor_contratado ? parseFloat(novoVinculo.valor_contratado) : null,
+          observacoes: novoVinculo.observacoes || null,
+        }
+
         const { error } = await supabase
           .from('cronograma_empresas_vinculos')
           .update(vinculoData)
@@ -380,12 +387,26 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
         if (error) throw error
         toast.success('Vínculo atualizado com sucesso!')
       } else {
+        // Modo criação: criar um vínculo para cada período
+        const vinculosParaInserir = periodosValidos.map((periodo, index) => ({
+          cronograma_id: cronograma.id,
+          empresa_id: novoVinculo.empresa_id,
+          data_inicio_prevista: periodo.data_inicio_prevista,
+          data_fim_prevista: periodo.data_fim_prevista,
+          valor_contratado: novoVinculo.valor_contratado ? parseFloat(novoVinculo.valor_contratado) / periodosValidos.length : null,
+          observacoes: `${novoVinculo.observacoes || ''}${periodosValidos.length > 1 ? ` - Período ${index + 1} de ${periodosValidos.length}` : ''}`.trim(),
+          status: 'pendente',
+          valor_executado: 0,
+          valor_pago: 0,
+          percentual_conclusao: 0,
+        }))
+
         const { error } = await supabase
           .from('cronograma_empresas_vinculos')
-          .insert(vinculoData)
+          .insert(vinculosParaInserir)
 
         if (error) throw error
-        toast.success('Empresa vinculada com sucesso!')
+        toast.success(`${periodosValidos.length} período(s) vinculado(s) com sucesso!`)
       }
 
       fecharDialogEmpresa()
@@ -418,12 +439,15 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
 
   function abrirEditarVinculo(vinculo: any) {
     setEditandoVinculo(vinculo)
+    setQuantidadePeriodos(1)
     setNovoVinculo({
       empresa_id: vinculo.empresa_id,
-      data_inicio_prevista: vinculo.data_inicio_prevista || '',
-      data_fim_prevista: vinculo.data_fim_prevista || '',
       valor_contratado: vinculo.valor_contratado?.toString() || '',
       observacoes: vinculo.observacoes || '',
+      periodos: [{
+        data_inicio_prevista: vinculo.data_inicio_prevista || '',
+        data_fim_prevista: vinculo.data_fim_prevista || '',
+      }],
     })
     setEmpresaDialogOpen(true)
   }
@@ -431,13 +455,27 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   function fecharDialogEmpresa() {
     setEmpresaDialogOpen(false)
     setEditandoVinculo(null)
+    setQuantidadePeriodos(1)
     setNovoVinculo({
       empresa_id: '',
-      data_inicio_prevista: '',
-      data_fim_prevista: '',
       valor_contratado: '',
       observacoes: '',
+      periodos: [{ data_inicio_prevista: '', data_fim_prevista: '' }],
     })
+  }
+
+  function handleQuantidadePeriodosChange(quantidade: number) {
+    setQuantidadePeriodos(quantidade)
+    const novosPeriodos = Array.from({ length: quantidade }, (_, i) =>
+      novoVinculo.periodos[i] || { data_inicio_prevista: '', data_fim_prevista: '' }
+    )
+    setNovoVinculo({ ...novoVinculo, periodos: novosPeriodos })
+  }
+
+  function updatePeriodo(index: number, field: 'data_inicio_prevista' | 'data_fim_prevista', value: string) {
+    const novosPeriodos = [...novoVinculo.periodos]
+    novosPeriodos[index] = { ...novosPeriodos[index], [field]: value }
+    setNovoVinculo({ ...novoVinculo, periodos: novosPeriodos })
   }
 
   // ===== FUNÇÕES DE EXPORTAÇÃO =====
@@ -990,30 +1028,67 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {!editandoVinculo && (
               <div className="grid gap-2">
-                <Label htmlFor="data_inicio">Data de Início Prevista *</Label>
-                <Input
-                  id="data_inicio"
-                  type="date"
-                  value={novoVinculo.data_inicio_prevista}
-                  onChange={(e) => setNovoVinculo({ ...novoVinculo, data_inicio_prevista: e.target.value })}
-                />
+                <Label htmlFor="quantidade_periodos">Essa empresa vai atuar quantas vezes no cronograma? *</Label>
+                <Select
+                  value={quantidadePeriodos.toString()}
+                  onValueChange={(value) => handleQuantidadePeriodosChange(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a quantidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {num === 1 ? 'vez' : 'vezes'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            )}
 
-              <div className="grid gap-2">
-                <Label htmlFor="data_fim">Data de Fim Prevista *</Label>
-                <Input
-                  id="data_fim"
-                  type="date"
-                  value={novoVinculo.data_fim_prevista}
-                  onChange={(e) => setNovoVinculo({ ...novoVinculo, data_fim_prevista: e.target.value })}
-                />
-              </div>
+            <div className="grid gap-4">
+              <Label className="text-base font-semibold">
+                Períodos de Atuação {quantidadePeriodos > 1 && `(${quantidadePeriodos} períodos)`}
+              </Label>
+
+              {novoVinculo.periodos.map((periodo, index) => (
+                <div key={index} className="grid gap-3 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {quantidadePeriodos > 1 ? `Período ${index + 1}` : 'Período de Atuação'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor={`data_inicio_${index}`}>Data de Início *</Label>
+                      <Input
+                        id={`data_inicio_${index}`}
+                        type="date"
+                        value={periodo.data_inicio_prevista}
+                        onChange={(e) => updatePeriodo(index, 'data_inicio_prevista', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor={`data_fim_${index}`}>Data de Fim *</Label>
+                      <Input
+                        id={`data_fim_${index}`}
+                        type="date"
+                        value={periodo.data_fim_prevista}
+                        onChange={(e) => updatePeriodo(index, 'data_fim_prevista', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="valor">Valor Contratado (R$)</Label>
+              <Label htmlFor="valor">Valor Contratado Total (R$)</Label>
               <Input
                 id="valor"
                 type="number"
@@ -1022,6 +1097,11 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                 value={novoVinculo.valor_contratado}
                 onChange={(e) => setNovoVinculo({ ...novoVinculo, valor_contratado: e.target.value })}
               />
+              {quantidadePeriodos > 1 && novoVinculo.valor_contratado && (
+                <p className="text-xs text-muted-foreground">
+                  Valor por período: R$ {(parseFloat(novoVinculo.valor_contratado) / quantidadePeriodos).toFixed(2)}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
