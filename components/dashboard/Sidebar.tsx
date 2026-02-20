@@ -73,7 +73,36 @@ const menuItems: MenuItem[] = [
     icon: CheckSquare,
     setor: 'tarefas',
   },
-  // OBRA - Menu hierárquico (movido para após Tarefas)
+  // PROJETOS - Menu hierárquico (ACIMA de Obra)
+  {
+    title: 'Projetos',
+    href: '/dashboard/projetos',
+    icon: Briefcase,
+    setor: 'dashboard', // Todos têm acesso
+    subItems: [
+      {
+        title: 'Todos os Projetos',
+        href: '/dashboard/projetos',
+        setor: 'dashboard',
+      },
+      {
+        title: 'Residenciais',
+        href: '/dashboard/projetos/residenciais',
+        setor: 'dashboard',
+      },
+      {
+        title: 'Comerciais',
+        href: '/dashboard/projetos/comerciais',
+        setor: 'dashboard',
+      },
+      {
+        title: 'Corporativos',
+        href: '/dashboard/projetos/corporativos',
+        setor: 'dashboard',
+      },
+    ],
+  },
+  // OBRA - Menu hierárquico
   {
     title: 'Obra',
     href: '/dashboard/obra',
