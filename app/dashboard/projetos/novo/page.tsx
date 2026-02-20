@@ -27,6 +27,13 @@ interface Cliente {
   id: string
   name: string
   email: string
+  address_street?: string
+  address_number?: string
+  address_complement?: string
+  address_neighborhood?: string
+  address_city?: string
+  address_state?: string
+  address_zip?: string
 }
 
 interface User {
@@ -86,10 +93,10 @@ export default function NovoProjetoPage() {
 
   async function loadData() {
     try {
-      // Carregar clientes
+      // Carregar clientes com endereço completo
       const { data: clientesData, error: clientesError } = await supabase
         .from('clients')
-        .select('id, name, email')
+        .select('id, name, email, address_street, address_number, address_complement, address_neighborhood, address_city, address_state, address_zip')
         .order('name')
 
       if (clientesError) throw clientesError
@@ -119,6 +126,59 @@ export default function NovoProjetoPage() {
       }
       return [...prev, frente]
     })
+  }
+
+  // Buscar endereço pelo CEP
+  async function buscarEnderecoPorCEP(cepValue: string) {
+    const cepLimpo = cepValue.replace(/\D/g, '')
+
+    if (cepLimpo.length !== 8) return
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      const data = await response.json()
+
+      if (data.erro) {
+        toast.error('CEP não encontrado')
+        return
+      }
+
+      // Preencher campos automaticamente
+      setEndereco(data.logradouro || '')
+      setCidade(data.localidade || '')
+      setEstado(data.uf || '')
+
+      toast.success('Endereço encontrado!')
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error)
+      toast.error('Erro ao buscar CEP')
+    }
+  }
+
+  // Preencher dados do cliente selecionado
+  function preencherDadosCliente(clienteId: string) {
+    if (clienteId === 'none' || !clienteId) {
+      return
+    }
+
+    const cliente = clientes.find(c => c.id === clienteId)
+    if (!cliente) return
+
+    // Preencher endereço se o cliente tiver
+    if (cliente.address_zip) {
+      setCep(cliente.address_zip)
+    }
+    if (cliente.address_street && cliente.address_number) {
+      setEndereco(`${cliente.address_street}, ${cliente.address_number}${cliente.address_complement ? ` - ${cliente.address_complement}` : ''}`)
+    }
+    if (cliente.address_city) {
+      setCidade(cliente.address_city)
+    }
+    if (cliente.address_state) {
+      setEstado(cliente.address_state)
+    }
+
+    toast.success('Dados do cliente carregados! Você pode alterá-los se necessário.')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -245,7 +305,11 @@ export default function NovoProjetoPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="cliente">Cliente</Label>
-                  <Select value={clienteId || 'none'} onValueChange={(value) => setClienteId(value === 'none' ? '' : value)}>
+                  <Select value={clienteId || 'none'} onValueChange={(value) => {
+                    const realValue = value === 'none' ? '' : value
+                    setClienteId(realValue)
+                    preencherDadosCliente(value)
+                  }}>
                     <SelectTrigger id="cliente">
                       <SelectValue placeholder="Selecione o cliente" />
                     </SelectTrigger>
@@ -373,9 +437,22 @@ export default function NovoProjetoPage() {
                   <Input
                     id="cep"
                     value={cep}
-                    onChange={(e) => setCep(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setCep(value)
+
+                      // Auto-buscar quando tiver 8 dígitos
+                      const cepLimpo = value.replace(/\D/g, '')
+                      if (cepLimpo.length === 8) {
+                        buscarEnderecoPorCEP(value)
+                      }
+                    }}
                     placeholder="00000-000"
+                    maxLength={9}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Digite o CEP para preencher automaticamente o endereço
+                  </p>
                 </div>
               </div>
             </CardContent>
