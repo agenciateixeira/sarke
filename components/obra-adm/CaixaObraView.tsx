@@ -281,16 +281,25 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           const numeroMatch = nomeSemana.match(/SEMANA\s*(\d+)/i);
           const numeroSemana = numeroMatch ? parseInt(numeroMatch[1]) : semanas.length + 1;
 
+          // Calcular data_inicio e data_fim baseado nas movimentações
+          const datas = semanaData.movimentacoes.map(m => new Date(m.data));
+          const dataInicio = new Date(Math.min(...datas.map(d => d.getTime())));
+          const dataFim = new Date(Math.max(...datas.map(d => d.getTime())));
+
           const { error: semanaError } = await supabase
             .from('obra_caixa_semanas')
             .insert({
               obra_id: obraId,
               nome: nomeSemana,
               numero_semana: numeroSemana,
+              data_inicio: dataInicio.toISOString().split('T')[0],
+              data_fim: dataFim.toISOString().split('T')[0],
+              status: 'EM_ANDAMENTO',
             });
 
           if (semanaError) {
             console.error('Erro ao criar semana:', semanaError);
+            toast.error(`Erro ao criar semana ${nomeSemana}: ${semanaError.message}`);
             continue;
           }
         }
