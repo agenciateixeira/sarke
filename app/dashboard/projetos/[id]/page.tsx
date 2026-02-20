@@ -94,7 +94,7 @@ export default function ProjetoDetalhePage() {
   async function loadTeamMembers() {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id, name, email')
         .order('name')
 
