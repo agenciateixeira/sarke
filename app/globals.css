@@ -34,24 +34,24 @@
 
   .dark {
     /* Sarke Brand Colors - Dark Mode */
-    --background: 222 20% 12%; /* #1a1d23 - muito escuro */
+    --background: 0 0% 16%; /* #2a2a2a - cinza escuro elegante */
     --foreground: 0 0% 98%;
-    --card: 222 20% 15%; /* #1e2228 - card escuro */
+    --card: 0 0% 19%; /* #303030 - card um pouco mais claro */
     --card-foreground: 0 0% 98%;
-    --popover: 222 20% 15%;
+    --popover: 0 0% 19%;
     --popover-foreground: 0 0% 98%;
     --primary: 324 100% 58%; /* #ff2697 - rosa Sarke mantido */
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 20% 20%; /* tom mais claro do background */
+    --secondary: 0 0% 22%; /* tom mais claro do background */
     --secondary-foreground: 0 0% 100%;
-    --muted: 222 20% 18%;
+    --muted: 0 0% 20%;
     --muted-foreground: 0 0% 70%;
     --accent: 324 100% 58%; /* rosa Sarke */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 20% 25%;
-    --input: 222 20% 25%;
+    --border: 0 0% 28%; /* #474747 - bordas mais visíveis */
+    --input: 0 0% 28%;
     --ring: 324 100% 58%; /* rosa Sarke */
     --chart-1: 324 100% 58%;
     --chart-2: 162 12% 40%;
