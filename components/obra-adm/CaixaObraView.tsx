@@ -265,18 +265,30 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       setImporting(true);
       toast.info('Importando semanas selecionadas...');
 
+      // Buscar todas as semanas existentes para calcular próximo número
+      const { data: todasSemanas } = await supabase
+        .from('obra_caixa_semanas')
+        .select('numero_semana')
+        .eq('obra_id', obraId)
+        .order('numero_semana', { ascending: false });
+
+      const maiorNumero = todasSemanas && todasSemanas.length > 0
+        ? todasSemanas[0].numero_semana
+        : 0;
+
       // Filtrar apenas semanas selecionadas
       const semanasParaInserirData = semanaDetectada.filter(s =>
         semanasParaImportar.includes(s.nome)
       );
 
       let totalImportado = 0;
+      let proximoNumero = maiorNumero + 1;
 
       for (const semanaData of semanasParaInserirData) {
         // Criar semana se não existir
         const nomeSemana = semanaData.nome;
 
-        // Verificar se semana já existe
+        // Verificar se semana já existe pelo nome
         const { data: semanaExistente } = await supabase
           .from('obra_caixa_semanas')
           .select('nome')
@@ -285,10 +297,6 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           .single();
 
         if (!semanaExistente) {
-          // Extrair número da semana
-          const numeroMatch = nomeSemana.match(/SEMANA\s*(\d+)/i);
-          const numeroSemana = numeroMatch ? parseInt(numeroMatch[1]) : semanas.length + 1;
-
           // Calcular data_inicio e data_fim baseado nas movimentações
           const datas = semanaData.movimentacoes.map(m => new Date(m.data));
           const dataInicio = new Date(Math.min(...datas.map(d => d.getTime())));
@@ -299,7 +307,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             .insert({
               obra_id: obraId,
               nome: nomeSemana,
-              numero_semana: numeroSemana,
+              numero_semana: proximoNumero,
               data_inicio: dataInicio.toISOString().split('T')[0],
               data_fim: dataFim.toISOString().split('T')[0],
               status: 'EM_ANDAMENTO',
@@ -310,6 +318,8 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             toast.error(`Erro ao criar semana ${nomeSemana}: ${semanaError.message}`);
             continue;
           }
+
+          proximoNumero++; // Incrementar para próxima semana
         }
 
         // Inserir movimentações desta semana
