@@ -58,11 +58,10 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
         // Upload para o Supabase Storage
         const fileExt = file.name.split('.').pop()
         const fileName = `${taskId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `task-attachments/${fileName}`
 
         const { error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file)
+          .from('task-attachments')
+          .upload(fileName, file)
 
         if (uploadError) throw uploadError
 
@@ -72,7 +71,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
           .insert({
             task_id: taskId,
             file_name: file.name,
-            file_path: filePath,
+            file_path: fileName,
             file_type: file.type,
             file_size: file.size,
             uploaded_by: user?.id,
@@ -101,7 +100,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
       const attachment = attachmentToDelete
       // Deletar do storage
       const { error: storageError } = await supabase.storage
-        .from('documents')
+        .from('task-attachments')
         .remove([attachment.file_path])
 
       if (storageError) throw storageError
@@ -126,7 +125,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
   const handlePreview = async (attachment: TaskAttachment) => {
     try {
       const { data } = supabase.storage
-        .from('documents')
+        .from('task-attachments')
         .getPublicUrl(attachment.file_path)
 
       if (!data.publicUrl) {
@@ -155,7 +154,7 @@ export function TaskAttachments({ taskId, attachments, onRefresh }: TaskAttachme
   const handleDownload = async (attachment: TaskAttachment) => {
     try {
       const { data } = supabase.storage
-        .from('documents')
+        .from('task-attachments')
         .getPublicUrl(attachment.file_path)
 
       if (!data.publicUrl) {
