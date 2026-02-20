@@ -613,6 +613,102 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Seleção de Semanas para Importar */}
+      <Dialog open={showDialogImport} onOpenChange={setShowDialogImport}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Selecionar Semanas para Importar</DialogTitle>
+            <DialogDescription>
+              Foram detectadas {semanaDetectada?.length || 0} semana(s) no arquivo Excel.
+              Selecione quais deseja importar:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {semanaDetectada?.map((semana) => {
+              const isSelected = semanasParaImportar.includes(semana.nome);
+
+              return (
+                <div
+                  key={semana.nome}
+                  className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
+                    } else {
+                      setSemanasParaImportar(prev => [...prev, semana.nome]);
+                    }
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSemanasParaImportar(prev => [...prev, semana.nome]);
+                        } else {
+                          setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{semana.nome}</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {semana.movimentacoes.length} movimentação(ões) detectada(s)
+                      </p>
+
+                      {/* Preview das primeiras movimentações */}
+                      <div className="mt-2 space-y-1">
+                        {semana.movimentacoes.slice(0, 3).map((mov, idx) => (
+                          <div key={idx} className="text-xs text-gray-500 flex justify-between">
+                            <span className="truncate flex-1">{mov.descricao}</span>
+                            <span className={`ml-2 ${mov.valor < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {formatarMoeda(mov.valor)}
+                            </span>
+                          </div>
+                        ))}
+                        {semana.movimentacoes.length > 3 && (
+                          <p className="text-xs text-gray-400">
+                            ...e mais {semana.movimentacoes.length - 3}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDialogImport(false);
+                setSemanaDetectada(null);
+                setSemanasParaImportar([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarImportacao}
+              disabled={semanasParaImportar.length === 0 || importing}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                `Importar ${semanasParaImportar.length} semana(s)`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1139,101 +1235,5 @@ function FormularioMovimentacao({ movimentacao, obraId, semanaSelecionada, onSal
         </div>
       </div>
     </div>
-
-    {/* Dialog de Seleção de Semanas para Importar */}
-    <Dialog open={showDialogImport} onOpenChange={setShowDialogImport}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Selecionar Semanas para Importar</DialogTitle>
-          <DialogDescription>
-            Foram detectadas {semanaDetectada?.length || 0} semana(s) no arquivo Excel.
-            Selecione quais deseja importar:
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {semanaDetectada?.map((semana) => {
-            const isSelected = semanasParaImportar.includes(semana.nome);
-
-            return (
-              <div
-                key={semana.nome}
-                className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  if (isSelected) {
-                    setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
-                  } else {
-                    setSemanasParaImportar(prev => [...prev, semana.nome]);
-                  }
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSemanasParaImportar(prev => [...prev, semana.nome]);
-                      } else {
-                        setSemanasParaImportar(prev => prev.filter(s => s !== semana.nome));
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{semana.nome}</h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {semana.movimentacoes.length} movimentação(ões) detectada(s)
-                    </p>
-
-                    {/* Preview das primeiras movimentações */}
-                    <div className="mt-2 space-y-1">
-                      {semana.movimentacoes.slice(0, 3).map((mov, idx) => (
-                        <div key={idx} className="text-xs text-gray-500 flex justify-between">
-                          <span className="truncate flex-1">{mov.descricao}</span>
-                          <span className={`ml-2 ${mov.valor < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {formatarMoeda(mov.valor)}
-                          </span>
-                        </div>
-                      ))}
-                      {semana.movimentacoes.length > 3 && (
-                        <p className="text-xs text-gray-400">
-                          ...e mais {semana.movimentacoes.length - 3}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowDialogImport(false);
-              setSemanaDetectada(null);
-              setSemanasParaImportar([]);
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={confirmarImportacao}
-            disabled={semanasParaImportar.length === 0 || importing}
-          >
-            {importing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Importando...
-              </>
-            ) : (
-              `Importar ${semanasParaImportar.length} semana(s)`
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
