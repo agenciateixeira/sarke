@@ -101,7 +101,7 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
 
       const cronogramaId = cronogramaObra?.id
 
-      // Buscar empresas vinculadas via cronograma
+      // Buscar empresas vinculadas via cronograma (vínculos diretos)
       let cronogramaData: any[] = []
       if (cronogramaId) {
         console.log('🔎 Buscando empresas para cronograma_id:', cronogramaId)
@@ -132,11 +132,50 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
           )
           .eq('cronograma_id', cronogramaId)
 
-        console.log('📡 Resposta raw da query:', { data, error: cronogramaError })
+        console.log('📡 Resposta raw da query (vínculos diretos):', { data, error: cronogramaError })
 
         if (cronogramaError) throw cronogramaError
         cronogramaData = data || []
-        console.log('🏢 Empresas do cronograma processadas:', cronogramaData)
+        console.log('🏢 Empresas do cronograma (vínculos diretos):', cronogramaData)
+      }
+
+      // Buscar empresas vinculadas às ATIVIDADES do cronograma
+      let atividadesData: any[] = []
+      if (cronogramaId) {
+        console.log('🔎 Buscando empresas nas atividades do cronograma_id:', cronogramaId)
+
+        const { data, error: atividadesError } = await supabase
+          .from('cronograma_obra_atividades')
+          .select(
+            `
+            id,
+            empresa_parceira_id,
+            data_prevista,
+            data_inicio_real,
+            data_conclusao_real,
+            descricao_servico,
+            observacao,
+            status,
+            empresas_parceiras!cronograma_obra_atividades_empresa_parceira_id_fkey (
+              id,
+              nome,
+              telefone,
+              celular,
+              email,
+              logo_url,
+              responsavel,
+              servicos
+            )
+          `
+          )
+          .eq('cronograma_id', cronogramaId)
+          .not('empresa_parceira_id', 'is', null)
+
+        console.log('📡 Resposta raw da query (atividades):', { data, error: atividadesError })
+
+        if (atividadesError) throw atividadesError
+        atividadesData = data || []
+        console.log('🏗️ Atividades com empresas:', atividadesData)
       }
 
       // Buscar empresas vinculadas diretamente à obra
@@ -201,7 +240,7 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
         })
       })
 
-      // Adicionar empresas do cronograma (se não existirem ainda)
+      // Adicionar empresas do cronograma (vínculos diretos - se não existirem ainda)
       cronogramaData?.forEach((item: any) => {
         if (!item.empresas_parceiras) return
 
@@ -232,6 +271,43 @@ export function ObraEmpresasView({ obraId }: ObraEmpresasViewProps) {
             valor_contratado: item.valor_contratado,
             valor_pago: item.valor_pago,
             observacoes_cliente: item.observacoes,
+          })
+        }
+      })
+
+      // Adicionar empresas das ATIVIDADES (agrupar por empresa)
+      atividadesData?.forEach((atividade: any) => {
+        if (!atividade.empresas_parceiras) return
+
+        const servico = atividade.descricao_servico || 'Serviço não especificado'
+        const key = `${atividade.empresa_parceira_id}-atividade`
+
+        // Agrupar atividades pela mesma empresa
+        if (!empresasMap.has(key)) {
+          empresasMap.set(key, {
+            id: atividade.id,
+            empresa_id: atividade.empresa_parceira_id,
+            empresa_nome: atividade.empresas_parceiras.nome,
+            empresa_telefone: atividade.empresas_parceiras.telefone,
+            empresa_celular: atividade.empresas_parceiras.celular,
+            empresa_email: atividade.empresas_parceiras.email,
+            empresa_logo: atividade.empresas_parceiras.logo_url,
+            empresa_responsavel: atividade.empresas_parceiras.responsavel,
+            servico_executado: servico,
+            descricao_servico: atividade.observacao,
+            data_inicio: atividade.data_inicio_real || atividade.data_prevista,
+            data_termino: atividade.data_conclusao_real,
+            status:
+              atividade.status === 'realizado'
+                ? 'concluido'
+                : atividade.status === 'em_andamento'
+                  ? 'em_andamento'
+                  : atividade.status === 'cancelado'
+                    ? 'cancelado'
+                    : atividade.status === 'atrasado'
+                      ? 'em_andamento'
+                      : 'aguardando',
+            observacoes_cliente: atividade.observacao,
           })
         }
       })
