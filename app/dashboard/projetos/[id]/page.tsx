@@ -26,7 +26,6 @@ import {
   AlertCircle,
   ClipboardCheck,
   Layers,
-  Cube,
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -791,7 +790,7 @@ export default function ProjetoDetalhePage() {
             {loadingSubtasks ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <Cube className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                  <Box className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
                   <p className="text-muted-foreground">Carregando subtarefas...</p>
                 </CardContent>
               </Card>
@@ -799,7 +798,7 @@ export default function ProjetoDetalhePage() {
               <SubtaskStageView
                 subtasks={subtasks.filter((s) => s.projeto_etapa === '3d')}
                 stageName="Modelo 3D"
-                stageIcon={<Cube className="h-5 w-5" />}
+                stageIcon={<Box className="h-5 w-5" />}
                 teamMembers={teamMembers}
                 onToggleComplete={handleToggleSubtask}
                 onUpdateSubtask={handleUpdateSubtask}
