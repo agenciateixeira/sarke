@@ -12,8 +12,8 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: 'Sarke',
-  description: 'CRM para Arquitetura',
+  title: 'Sarke Studio',
+  description: 'Arquitetura',
   icons: {
     icon: '/k.png',
     shortcut: '/k.png',
