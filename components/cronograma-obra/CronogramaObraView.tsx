@@ -1017,9 +1017,10 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
                   <SelectContent>
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                    <SelectItem value="realizado">Realizado</SelectItem>
-                    <SelectItem value="atrasado">Atrasado</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                    <SelectItem value="concluida">Concluída</SelectItem>
+                    <SelectItem value="atrasada">Atrasada</SelectItem>
+                    <SelectItem value="pausada">Pausada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1252,10 +1253,15 @@ function getStatusColor(status: string): string {
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     pendente: 'Pendente',
-    realizado: 'Realizado',
     em_andamento: 'Em Andamento',
-    atrasado: 'Atrasado',
-    cancelado: 'Cancelado',
+    concluida: 'Concluída',
+    atrasada: 'Atrasada',
+    pausada: 'Pausada',
+    cancelada: 'Cancelada',
+    // Manter compatibilidade com valores antigos
+    realizado: 'Concluída',
+    atrasado: 'Atrasada',
+    cancelado: 'Cancelada',
   }
   return labels[status] || status
 }
@@ -1287,13 +1293,13 @@ function getVinculoStatusLabel(status: string): string {
 }
 
 function getTarjaClass(status: string, dataPrevista?: string): string {
-  // Concluída: tarja verde
-  if (status === 'concluida') {
+  // Concluída: tarja verde (aceita "concluida" e "realizado" para compatibilidade)
+  if (status === 'concluida' || status === 'realizado') {
     return 'bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500'
   }
 
-  // Cancelada: tarja laranja
-  if (status === 'cancelada') {
+  // Cancelada: tarja laranja (aceita "cancelada" e "cancelado" para compatibilidade)
+  if (status === 'cancelada' || status === 'cancelado') {
     return 'bg-orange-50 dark:bg-orange-950/20 border-l-4 border-l-orange-500'
   }
 
