@@ -112,47 +112,157 @@ BEGIN
   )
   RETURNING id INTO nova_tarefa_id;
 
-  -- Criar 4 subtarefas (uma para cada etapa do projeto)
+  -- Criar subtarefas agrupadas por etapa (baseado no ClickUp)
   INSERT INTO subtasks (task_id, title, description, projeto_etapa, order_index, priority, created_by)
   VALUES
-    -- Etapa 1: Planejamento
+    -- ========================================
+    -- ETAPA 1: PLANEJAMENTO (6 subtarefas)
+    -- ========================================
     (
       nova_tarefa_id,
-      '1. Planejamento',
-      'Formulário inicial, visita técnica, briefing e aprovação',
+      'Forms',
+      'Formulários iniciais e documentação',
       'planejamento',
       1,
       'high',
       NEW.created_by
     ),
-    -- Etapa 2: Planta Baixa
     (
       nova_tarefa_id,
-      '2. Planta Baixa',
-      'Conceito, setorização, estudos, análise normativa e aprovação do cliente',
-      'planta_baixa',
+      'Visita e medição',
+      'Visita técnica ao local e medições',
+      'planejamento',
       2,
       'high',
       NEW.created_by
     ),
-    -- Etapa 3: Modelo 3D
     (
       nova_tarefa_id,
-      '3. Modelo 3D',
-      'Modelagem, renders, pós-produção e aprovação do cliente',
-      '3d',
+      'As built',
+      'Levantamento do estado atual',
+      'planejamento',
       3,
       'medium',
       NEW.created_by
     ),
-    -- Etapa 4: Executivo
     (
       nova_tarefa_id,
-      '4. Executivo',
-      'Detalhamentos ARQ e INT, memorial técnico e entrega final',
-      'executivo',
+      'Análise',
+      'Análise técnica e normativa',
+      'planejamento',
       4,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Planejamento',
+      'Planejamento geral do projeto',
+      'planejamento',
+      5,
       'medium',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Entrevista de alinhamento',
+      'Entrevista inicial com cliente',
+      'planejamento',
+      6,
+      'high',
+      NEW.created_by
+    ),
+
+    -- ========================================
+    -- ETAPA 2: PLANTA BAIXA (4 subtarefas)
+    -- ========================================
+    (
+      nova_tarefa_id,
+      'Criação de conceito',
+      'Desenvolvimento do conceito inicial',
+      'planta_baixa',
+      7,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Setorização e estudo de fluxo',
+      'Definição de setores e fluxos',
+      'planta_baixa',
+      8,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Elaboração',
+      'Elaboração da planta baixa',
+      'planta_baixa',
+      9,
+      'medium',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Apresentação',
+      'Apresentação ao cliente',
+      'planta_baixa',
+      10,
+      'high',
+      NEW.created_by
+    ),
+
+    -- ========================================
+    -- ETAPA 3: MODELO 3D (3 subtarefas)
+    -- ========================================
+    (
+      nova_tarefa_id,
+      'Modelagem',
+      'Modelagem 3D do projeto',
+      '3d',
+      11,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Render',
+      'Renderização de imagens',
+      '3d',
+      12,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Apresentação',
+      'Apresentação ou passeio virtual',
+      '3d',
+      13,
+      'medium',
+      NEW.created_by
+    ),
+
+    -- ========================================
+    -- ETAPA 4: EXECUTIVO (2 subtarefas)
+    -- ========================================
+    (
+      nova_tarefa_id,
+      'Caderno executivo',
+      'Elaboração do caderno executivo',
+      'executivo',
+      14,
+      'high',
+      NEW.created_by
+    ),
+    (
+      nova_tarefa_id,
+      'Caderno final',
+      'Finalização e entrega do caderno',
+      'executivo',
+      15,
+      'high',
       NEW.created_by
     );
 
