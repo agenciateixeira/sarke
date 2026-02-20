@@ -60,6 +60,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [semanaDetectada, setSemanaDetectada] = useState<SemanaDetectada[] | null>(null);
   const [showDialogImport, setShowDialogImport] = useState(false);
   const [semanasParaImportar, setSemanasParaImportar] = useState<string[]>([]);
+  const [semanaToDelete, setSemanaToDelete] = useState<string | null>(null);
 
   // Carregar semanas
   useEffect(() => {
@@ -187,6 +188,38 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       carregarSemanas();
     } catch (error) {
       console.error('Erro ao excluir movimentação:', error);
+    }
+  };
+
+  const handleExcluirSemana = async () => {
+    if (!semanaToDelete) return;
+
+    try {
+      // Excluir todas as movimentações da semana
+      const { error: errorMov } = await supabase
+        .from('obra_caixa')
+        .delete()
+        .eq('obra_id', obraId)
+        .eq('semana', semanaToDelete);
+
+      if (errorMov) throw errorMov;
+
+      // Excluir a semana
+      const { error: errorSemana } = await supabase
+        .from('obra_caixa_semanas')
+        .delete()
+        .eq('obra_id', obraId)
+        .eq('nome', semanaToDelete);
+
+      if (errorSemana) throw errorSemana;
+
+      toast.success('Semana excluída com sucesso!');
+      setSemanaToDelete(null);
+      setSemanaSelecionada('');
+      carregarSemanas();
+    } catch (error) {
+      console.error('Erro ao excluir semana:', error);
+      toast.error('Erro ao excluir semana');
     }
   };
 
@@ -373,6 +406,13 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               >
                 <Plus className="w-4 h-4" />
                 Nova Movimentação
+              </button>
+              <button
+                onClick={() => setSemanaToDelete(semanaSelecionada)}
+                className="flex items-center gap-2 px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir Semana
               </button>
             </>
           )}
@@ -609,6 +649,28 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!semanaToDelete} onOpenChange={(o) => { if (!o) setSemanaToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir semana?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a semana "{semanaToDelete}"?
+              Todas as movimentações desta semana também serão excluídas.
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluirSemana}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Semana
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
