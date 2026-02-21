@@ -140,3 +140,156 @@ export interface DealFormData {
   competitors?: string
   decision_deadline?: string
 }
+
+// =============================================
+// ATIVIDADES E INTERAÇÕES (FASE 2)
+// =============================================
+
+export type ActivityType = 'note' | 'call' | 'email' | 'meeting' | 'task' | 'status_change'
+
+export interface DealActivity {
+  id: string
+  deal_id: string
+  type: ActivityType
+  title: string
+  description?: string
+  created_by: string
+  created_at: string
+  updated_at: string
+
+  // Campos específicos
+  due_date?: string
+  completed_at?: string
+  duration_minutes?: number
+
+  // Metadados
+  metadata?: Record<string, any>
+
+  // Relacionamentos expandidos
+  creator?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+}
+
+export interface DealActivityFormData {
+  type: ActivityType
+  title: string
+  description?: string
+  due_date?: string
+  duration_minutes?: number
+}
+
+export interface DealAttachment {
+  id: string
+  deal_id: string
+  activity_id?: string
+  file_name: string
+  file_path: string
+  file_size: number
+  file_type: string
+  uploaded_by: string
+  uploaded_at: string
+  description?: string
+
+  // Relacionamentos expandidos
+  uploader?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+}
+
+// =============================================
+// ANALYTICS E MÉTRICAS (FASE 2)
+// =============================================
+
+export interface PipelineStageMetrics {
+  stage_id: string
+  stage_name: string
+  order_index: number
+  deals_count: number
+  total_value: number
+  weighted_value: number
+  avg_probability: number
+  avg_deal_value: number
+}
+
+export interface StageConversionRate {
+  stage_id: string
+  stage_name: string
+  order_index: number
+  deals_entered: number
+  deals_advanced: number
+  deals_regressed: number
+  conversion_rate: number
+}
+
+export interface StageAverageDuration {
+  stage_id: string
+  stage_name: string
+  order_index: number
+  deals_count: number
+  avg_days: number
+  min_days: number
+  max_days: number
+}
+
+export interface PipelinePerformance {
+  active_deals: number
+  won_deals_30d: number
+  lost_deals_30d: number
+  active_pipeline_value: number
+  won_value_30d: number
+  avg_won_deal_value: number
+  win_rate_30d: number
+  churn_rate_30d: number
+}
+
+export interface OwnerPerformance {
+  owner_id: string
+  owner_name: string
+  active_deals: number
+  won_deals_30d: number
+  lost_deals_30d: number
+  active_pipeline_value: number
+  won_value_30d: number
+  win_rate_30d: number
+}
+
+export interface ChurnAnalysis {
+  month: string
+  churned_deals: number
+  won_deals: number
+  reactivated_deals: number
+  churn_rate: number
+  reactivation_rate: number
+}
+
+export interface LostReasonAnalysis {
+  lost_reason: string
+  count: number
+  total_value_lost: number
+  avg_value_lost: number
+  percentage: number
+}
+
+export interface RevenueForecast {
+  month: string
+  forecasted_revenue: number
+  confidence_level: 'Low' | 'Medium' | 'High'
+}
+
+export interface DealActivityStats {
+  deal_id: string
+  total_activities: number
+  notes_count: number
+  calls_count: number
+  emails_count: number
+  meetings_count: number
+  tasks_count: number
+  completed_tasks_count: number
+  overdue_tasks_count: number
+  last_activity_at: string
+}

@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { TagInput } from '@/components/ui/tag-input'
 import { ClientDialog } from './ClientDialog'
+import { DealActivitiesTimeline } from './DealActivitiesTimeline'
+import { AddActivityDialog } from './AddActivityDialog'
+import { useDealActivities } from '@/hooks/useDealActivities'
 import {
   Deal,
   DealFormData,
@@ -87,6 +90,8 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
   const [loading, setLoading] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
   const [clientDialogOpen, setClientDialogOpen] = useState(false)
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false)
+  const { createActivity } = deal?.id ? useDealActivities(deal.id) : { createActivity: async () => {} }
   const [formData, setFormData] = useState<DealFormData>({
     title: '',
     description: '',
@@ -259,10 +264,11 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="basico" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basico">Informações Básicas</TabsTrigger>
               <TabsTrigger value="qualificacao">Qualificação</TabsTrigger>
               <TabsTrigger value="followup">Follow-up & Notas</TabsTrigger>
+              {deal?.id && <TabsTrigger value="atividades">Atividades</TabsTrigger>}
             </TabsList>
 
             {/* ABA 1: INFORMAÇÕES BÁSICAS */}
@@ -590,6 +596,16 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
                 </p>
               </div>
             </TabsContent>
+
+            {/* ABA 4: ATIVIDADES (só aparece para deals existentes) */}
+            {deal?.id && (
+              <TabsContent value="atividades" className="space-y-4">
+                <DealActivitiesTimeline
+                  dealId={deal.id}
+                  onAddActivity={() => setActivityDialogOpen(true)}
+                />
+              </TabsContent>
+            )}
           </Tabs>
 
           {/* Botões */}
@@ -615,6 +631,15 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
           onOpenChange={setClientDialogOpen}
           onSave={handleSaveClient}
         />
+
+        {/* Dialog de adicionar atividade */}
+        {deal?.id && (
+          <AddActivityDialog
+            open={activityDialogOpen}
+            onOpenChange={setActivityDialogOpen}
+            onSubmit={createActivity}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
