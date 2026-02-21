@@ -81,8 +81,14 @@ export function useDealActivities(dealId: string) {
   // Criar nova atividade
   const createActivity = async (activityData: DealActivityFormData) => {
     try {
+      console.log('🔄 [createActivity] Iniciando criação de atividade', { dealId, activityData })
+
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuário não autenticado')
+      if (!user) {
+        console.error('❌ [createActivity] Usuário não autenticado')
+        throw new Error('Usuário não autenticado')
+      }
+      console.log('✅ [createActivity] Usuário autenticado:', user.id)
 
       // Buscar o profile_id do usuário autenticado
       const { data: profile, error: profileError } = await supabase
@@ -91,29 +97,45 @@ export function useDealActivities(dealId: string) {
         .eq('id', user.id)
         .single()
 
-      if (profileError) throw profileError
+      if (profileError) {
+        console.error('❌ [createActivity] Erro ao buscar profile:', profileError)
+        throw profileError
+      }
+      console.log('✅ [createActivity] Profile encontrado:', profile.id)
+
+      const insertData = {
+        deal_id: dealId,
+        ...activityData,
+        created_by: profile.id,
+      }
+      console.log('📝 [createActivity] Dados a serem inseridos:', insertData)
 
       const { data, error } = await supabase
         .from('deal_activities')
-        .insert({
-          deal_id: dealId,
-          ...activityData,
-          created_by: profile.id,
-        })
+        .insert(insertData)
         .select(`
           *,
           creator:profiles!created_by (id, name, avatar_url)
         `)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ [createActivity] Erro ao inserir atividade:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        throw error
+      }
 
+      console.log('✅ [createActivity] Atividade criada com sucesso:', data)
       toast.success('Atividade adicionada!')
       await fetchActivities()
       await fetchStats()
       return data
     } catch (error: any) {
-      console.error('Error creating activity:', error)
+      console.error('💥 [createActivity] Erro completo:', error)
       toast.error('Erro ao adicionar atividade')
       throw error
     }

@@ -42,6 +42,7 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit }: AddActivityD
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation() // Prevenir que o evento suba para o form pai (DealDialog)
     setLoading(true)
 
     try {
