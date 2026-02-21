@@ -13,9 +13,11 @@ interface PipelineBoardProps {
   deals: Deal[]
   onMoveDeal: (dealId: string, newStageId: string) => Promise<void>
   onDealClick: (deal: Deal) => void
+  onEditStage: (stage: PipelineStage) => void
+  onDeleteStage: (stage: PipelineStage) => void
 }
 
-export function PipelineBoard({ stages, deals, onMoveDeal, onDealClick }: PipelineBoardProps) {
+export function PipelineBoard({ stages, deals, onMoveDeal, onDealClick, onEditStage, onDeleteStage }: PipelineBoardProps) {
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null)
 
   const sensors = useSensors(
@@ -91,6 +93,8 @@ export function PipelineBoard({ stages, deals, onMoveDeal, onDealClick }: Pipeli
                   deals={stageDeals}
                   totalValue={totalValue}
                   onDealClick={onDealClick}
+                  onEditStage={onEditStage}
+                  onDeleteStage={onDeleteStage}
                 />
               </SortableContext>
             )

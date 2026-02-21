@@ -6,7 +6,16 @@ import { CSS } from '@dnd-kit/utilities'
 import { Deal, PipelineStage } from '@/types/pipeline'
 import { DealCard } from './DealCard'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PipelineColumnProps {
@@ -14,6 +23,8 @@ interface PipelineColumnProps {
   deals: Deal[]
   totalValue: number
   onDealClick: (deal: Deal) => void
+  onEditStage: (stage: PipelineStage) => void
+  onDeleteStage: (stage: PipelineStage) => void
 }
 
 function SortableDealCard({ deal, onClick }: { deal: Deal; onClick: () => void }) {
@@ -70,7 +81,27 @@ export function PipelineColumn({ stage, deals, totalValue, onDealClick }: Pipeli
             />
             <h3 className="font-semibold">{stage.name}</h3>
           </div>
-          <Badge variant="secondary">{deals.length}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{deals.length}</Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEditStage(stage)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onDeleteStage(stage)} className="text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {stage.description && (

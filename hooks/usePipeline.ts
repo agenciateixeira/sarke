@@ -179,12 +179,117 @@ export function usePipeline() {
     }
   }
 
+  // Criar estágio
+  const createStage = async (stageData: { name: string; description?: string; color: string }) => {
+    try {
+      // Buscar o maior order_index
+      const { data: existingStages } = await supabase
+        .from('pipeline_stages')
+        .select('order_index')
+        .order('order_index', { ascending: false })
+        .limit(1)
+
+      const maxOrder = existingStages?.[0]?.order_index || 0
+
+      const { error } = await supabase
+        .from('pipeline_stages')
+        .insert({
+          ...stageData,
+          order_index: maxOrder + 1,
+        })
+
+      if (error) throw error
+
+      toast.success('Estágio criado com sucesso!')
+      await fetchStages()
+    } catch (error: any) {
+      console.error('Error creating stage:', error)
+      toast.error('Erro ao criar estágio')
+      throw error
+    }
+  }
+
+  // Atualizar estágio
+  const updateStage = async (stageId: string, updates: { name?: string; description?: string; color?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('pipeline_stages')
+        .update(updates)
+        .eq('id', stageId)
+
+      if (error) throw error
+
+      toast.success('Estágio atualizado!')
+      await fetchStages()
+    } catch (error: any) {
+      console.error('Error updating stage:', error)
+      toast.error('Erro ao atualizar estágio')
+      throw error
+    }
+  }
+
+  // Deletar estágio
+  const deleteStage = async (stageId: string) => {
+    try {
+      // Verificar se tem deals neste estágio
+      const { data: dealsInStage } = await supabase
+        .from('deals')
+        .select('id')
+        .eq('stage_id', stageId)
+        .limit(1)
+
+      if (dealsInStage && dealsInStage.length > 0) {
+        toast.error('Não é possível excluir um estágio que contém negócios')
+        return
+      }
+
+      const { error } = await supabase
+        .from('pipeline_stages')
+        .delete()
+        .eq('id', stageId)
+
+      if (error) throw error
+
+      toast.success('Estágio excluído!')
+      await fetchStages()
+    } catch (error: any) {
+      console.error('Error deleting stage:', error)
+      toast.error('Erro ao excluir estágio')
+      throw error
+    }
+  }
+
+  // Reordenar estágios
+  const reorderStages = async (stageIds: string[]) => {
+    try {
+      const updates = stageIds.map((id, index) => ({
+        id,
+        order_index: index + 1,
+      }))
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('pipeline_stages')
+          .update({ order_index: update.order_index })
+          .eq('id', update.id)
+
+        if (error) throw error
+      }
+
+      await fetchStages()
+    } catch (error: any) {
+      console.error('Error reordering stages:', error)
+      toast.error('Erro ao reordenar estágios')
+      throw error
+    }
+  }
+
   useEffect(() => {
     fetchStages()
     fetchDeals()
 
     // Subscribe to real-time changes
-    const channel = supabase
+    const dealsChannel = supabase
       .channel('deals_changes')
       .on(
         'postgres_changes',
@@ -199,8 +304,24 @@ export function usePipeline() {
       )
       .subscribe()
 
+    const stagesChannel = supabase
+      .channel('stages_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pipeline_stages',
+        },
+        () => {
+          fetchStages()
+        }
+      )
+      .subscribe()
+
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(dealsChannel)
+      supabase.removeChannel(stagesChannel)
     }
   }, [])
 
@@ -214,5 +335,9 @@ export function usePipeline() {
     updateDealStatus,
     deleteDeal,
     refreshDeals: fetchDeals,
+    createStage,
+    updateStage,
+    deleteStage,
+    reorderStages,
   }
 }

@@ -4,14 +4,29 @@ import { useState } from 'react'
 import { usePipeline } from '@/hooks/usePipeline'
 import { PipelineBoard } from '@/components/comercial/PipelineBoard'
 import { DealDialog } from '@/components/comercial/DealDialog'
+import { StageDialog } from '@/components/comercial/StageDialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, Plus, TrendingUp } from 'lucide-react'
-import { Deal, DealFormData } from '@/types/pipeline'
+import { Loader2, Plus, TrendingUp, Columns3 } from 'lucide-react'
+import { Deal, DealFormData, PipelineStage } from '@/types/pipeline'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function PipelinePage() {
-  const { stages, deals, loading, createDeal, updateDeal, moveDeal } = usePipeline()
+  const { stages, deals, loading, createDeal, updateDeal, moveDeal, createStage, updateStage, deleteStage } = usePipeline()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | undefined>(undefined)
+  const [stageDialogOpen, setStageDialogOpen] = useState(false)
+  const [selectedStage, setSelectedStage] = useState<PipelineStage | undefined>(undefined)
+  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false)
+  const [stageToDelete, setStageToDelete] = useState<PipelineStage | undefined>(undefined)
 
   const handleDealClick = (deal: Deal) => {
     setSelectedDeal(deal)
@@ -29,6 +44,37 @@ export default function PipelinePage() {
   const handleNewDeal = () => {
     setSelectedDeal(undefined)
     setDialogOpen(true)
+  }
+
+  const handleNewStage = () => {
+    setSelectedStage(undefined)
+    setStageDialogOpen(true)
+  }
+
+  const handleEditStage = (stage: PipelineStage) => {
+    setSelectedStage(stage)
+    setStageDialogOpen(true)
+  }
+
+  const handleDeleteStage = (stage: PipelineStage) => {
+    setStageToDelete(stage)
+    setDeleteAlertOpen(true)
+  }
+
+  const confirmDeleteStage = async () => {
+    if (stageToDelete) {
+      await deleteStage(stageToDelete.id)
+      setDeleteAlertOpen(false)
+      setStageToDelete(undefined)
+    }
+  }
+
+  const handleSaveStage = async (data: { name: string; description?: string; color: string }) => {
+    if (selectedStage) {
+      await updateStage(selectedStage.id, data)
+    } else {
+      await createStage(data)
+    }
   }
 
   // Calcular métricas totais
@@ -67,10 +113,16 @@ export default function PipelinePage() {
               Visualize e gerencie seu funil de vendas
             </p>
           </div>
-          <Button onClick={handleNewDeal}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Negócio
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleNewStage}>
+              <Columns3 className="h-4 w-4 mr-2" />
+              Nova Coluna
+            </Button>
+            <Button onClick={handleNewDeal}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Negócio
+            </Button>
+          </div>
         </div>
 
         {/* Métricas */}
@@ -106,10 +158,12 @@ export default function PipelinePage() {
           deals={deals}
           onMoveDeal={moveDeal}
           onDealClick={handleDealClick}
+          onEditStage={handleEditStage}
+          onDeleteStage={handleDeleteStage}
         />
       </div>
 
-      {/* Dialog para criar/editar */}
+      {/* Dialog para criar/editar negócio */}
       <DealDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -117,6 +171,33 @@ export default function PipelinePage() {
         stages={stages}
         onSave={handleSaveDeal}
       />
+
+      {/* Dialog para criar/editar estágio */}
+      <StageDialog
+        open={stageDialogOpen}
+        onOpenChange={setStageDialogOpen}
+        stage={selectedStage}
+        onSave={handleSaveStage}
+      />
+
+      {/* Confirmação de exclusão de estágio */}
+      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o estágio "{stageToDelete?.name}"?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteStage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
