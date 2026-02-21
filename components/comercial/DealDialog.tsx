@@ -169,6 +169,24 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
     }
   }, [deal, stages, open])
 
+  // Auto-preencher título quando selecionar cliente (apenas em novo deal e se título estiver vazio)
+  const handleClientChange = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId)
+
+    // Auto-preenche o título apenas se:
+    // 1. Não for edição (deal === undefined)
+    // 2. Título estiver vazio ou for o nome de outro cliente
+    if (!deal && client) {
+      const isClientNameTitle = clients.some(c => formData.title === c.name)
+      if (!formData.title || isClientNameTitle) {
+        setFormData({ ...formData, client_id: clientId, title: client.name })
+        return
+      }
+    }
+
+    setFormData({ ...formData, client_id: clientId })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -230,7 +248,7 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
                   <Label htmlFor="client">Cliente</Label>
                   <Select
                     value={formData.client_id}
-                    onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                    onValueChange={handleClientChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um cliente" />
@@ -243,6 +261,11 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
                       ))}
                     </SelectContent>
                   </Select>
+                  {!deal && formData.client_id && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      💡 Título preenchido automaticamente. Você pode editá-lo.
+                    </p>
+                  )}
                 </div>
 
                 <div>
