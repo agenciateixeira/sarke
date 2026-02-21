@@ -132,11 +132,39 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
+  // COMERCIAL/CRM - Menu hierárquico
   {
-    title: 'Clientes',
+    title: 'Comercial',
     href: '/dashboard/comercial',
     icon: ShoppingCart,
     setor: 'comercial',
+    subItems: [
+      {
+        title: 'Clientes',
+        href: '/dashboard/comercial',
+        setor: 'comercial',
+      },
+      {
+        title: 'Pipeline',
+        href: '/dashboard/comercial/pipeline',
+        setor: 'comercial',
+      },
+      {
+        title: 'Atividades',
+        href: '/dashboard/comercial/atividades',
+        setor: 'comercial',
+      },
+      {
+        title: 'Contratos',
+        href: '/dashboard/comercial/contratos',
+        setor: 'comercial',
+      },
+      {
+        title: 'Relatórios',
+        href: '/dashboard/comercial/relatorios',
+        setor: 'comercial',
+      },
+    ],
   },
   {
     title: 'Financeiro',
