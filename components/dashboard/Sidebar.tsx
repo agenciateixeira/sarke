@@ -395,7 +395,9 @@ export const Sidebar = () => {
                         {item.subItems!.map((subItem) => {
                           // Lógica especial para páginas exatas (não usar startsWith)
                           const isSubActive =
-                            subItem.href === '/dashboard/obra' || subItem.href === '/dashboard/projetos'
+                            subItem.href === '/dashboard/obra' ||
+                            subItem.href === '/dashboard/projetos' ||
+                            subItem.href === '/dashboard/comercial'
                               ? pathname === subItem.href
                               : pathname.startsWith(subItem.href)
 
