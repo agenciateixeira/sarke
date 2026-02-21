@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { TagInput } from '@/components/ui/tag-input'
 import {
   Deal,
   DealFormData,
@@ -294,12 +295,13 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
 
               {/* Data esperada */}
               <div>
-                <Label htmlFor="expected_close_date">Data prevista de fechamento</Label>
+                <Label htmlFor="expected_close_date">Data prevista de fechamento *</Label>
                 <Input
                   id="expected_close_date"
                   type="date"
                   value={formData.expected_close_date}
                   onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
+                  required
                 />
               </div>
             </TabsContent>
@@ -307,12 +309,13 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
             {/* ABA 2: QUALIFICAÇÃO */}
             <TabsContent value="qualificacao" className="space-y-4">
               {/* Origem do Lead */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="lead_source">Origem do Lead</Label>
+                  <Label htmlFor="lead_source">Origem do Lead *</Label>
                   <Select
                     value={formData.lead_source}
                     onValueChange={(value) => setFormData({ ...formData, lead_source: value as LeadSource })}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a origem" />
@@ -327,14 +330,30 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
                   </Select>
                 </div>
 
+                {/* Campo condicional para Indicação */}
                 {formData.lead_source === 'indicacao' && (
                   <div>
-                    <Label htmlFor="lead_source_detail">Quem indicou?</Label>
+                    <Label htmlFor="lead_source_detail">Quem indicou? *</Label>
                     <Input
                       id="lead_source_detail"
                       value={formData.lead_source_detail}
                       onChange={(e) => setFormData({ ...formData, lead_source_detail: e.target.value })}
                       placeholder="Nome de quem indicou"
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* Campo condicional para Outros */}
+                {formData.lead_source === 'outros' && (
+                  <div>
+                    <Label htmlFor="lead_source_detail">Especifique a origem *</Label>
+                    <Input
+                      id="lead_source_detail"
+                      value={formData.lead_source_detail}
+                      onChange={(e) => setFormData({ ...formData, lead_source_detail: e.target.value })}
+                      placeholder="De onde veio este lead?"
+                      required
                     />
                   </div>
                 )}
@@ -474,18 +493,17 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
                 />
               </div>
 
-              {/* Tags (implementação simples por enquanto) */}
+              {/* Tags */}
               <div>
                 <Label htmlFor="tags">Tags</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags?.join(', ')}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
-                  })}
-                  placeholder="urgente, vip, desconto (separadas por vírgula)"
+                <TagInput
+                  value={formData.tags || []}
+                  onChange={(tags) => setFormData({ ...formData, tags })}
+                  placeholder="Digite uma tag e pressione Enter..."
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adicione tags para organizar e filtrar negócios (ex: urgente, vip, desconto)
+                </p>
               </div>
             </TabsContent>
           </Tabs>

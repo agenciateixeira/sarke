@@ -79,6 +79,17 @@ export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
           </div>
         )}
 
+        {/* Tags */}
+        {deal.tags && deal.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {deal.tags.map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-[10px] px-1.5 py-0">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {/* Footer: Responsável e Tempo */}
         <div className="flex items-center justify-between pt-2 border-t">
           {deal.owner ? (
