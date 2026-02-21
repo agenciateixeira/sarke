@@ -228,21 +228,23 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
               {/* Título editável */}
               <div className="flex-1">
                 {editMode ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="text-xl font-semibold"
-                      autoFocus
-                      onBlur={handleSaveTitle}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveTitle()
-                        if (e.key === 'Escape') setEditMode(false)
-                      }}
-                    />
-                  </div>
+                  <DialogTitle asChild>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="text-xl font-semibold"
+                        autoFocus
+                        onBlur={handleSaveTitle}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveTitle()
+                          if (e.key === 'Escape') setEditMode(false)
+                        }}
+                      />
+                    </div>
+                  </DialogTitle>
                 ) : (
-                  <h2
+                  <DialogTitle
                     className={cn(
                       'text-xl font-semibold cursor-pointer hover:text-primary transition-colors',
                       currentTask.is_completed && 'line-through text-muted-foreground'
@@ -250,7 +252,7 @@ export function TaskDetailModal({ open, onOpenChange, task }: TaskDetailModalPro
                     onClick={() => setEditMode(true)}
                   >
                     {currentTask.title}
-                  </h2>
+                  </DialogTitle>
                 )}
                 <p className="text-sm text-muted-foreground mt-1">
                   em {currentTask.column_name || 'Sem coluna'}
