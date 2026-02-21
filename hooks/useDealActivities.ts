@@ -84,12 +84,21 @@ export function useDealActivities(dealId: string) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
+      // Buscar o profile_id do usuário autenticado
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) throw profileError
+
       const { data, error } = await supabase
         .from('deal_activities')
         .insert({
           deal_id: dealId,
           ...activityData,
-          created_by: user.id,
+          created_by: profile.id,
         })
         .select(`
           *,
@@ -209,6 +218,15 @@ export function useDealActivities(dealId: string) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
+      // Buscar o profile_id do usuário autenticado
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) throw profileError
+
       // Upload do arquivo para o Supabase Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${dealId}/${Date.now()}.${fileExt}`
@@ -230,7 +248,7 @@ export function useDealActivities(dealId: string) {
           file_path: filePath,
           file_size: file.size,
           file_type: file.type,
-          uploaded_by: user.id,
+          uploaded_by: profile.id,
           description,
         })
         .select(`
