@@ -80,7 +80,7 @@ export function TaskComments({ taskId, teamMembers }: TaskCommentsProps) {
         .from('task_comments')
         .select(`
           *,
-          author:created_by (
+          author:profiles!created_by (
             id,
             name,
             avatar_url
