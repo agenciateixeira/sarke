@@ -6,6 +6,9 @@ import { Deal, PipelineStage, DealFormData } from '@/types/pipeline'
 export function usePipeline() {
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [deals, setDeals] = useState<Deal[]>([])
+  const [wonDeals, setWonDeals] = useState<Deal[]>([])
+  const [lostDeals, setLostDeals] = useState<Deal[]>([])
+  const [archivedDeals, setArchivedDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
 
   // Buscar estágios do pipeline
@@ -25,7 +28,7 @@ export function usePipeline() {
     }
   }
 
-  // Buscar deals
+  // Buscar deals ativos
   const fetchDeals = async () => {
     try {
       const { data, error } = await supabase
@@ -36,6 +39,7 @@ export function usePipeline() {
           owner:profiles!owner_id (id, name, avatar_url)
         `)
         .eq('status', 'open')
+        .eq('archived', false)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -44,8 +48,71 @@ export function usePipeline() {
     } catch (error) {
       console.error('Error fetching deals:', error)
       toast.error('Erro ao carregar negócios')
-    } finally {
-      setLoading(false)
+    }
+  }
+
+  // Buscar deals ganhos
+  const fetchWonDeals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('deals')
+        .select(`
+          *,
+          client:clients (id, name, email),
+          owner:profiles!owner_id (id, name, avatar_url)
+        `)
+        .eq('status', 'won')
+        .eq('archived', false)
+        .order('actual_close_date', { ascending: false })
+
+      if (error) throw error
+
+      setWonDeals(data || [])
+    } catch (error) {
+      console.error('Error fetching won deals:', error)
+    }
+  }
+
+  // Buscar deals perdidos
+  const fetchLostDeals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('deals')
+        .select(`
+          *,
+          client:clients (id, name, email),
+          owner:profiles!owner_id (id, name, avatar_url)
+        `)
+        .eq('status', 'lost')
+        .eq('archived', false)
+        .order('updated_at', { ascending: false })
+
+      if (error) throw error
+
+      setLostDeals(data || [])
+    } catch (error) {
+      console.error('Error fetching lost deals:', error)
+    }
+  }
+
+  // Buscar deals arquivados
+  const fetchArchivedDeals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('deals')
+        .select(`
+          *,
+          client:clients (id, name, email),
+          owner:profiles!owner_id (id, name, avatar_url)
+        `)
+        .eq('archived', true)
+        .order('archived_at', { ascending: false })
+
+      if (error) throw error
+
+      setArchivedDeals(data || [])
+    } catch (error) {
+      console.error('Error fetching archived deals:', error)
     }
   }
 
@@ -153,9 +220,109 @@ export function usePipeline() {
 
       toast.success(status === 'won' ? 'Negócio ganho!' : 'Negócio perdido')
       await fetchDeals()
+      await fetchWonDeals()
+      await fetchLostDeals()
     } catch (error: any) {
       console.error('Error updating deal status:', error)
       toast.error('Erro ao atualizar status')
+      throw error
+    }
+  }
+
+  // Arquivar deal
+  const archiveDeal = async (dealId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
+      const { error } = await supabase
+        .from('deals')
+        .update({
+          archived: true,
+          archived_at: new Date().toISOString(),
+          archived_by: user.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', dealId)
+
+      if (error) throw error
+
+      toast.success('Negócio arquivado!')
+      await fetchDeals()
+      await fetchWonDeals()
+      await fetchLostDeals()
+      await fetchArchivedDeals()
+    } catch (error: any) {
+      console.error('Error archiving deal:', error)
+      toast.error('Erro ao arquivar negócio')
+      throw error
+    }
+  }
+
+  // Desarquivar deal
+  const unarchiveDeal = async (dealId: string) => {
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .update({
+          archived: false,
+          archived_at: null,
+          archived_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', dealId)
+
+      if (error) throw error
+
+      toast.success('Negócio desarquivado!')
+      await fetchDeals()
+      await fetchWonDeals()
+      await fetchLostDeals()
+      await fetchArchivedDeals()
+    } catch (error: any) {
+      console.error('Error unarchiving deal:', error)
+      toast.error('Erro ao desarquivar negócio')
+      throw error
+    }
+  }
+
+  // Reabrir deal (Won/Lost -> Open)
+  const reopenDeal = async (dealId: string) => {
+    try {
+      // Buscar o deal para pegar o primeiro stage
+      const { data: firstStage } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .order('order_index', { ascending: true })
+        .limit(1)
+        .single()
+
+      if (!firstStage) {
+        toast.error('Nenhum estágio encontrado no pipeline')
+        return
+      }
+
+      const { error } = await supabase
+        .from('deals')
+        .update({
+          status: 'open',
+          stage_id: firstStage.id,
+          lost_reason: null,
+          actual_close_date: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', dealId)
+
+      if (error) throw error
+
+      toast.success('Negócio reaberto e movido para o início do pipeline!')
+      await fetchDeals()
+      await fetchWonDeals()
+      await fetchLostDeals()
+      await fetchArchivedDeals()
+    } catch (error: any) {
+      console.error('Error reopening deal:', error)
+      toast.error('Erro ao reabrir negócio')
       throw error
     }
   }
@@ -285,8 +452,23 @@ export function usePipeline() {
   }
 
   useEffect(() => {
-    fetchStages()
-    fetchDeals()
+    async function loadData() {
+      try {
+        await Promise.all([
+          fetchStages(),
+          fetchDeals(),
+          fetchWonDeals(),
+          fetchLostDeals(),
+          fetchArchivedDeals(),
+        ])
+      } catch (error) {
+        console.error('Error loading pipeline data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
 
     // Subscribe to real-time changes
     const dealsChannel = supabase
@@ -300,6 +482,9 @@ export function usePipeline() {
         },
         () => {
           fetchDeals()
+          fetchWonDeals()
+          fetchLostDeals()
+          fetchArchivedDeals()
         }
       )
       .subscribe()
@@ -328,13 +513,22 @@ export function usePipeline() {
   return {
     stages,
     deals,
+    wonDeals,
+    lostDeals,
+    archivedDeals,
     loading,
     createDeal,
     updateDeal,
     moveDeal,
     updateDealStatus,
+    archiveDeal,
+    unarchiveDeal,
+    reopenDeal,
     deleteDeal,
     refreshDeals: fetchDeals,
+    refreshWonDeals: fetchWonDeals,
+    refreshLostDeals: fetchLostDeals,
+    refreshArchivedDeals: fetchArchivedDeals,
     createStage,
     updateStage,
     deleteStage,

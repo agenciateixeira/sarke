@@ -4,18 +4,29 @@ import { Deal } from '@/types/pipeline'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Building2, Calendar, TrendingUp, User } from 'lucide-react'
+import { Building2, Calendar, TrendingUp, User, MoreVertical, Archive, Trash2, TrophyIcon, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DealCardProps {
   deal: Deal
   onClick?: () => void
   isDragging?: boolean
+  onArchive?: (dealId: string) => void
+  onDelete?: (dealId: string) => void
+  onMarkAsWonLost?: (deal: Deal) => void
 }
 
-export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
+export function DealCard({ deal, onClick, isDragging, onArchive, onDelete, onMarkAsWonLost }: DealCardProps) {
   const formatCurrency = (value?: number) => {
     if (!value) return 'Valor não definido'
     return new Intl.NumberFormat('pt-BR', {
@@ -30,6 +41,11 @@ export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
     return 'text-red-600'
   }
 
+  const handleMenuAction = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation()
+    action()
+  }
+
   return (
     <Card
       className={cn(
@@ -39,17 +55,61 @@ export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
       onClick={onClick}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Título e Cliente */}
-        <div>
-          <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-            {deal.title}
-          </h4>
-          {deal.client && (
-            <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-              <Building2 className="h-3 w-3" />
-              <span className="truncate">{deal.client.name}</span>
-            </div>
-          )}
+        {/* Título e Cliente com Menu de Ações */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+              {deal.title}
+            </h4>
+            {deal.client && (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                <Building2 className="h-3 w-3" />
+                <span className="truncate">{deal.client.name}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Menu de ações */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {onMarkAsWonLost && (
+                <>
+                  <DropdownMenuItem onClick={(e) => handleMenuAction(e, () => onMarkAsWonLost(deal))}>
+                    <TrophyIcon className="h-4 w-4 mr-2 text-green-600" />
+                    Ganhou / Perdeu
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              {onArchive && (
+                <DropdownMenuItem onClick={(e) => handleMenuAction(e, () => onArchive(deal.id))}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Arquivar
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => handleMenuAction(e, () => onDelete(deal.id))}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Valor e Probabilidade */}

@@ -17,7 +17,6 @@ import {
   HardHat,
   ClipboardList,
   FileText,
-  Activity,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -306,10 +305,6 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground">
             Visão geral do sistema — {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-green-500" />
-          <span className="text-xs text-muted-foreground">Sistema ativo</span>
         </div>
       </div>
 

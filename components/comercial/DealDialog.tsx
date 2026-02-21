@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { TagInput } from '@/components/ui/tag-input'
+import { ClientDialog } from './ClientDialog'
 import {
   Deal,
   DealFormData,
@@ -20,7 +21,7 @@ import {
   Temperature,
   Urgency
 } from '@/types/pipeline'
-import { Loader2, Flame, Snowflake, ThermometerSun } from 'lucide-react'
+import { Loader2, Flame, Snowflake, ThermometerSun, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Client {
@@ -85,6 +86,7 @@ const URGENCIES: { value: Urgency; label: string; color: string }[] = [
 export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDialogProps) {
   const [loading, setLoading] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
+  const [clientDialogOpen, setClientDialogOpen] = useState(false)
   const [formData, setFormData] = useState<DealFormData>({
     title: '',
     description: '',
@@ -187,6 +189,53 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
     setFormData({ ...formData, client_id: clientId })
   }
 
+  // Handler quando um novo cliente é criado no ClientDialog
+  const handleSaveClient = async (clientData: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return { error: 'Usuário não autenticado' }
+      }
+
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          ...clientData,
+          owner_id: user.id,
+          status: clientData.status || 'prospect'
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating client:', error)
+        return { error: error.message }
+      }
+
+      // Atualizar lista de clientes
+      const { data: updatedClients } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name')
+
+      if (updatedClients) setClients(updatedClients)
+
+      // Selecionar o cliente recém-criado e auto-preencher título
+      setFormData({
+        ...formData,
+        client_id: data.id,
+        title: !deal && (!formData.title || clients.some(c => formData.title === c.name))
+          ? data.name
+          : formData.title
+      })
+
+      return { error: null }
+    } catch (error: any) {
+      console.error('Error creating client:', error)
+      return { error: error.message || 'Erro ao criar cliente' }
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -245,7 +294,19 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
               {/* Cliente e Estágio */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="client">Cliente</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="client">Cliente</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto py-0 px-2 text-xs"
+                      onClick={() => setClientDialogOpen(true)}
+                    >
+                      <UserPlus className="h-3 w-3 mr-1" />
+                      Novo Cliente
+                    </Button>
+                  </div>
                   <Select
                     value={formData.client_id}
                     onValueChange={handleClientChange}
@@ -547,6 +608,13 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
             </Button>
           </div>
         </form>
+
+        {/* Dialog de criação de cliente */}
+        <ClientDialog
+          open={clientDialogOpen}
+          onOpenChange={setClientDialogOpen}
+          onSave={handleSaveClient}
+        />
       </DialogContent>
     </Dialog>
   )

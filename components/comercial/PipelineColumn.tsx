@@ -27,9 +27,24 @@ interface PipelineColumnProps {
   onDealClick: (deal: Deal) => void
   onEditStage: (stage: PipelineStage) => void
   onDeleteStage: (stage: PipelineStage) => void
+  onArchiveDeal: (dealId: string) => void
+  onDeleteDeal: (dealId: string) => void
+  onMarkAsWonLost: (deal: Deal) => void
 }
 
-function SortableDealCard({ deal, onClick }: { deal: Deal; onClick: () => void }) {
+function SortableDealCard({
+  deal,
+  onClick,
+  onArchive,
+  onDelete,
+  onMarkAsWonLost,
+}: {
+  deal: Deal
+  onClick: () => void
+  onArchive: (dealId: string) => void
+  onDelete: (dealId: string) => void
+  onMarkAsWonLost: (deal: Deal) => void
+}) {
   const {
     attributes,
     listeners,
@@ -46,12 +61,29 @@ function SortableDealCard({ deal, onClick }: { deal: Deal; onClick: () => void }
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <DealCard deal={deal} onClick={onClick} isDragging={isDragging} />
+      <DealCard
+        deal={deal}
+        onClick={onClick}
+        isDragging={isDragging}
+        onArchive={onArchive}
+        onDelete={onDelete}
+        onMarkAsWonLost={onMarkAsWonLost}
+      />
     </div>
   )
 }
 
-export function PipelineColumn({ stage, deals, totalValue, onDealClick, onEditStage, onDeleteStage }: PipelineColumnProps) {
+export function PipelineColumn({
+  stage,
+  deals,
+  totalValue,
+  onDealClick,
+  onEditStage,
+  onDeleteStage,
+  onArchiveDeal,
+  onDeleteDeal,
+  onMarkAsWonLost,
+}: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
   })
@@ -183,6 +215,9 @@ export function PipelineColumn({ stage, deals, totalValue, onDealClick, onEditSt
                 key={deal.id}
                 deal={deal}
                 onClick={() => onDealClick(deal)}
+                onArchive={onArchiveDeal}
+                onDelete={onDeleteDeal}
+                onMarkAsWonLost={onMarkAsWonLost}
               />
             ))
           )}
