@@ -109,7 +109,12 @@ export function DealActivitiesTimeline({ dealId }: DealActivitiesTimelineProps) 
       )}
 
       {/* Botão Adicionar Atividade */}
-      <Button onClick={() => setActivityDialogOpen(true)} className="w-full" variant="outline">
+      <Button
+        type="button"
+        onClick={() => setActivityDialogOpen(true)}
+        className="w-full"
+        variant="outline"
+      >
         <Plus className="h-4 w-4 mr-2" />
         Adicionar Atividade
       </Button>

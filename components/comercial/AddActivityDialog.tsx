@@ -41,12 +41,15 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit }: AddActivityD
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('🎯 [AddActivityDialog] handleSubmit chamado!', formData)
     e.preventDefault()
     e.stopPropagation() // Prevenir que o evento suba para o form pai (DealDialog)
     setLoading(true)
 
     try {
+      console.log('📤 [AddActivityDialog] Chamando onSubmit...')
       await onSubmit(formData)
+      console.log('✅ [AddActivityDialog] onSubmit concluído!')
       onOpenChange(false)
       // Reset form
       setFormData({
@@ -57,7 +60,7 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit }: AddActivityD
         duration_minutes: undefined,
       })
     } catch (error) {
-      console.error('Error submitting activity:', error)
+      console.error('❌ [AddActivityDialog] Error submitting activity:', error)
     } finally {
       setLoading(false)
     }
