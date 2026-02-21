@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -8,6 +9,7 @@ import { DealCard } from './DealCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,10 +51,45 @@ function SortableDealCard({ deal, onClick }: { deal: Deal; onClick: () => void }
   )
 }
 
-export function PipelineColumn({ stage, deals, totalValue, onDealClick }: PipelineColumnProps) {
+export function PipelineColumn({ stage, deals, totalValue, onDealClick, onEditStage, onDeleteStage }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
   })
+
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editedName, setEditedName] = useState(stage.name)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setEditedName(stage.name)
+  }, [stage.name])
+
+  useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditingName])
+
+  const handleDoubleClick = () => {
+    setIsEditingName(true)
+  }
+
+  const handleNameSave = async () => {
+    if (editedName.trim() && editedName !== stage.name) {
+      await onEditStage({ ...stage, name: editedName.trim() })
+    }
+    setIsEditingName(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameSave()
+    } else if (e.key === 'Escape') {
+      setEditedName(stage.name)
+      setIsEditingName(false)
+    }
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -74,14 +111,31 @@ export function PipelineColumn({ stage, deals, totalValue, onDealClick }: Pipeli
       {/* Header da coluna */}
       <div className="p-4 border-b" style={{ borderColor: stage.color }}>
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <div
-              className="w-3 h-3 rounded-full"
+              className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: stage.color }}
             />
-            <h3 className="font-semibold">{stage.name}</h3>
+            {isEditingName ? (
+              <Input
+                ref={inputRef}
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleKeyDown}
+                className="h-7 text-sm font-semibold px-2 py-0"
+              />
+            ) : (
+              <h3
+                className="font-semibold cursor-pointer hover:text-primary transition-colors truncate"
+                onDoubleClick={handleDoubleClick}
+                title="Duplo clique para editar"
+              >
+                {stage.name}
+              </h3>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Badge variant="secondary">{deals.length}</Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -92,7 +146,7 @@ export function PipelineColumn({ stage, deals, totalValue, onDealClick }: Pipeli
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEditStage(stage)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Editar
+                  Editar Completo
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onDeleteStage(stage)} className="text-destructive">

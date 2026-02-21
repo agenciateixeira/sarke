@@ -51,9 +51,15 @@ export default function PipelinePage() {
     setStageDialogOpen(true)
   }
 
-  const handleEditStage = (stage: PipelineStage) => {
-    setSelectedStage(stage)
-    setStageDialogOpen(true)
+  const handleEditStage = async (stage: PipelineStage) => {
+    // Se apenas o nome foi alterado (edição rápida por duplo clique)
+    if (stage.name !== stages.find(s => s.id === stage.id)?.name) {
+      await updateStage(stage.id, { name: stage.name })
+    } else {
+      // Abre o dialog para edição completa
+      setSelectedStage(stage)
+      setStageDialogOpen(true)
+    }
   }
 
   const handleDeleteStage = (stage: PipelineStage) => {
