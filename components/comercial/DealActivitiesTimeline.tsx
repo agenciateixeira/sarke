@@ -1,10 +1,11 @@
 'use client'
 
 import { useDealActivities } from '@/hooks/useDealActivities'
-import { DealActivity, ActivityType } from '@/types/pipeline'
+import { DealActivity, ActivityType, DealActivityFormData } from '@/types/pipeline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { AddActivityDialog } from './AddActivityDialog'
 import {
   Phone,
   Mail,
@@ -24,7 +25,6 @@ import { useState } from 'react'
 
 interface DealActivitiesTimelineProps {
   dealId: string
-  onAddActivity?: () => void
 }
 
 const activityIcons: Record<ActivityType, React.ComponentType<{ className?: string }>> = {
@@ -54,9 +54,15 @@ const activityLabels: Record<ActivityType, string> = {
   status_change: 'Status',
 }
 
-export function DealActivitiesTimeline({ dealId, onAddActivity }: DealActivitiesTimelineProps) {
-  const { activities, stats, loading, completeTask, reopenTask, deleteActivity } = useDealActivities(dealId)
+export function DealActivitiesTimeline({ dealId }: DealActivitiesTimelineProps) {
+  const { activities, stats, loading, completeTask, reopenTask, deleteActivity, createActivity } = useDealActivities(dealId)
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set())
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false)
+
+  const handleCreateActivity = async (data: DealActivityFormData) => {
+    await createActivity(data)
+    setActivityDialogOpen(false)
+  }
 
   const toggleExpand = (activityId: string) => {
     const newExpanded = new Set(expandedActivities)
@@ -103,10 +109,17 @@ export function DealActivitiesTimeline({ dealId, onAddActivity }: DealActivities
       )}
 
       {/* Botão Adicionar Atividade */}
-      <Button onClick={onAddActivity} className="w-full" variant="outline">
+      <Button onClick={() => setActivityDialogOpen(true)} className="w-full" variant="outline">
         <Plus className="h-4 w-4 mr-2" />
         Adicionar Atividade
       </Button>
+
+      {/* Dialog de adicionar atividade */}
+      <AddActivityDialog
+        open={activityDialogOpen}
+        onOpenChange={setActivityDialogOpen}
+        onSubmit={handleCreateActivity}
+      />
 
       {/* Timeline */}
       <div className="space-y-4">
