@@ -54,8 +54,28 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Atualizar a sessão (importante para o Supabase funcionar corretamente)
-  await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // Rotas públicas que não precisam de autenticação
+  const publicRoutes = ['/login', '/cadastro', '/esqueci-senha', '/resetar-senha', '/auth', '/fora-horario']
+  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+
+  // Se não tem sessão e está tentando acessar área protegida, redireciona para login
+  if (!session && !isPublicRoute && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Se está na raiz, redireciona para login ou dashboard
+  if (request.nextUrl.pathname === '/') {
+    if (session) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
 
   return response
 }
