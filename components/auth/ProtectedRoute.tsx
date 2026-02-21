@@ -66,10 +66,16 @@ export const ProtectedRoute = ({
   }, [user, loading])
 
   useEffect(() => {
+    // Redireciona IMEDIATAMENTE se não tem usuário e terminou de carregar
+    if (!loading && !user) {
+      router.replace('/login')
+      return
+    }
+
     if (!loading && !checkingAccess) {
       // Se não está autenticado, redireciona para login
       if (!user) {
-        router.push('/login')
+        router.replace('/login')
         return
       }
 
