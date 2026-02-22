@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
+
+interface AutomationRule {
+  id: string
+  name: string
+  description?: string
+  trigger_type: string
+  trigger_conditions: any
+  actions: any
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 interface AutomationLog {
   id: string
@@ -23,9 +36,24 @@ interface AutomationStats {
 }
 
 export function useAutomations() {
+  const [rules, setRules] = useState<AutomationRule[]>([])
   const [logs, setLogs] = useState<AutomationLog[]>([])
   const [stats, setStats] = useState<AutomationStats[]>([])
   const [loading, setLoading] = useState(true)
+
+  const fetchRules = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pipeline_automation_rules')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setRules(data || [])
+    } catch (error) {
+      console.error('Error fetching automation rules:', error)
+    }
+  }
 
   const fetchLogs = async () => {
     try {
@@ -44,8 +72,7 @@ export function useAutomations() {
 
   const fetchStats = async () => {
     try {
-      // Buscar estatísticas agrupadas manualmente (já que a view pode não existir)
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('automation_execution_log')
         .select('automation_name, automation_type, status, created_at')
 
@@ -86,17 +113,49 @@ export function useAutomations() {
     }
   }
 
+  const toggleAutomation = async (id: string, currentState: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pipeline_automation_rules')
+        .update({ is_active: !currentState })
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast.success(!currentState ? 'Automação ativada' : 'Automação desativada')
+      await fetchRules()
+    } catch (error: any) {
+      console.error('Error toggling automation:', error)
+      toast.error('Erro ao atualizar automação')
+    }
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
-      await Promise.all([fetchLogs(), fetchStats()])
+      await Promise.all([fetchRules(), fetchLogs(), fetchStats()])
       setLoading(false)
     }
 
     fetchData()
 
     // Subscription para atualizações em tempo real
-    const subscription = supabase
+    const rulesSubscription = supabase
+      .channel('automation_rules')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pipeline_automation_rules',
+        },
+        () => {
+          fetchRules()
+        }
+      )
+      .subscribe()
+
+    const logsSubscription = supabase
       .channel('automation_logs')
       .on(
         'postgres_changes',
@@ -106,22 +165,26 @@ export function useAutomations() {
           table: 'automation_execution_log',
         },
         () => {
-          fetchData()
+          fetchLogs()
+          fetchStats()
         }
       )
       .subscribe()
 
     return () => {
-      subscription.unsubscribe()
+      rulesSubscription.unsubscribe()
+      logsSubscription.unsubscribe()
     }
   }, [])
 
   return {
+    rules,
     logs,
     stats,
     loading,
+    toggleAutomation,
     refetch: async () => {
-      await Promise.all([fetchLogs(), fetchStats()])
+      await Promise.all([fetchRules(), fetchLogs(), fetchStats()])
     },
   }
 }
