@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Client, Deal, ArchitectureProject, Contract, ClientActivity } from '@/types/crm'
+import { Obra } from '@/types/obra'
 
 interface ClientDetailsData {
   client: Client | null
@@ -8,6 +9,7 @@ interface ClientDetailsData {
   projects: ArchitectureProject[]
   contracts: Contract[]
   activities: ClientActivity[]
+  obras: Obra[]
   loading: boolean
   updateClient: (data: Partial<Client>) => Promise<{ error: string | null }>
   refetch: () => Promise<void>
@@ -19,6 +21,7 @@ export function useClientDetails(clientId: string): ClientDetailsData {
   const [projects, setProjects] = useState<ArchitectureProject[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [activities, setActivities] = useState<ClientActivity[]>([])
+  const [obras, setObras] = useState<Obra[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchClient = async () => {
@@ -101,6 +104,22 @@ export function useClientDetails(clientId: string): ClientDetailsData {
     }
   }
 
+  const fetchObras = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('obras')
+        .select('*')
+        .eq('cliente_id', clientId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setObras(data || [])
+    } catch (error) {
+      console.error('Error fetching obras:', error)
+      setObras([])
+    }
+  }
+
   const updateClient = async (data: Partial<Client>) => {
     try {
       const { error } = await supabase
@@ -126,6 +145,7 @@ export function useClientDetails(clientId: string): ClientDetailsData {
       fetchProjects(),
       fetchContracts(),
       fetchActivities(),
+      fetchObras(),
     ])
     setLoading(false)
   }
@@ -214,12 +234,29 @@ export function useClientDetails(clientId: string): ClientDetailsData {
       )
       .subscribe()
 
+    const obrasSubscription = supabase
+      .channel(`client_obras_${clientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'obras',
+          filter: `cliente_id=eq.${clientId}`,
+        },
+        () => {
+          fetchObras()
+        }
+      )
+      .subscribe()
+
     return () => {
       clientSubscription.unsubscribe()
       dealsSubscription.unsubscribe()
       projectsSubscription.unsubscribe()
       contractsSubscription.unsubscribe()
       activitiesSubscription.unsubscribe()
+      obrasSubscription.unsubscribe()
     }
   }, [clientId])
 
@@ -229,6 +266,7 @@ export function useClientDetails(clientId: string): ClientDetailsData {
     projects,
     contracts,
     activities,
+    obras,
     loading,
     updateClient,
     refetch,

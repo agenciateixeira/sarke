@@ -21,6 +21,7 @@ import {
   Activity,
   FolderOpen,
   Calendar,
+  HardHat,
 } from 'lucide-react'
 import { ClientDialog } from '@/components/comercial/ClientDialog'
 import { ClientResumo } from '@/components/comercial/client-details/ClientResumo'
@@ -28,6 +29,7 @@ import { ClientDeals } from '@/components/comercial/client-details/ClientDeals'
 import { ClientProjects } from '@/components/comercial/client-details/ClientProjects'
 import { ClientContracts } from '@/components/comercial/client-details/ClientContracts'
 import { ClientActivities } from '@/components/comercial/client-details/ClientActivities'
+import { ClientObras } from '@/components/comercial/client-details/ClientObras'
 import { toast } from 'sonner'
 
 export default function ClientDetailPage() {
@@ -35,7 +37,7 @@ export default function ClientDetailPage() {
   const router = useRouter()
   const clientId = params.id as string
 
-  const { client, deals, projects, contracts, activities, loading, updateClient, refetch } = useClientDetails(clientId)
+  const { client, deals, projects, contracts, activities, obras, loading, updateClient, refetch } = useClientDetails(clientId)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('resumo')
 
@@ -141,7 +143,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Deals</CardTitle>
@@ -159,6 +161,16 @@ export default function ClientDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{projects.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Obras</CardTitle>
+            <HardHat className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{obras.length}</div>
           </CardContent>
         </Card>
 
@@ -185,7 +197,7 @@ export default function ClientDetailPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <TabsList className="grid w-full max-w-3xl grid-cols-5">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6">
           <TabsTrigger value="resumo" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Resumo
@@ -197,6 +209,10 @@ export default function ClientDetailPage() {
           <TabsTrigger value="projetos" className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
             Projetos
+          </TabsTrigger>
+          <TabsTrigger value="obras" className="flex items-center gap-2">
+            <HardHat className="h-4 w-4" />
+            Obras
           </TabsTrigger>
           <TabsTrigger value="contratos" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -218,6 +234,10 @@ export default function ClientDetailPage() {
 
         <TabsContent value="projetos" className="mt-6">
           <ClientProjects projects={projects} clientId={clientId} refetch={refetch} />
+        </TabsContent>
+
+        <TabsContent value="obras" className="mt-6">
+          <ClientObras obras={obras} clientId={clientId} refetch={refetch} />
         </TabsContent>
 
         <TabsContent value="contratos" className="mt-6">
