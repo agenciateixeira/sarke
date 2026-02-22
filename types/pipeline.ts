@@ -293,3 +293,268 @@ export interface DealActivityStats {
   overdue_tasks_count: number
   last_activity_at: string
 }
+
+// =============================================
+// AUTOMAÇÕES (FASE 2)
+// =============================================
+
+export type AutomationTriggerType =
+  | 'stage_changed'      // Quando muda de etapa
+  | 'time_in_stage'      // Após X dias na mesma etapa
+  | 'inactivity'         // Sem atividades há X dias
+  | 'temperature_changed' // Quando temperatura muda
+  | 'value_changed'      // Quando valor muda
+  | 'scheduled'          // Execução agendada
+
+export type AutomationActionType =
+  | 'move_to_stage'      // Mover para outra etapa
+  | 'create_task'        // Criar tarefa
+  | 'send_notification'  // Enviar notificação
+  | 'change_temperature' // Alterar temperatura
+  | 'archive_deal'       // Arquivar deal
+  | 'assign_owner'       // Atribuir responsável
+  | 'send_email'         // Enviar email
+
+export type AutomationLogStatus = 'success' | 'failed' | 'skipped'
+
+export interface AutomationConditions {
+  stage_id?: string
+  temperature?: Temperature
+  days_in_stage?: number
+  days_without_activity?: number
+  value_min?: number
+  value_max?: number
+  business_type?: BusinessType
+  lead_source?: LeadSource
+  status?: DealStatus
+}
+
+export interface AutomationActionParams {
+  // Para move_to_stage
+  target_stage_id?: string
+
+  // Para create_task
+  title?: string
+  description?: string
+  due_days?: number
+
+  // Para send_notification
+  message?: string
+  users?: string[]
+
+  // Para change_temperature
+  temperature?: Temperature
+
+  // Para assign_owner
+  owner_id?: string
+}
+
+export interface AutomationRule {
+  id: string
+  name: string
+  description?: string
+  is_active: boolean
+
+  // Trigger
+  trigger_type: AutomationTriggerType
+  conditions: AutomationConditions
+
+  // Action
+  action_type: AutomationActionType
+  action_params: AutomationActionParams
+
+  // Controle
+  created_at: string
+  updated_at: string
+  created_by?: string
+
+  // Estatísticas
+  execution_count: number
+  last_execution_at?: string
+  priority: number
+}
+
+export interface AutomationLog {
+  id: string
+  rule_id: string
+  deal_id: string
+  executed_at: string
+  status: AutomationLogStatus
+  trigger_data?: Record<string, any>
+  action_result?: Record<string, any>
+  error_message?: string
+  executed_by?: string
+}
+
+export interface AutomationAction {
+  id: string
+  log_id: string
+  deal_id: string
+  action_type: AutomationActionType
+  action_details: Record<string, any>
+  previous_state: Record<string, any>
+  can_undo: boolean
+  undone_at?: string
+  undone_by?: string
+  created_at: string
+}
+
+export interface AutomationStats {
+  rule_id: string
+  name: string
+  trigger_type: AutomationTriggerType
+  action_type: AutomationActionType
+  is_active: boolean
+  execution_count: number
+  last_execution_at?: string
+  success_count: number
+  failed_count: number
+  skipped_count: number
+  undone_count: number
+}
+
+export interface AutomationRuleFormData {
+  name: string
+  description?: string
+  is_active: boolean
+  trigger_type: AutomationTriggerType
+  conditions: AutomationConditions
+  action_type: AutomationActionType
+  action_params: AutomationActionParams
+  priority?: number
+}
+
+// =============================================
+// TEMPLATES DE COMUNICAÇÃO (SPRINT 2)
+// =============================================
+
+export type TemplateType = 'email' | 'whatsapp' | 'sms'
+
+export type TemplateCategory =
+  | 'follow_up'
+  | 'proposal'
+  | 'reminder'
+  | 'welcome'
+  | 'thank_you'
+  | 'negotiation'
+  | 'closing'
+  | 'other'
+
+export type SendStatus =
+  | 'pending'
+  | 'sent'
+  | 'delivered'
+  | 'failed'
+  | 'bounced'
+
+export type RecipientType = 'client' | 'deal' | 'contact'
+
+export type VariableType = 'text' | 'number' | 'date' | 'currency' | 'boolean'
+
+export type VariableCategory = 'client' | 'deal' | 'user' | 'company' | 'system'
+
+export interface CommunicationTemplate {
+  id: string
+  name: string
+  description?: string
+  type: TemplateType
+  category?: TemplateCategory
+
+  // Conteúdo
+  subject?: string // Apenas para emails
+  body: string
+
+  // Variáveis
+  available_variables: string[]
+
+  // Metadados
+  is_active: boolean
+  is_default: boolean
+  usage_count: number
+  last_used_at?: string
+
+  // Auditoria
+  created_at: string
+  updated_at: string
+  created_by?: string
+}
+
+export interface TemplateVariable {
+  id: string
+  variable_key: string
+  variable_label: string
+  variable_description?: string
+  variable_type: VariableType
+  variable_category: VariableCategory
+  example_value?: string
+  format_mask?: string
+  created_at: string
+}
+
+export interface CommunicationSend {
+  id: string
+  template_id?: string
+
+  // Destinatário
+  recipient_type: RecipientType
+  recipient_id: string
+  recipient_email?: string
+  recipient_phone?: string
+
+  // Conteúdo renderizado
+  rendered_subject?: string
+  rendered_body: string
+
+  // Status
+  status: SendStatus
+  provider?: string
+  provider_message_id?: string
+  error_message?: string
+
+  // Timestamps
+  sent_at?: string
+  delivered_at?: string
+  opened_at?: string
+  clicked_at?: string
+
+  // Contexto
+  source?: 'manual' | 'automation' | 'workflow'
+  source_id?: string
+
+  // Auditoria
+  created_at: string
+  created_by?: string
+}
+
+export interface TemplateFormData {
+  name: string
+  description?: string
+  type: TemplateType
+  category?: TemplateCategory
+  subject?: string
+  body: string
+  available_variables?: string[]
+  is_active?: boolean
+  is_default?: boolean
+}
+
+export interface RenderTemplateParams {
+  template_id: string
+  variables: Record<string, string>
+}
+
+export interface RenderedTemplate {
+  subject?: string
+  body: string
+}
+
+export interface SendTemplateParams {
+  template_id: string
+  recipient_type: RecipientType
+  recipient_id: string
+  recipient_email?: string
+  recipient_phone?: string
+  variables: Record<string, string>
+  source?: 'manual' | 'automation' | 'workflow'
+  source_id?: string
+}

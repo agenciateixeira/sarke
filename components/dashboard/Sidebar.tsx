@@ -40,6 +40,7 @@ import {
   ClipboardList,
   FileText,
   Briefcase,
+  Zap,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/auth/ThemeToggle'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -152,6 +153,16 @@ const menuItems: MenuItem[] = [
       {
         title: 'Atividades',
         href: '/dashboard/comercial/atividades',
+        setor: 'comercial',
+      },
+      {
+        title: 'Automações',
+        href: '/dashboard/comercial/automacoes',
+        setor: 'comercial',
+      },
+      {
+        title: 'Templates',
+        href: '/dashboard/comercial/templates',
         setor: 'comercial',
       },
       {
