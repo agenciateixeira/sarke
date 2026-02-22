@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { TagInput } from '@/components/ui/tag-input'
 import { ClientDialog } from './ClientDialog'
 import { DealActivitiesTimeline } from './DealActivitiesTimeline'
+import { DealDocumentsManager } from './DealDocumentsManager'
 import {
   Deal,
   DealFormData,
@@ -260,11 +261,12 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="basico" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className={`grid w-full ${deal?.id ? 'grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="basico">Informações Básicas</TabsTrigger>
               <TabsTrigger value="qualificacao">Qualificação</TabsTrigger>
               <TabsTrigger value="followup">Follow-up & Notas</TabsTrigger>
               {deal?.id && <TabsTrigger value="atividades">Atividades</TabsTrigger>}
+              {deal?.id && <TabsTrigger value="documentos">Documentos</TabsTrigger>}
             </TabsList>
 
             {/* ABA 1: INFORMAÇÕES BÁSICAS */}
@@ -597,6 +599,13 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
             {deal?.id && (
               <TabsContent value="atividades" className="space-y-4">
                 <DealActivitiesTimeline dealId={deal.id} />
+              </TabsContent>
+            )}
+
+            {/* ABA 5: DOCUMENTOS */}
+            {deal?.id && (
+              <TabsContent value="documentos" className="space-y-4">
+                <DealDocumentsManager dealId={deal.id} />
               </TabsContent>
             )}
           </Tabs>

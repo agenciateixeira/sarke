@@ -15,8 +15,10 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 
 export function NotificationBell() {
+  const router = useRouter()
   const {
     notifications,
     unreadCount,
@@ -24,6 +26,18 @@ export function NotificationBell() {
     markAllAsRead,
     deleteNotification,
   } = useNotifications()
+
+  const handleNotificationClick = (notification: any) => {
+    // Mark as read
+    if (!notification.read) {
+      markAsRead(notification.id)
+    }
+
+    // Navigate if has link
+    if (notification.link) {
+      router.push(notification.link)
+    }
+  }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -49,6 +63,25 @@ export function NotificationBell() {
         return '📊'
       case 'message':
         return '💬'
+      // Pipeline notifications
+      case 'deal_stage_changed':
+        return '🔄'
+      case 'deal_assigned':
+        return '👤'
+      case 'automation_executed':
+        return '🤖'
+      case 'automation_failed':
+        return '❌'
+      case 'document_approval_requested':
+        return '📝'
+      case 'document_approval_approved':
+        return '✅'
+      case 'document_approval_rejected':
+        return '❌'
+      case 'document_uploaded':
+        return '📎'
+      case 'deadline_approaching':
+        return '⏰'
       default:
         return '📌'
     }
@@ -99,7 +132,7 @@ export function NotificationBell() {
                   'flex flex-col items-start p-3 cursor-pointer',
                   !notification.read && 'bg-muted/50'
                 )}
-                onClick={() => !notification.read && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start justify-between w-full gap-2">
                   <div className="flex items-start gap-2 flex-1">
@@ -108,17 +141,27 @@ export function NotificationBell() {
                       <p className="text-sm font-medium leading-none">
                         {notification.title}
                       </p>
-                      {notification.description && (
+                      {(notification.message || notification.description) && (
                         <p className="text-xs text-muted-foreground line-clamp-2">
-                          {notification.description}
+                          {notification.message || notification.description}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(notification.created_at), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </p>
+                        {notification.action_label && notification.link && (
+                          <>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <span className="text-xs text-primary font-medium">
+                              {notification.action_label}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">

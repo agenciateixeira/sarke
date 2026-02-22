@@ -13,6 +13,10 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    // Otimizações para navegação instantânea
+    optimisticClientCache: true,
+  },
 }
 
 module.exports = nextConfig

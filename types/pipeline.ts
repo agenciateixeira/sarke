@@ -558,3 +558,215 @@ export interface SendTemplateParams {
   source?: 'manual' | 'automation' | 'workflow'
   source_id?: string
 }
+
+// =============================================
+// NOTIFICAÇÕES (SPRINT 4)
+// =============================================
+
+export type NotificationType =
+  | 'deal_stage_changed'
+  | 'deal_assigned'
+  | 'automation_executed'
+  | 'automation_failed'
+  | 'document_approval_requested'
+  | 'document_approval_approved'
+  | 'document_approval_rejected'
+  | 'document_uploaded'
+  | 'task_assigned'
+  | 'deadline_approaching'
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent'
+
+export type NotificationChannel = 'in_app' | 'email' | 'both' | 'none'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  message: string
+  link?: string
+  action_label?: string
+  data: Record<string, any>
+  deal_id?: string
+  document_id?: string
+  automation_log_id?: string
+  read: boolean
+  read_at?: string
+  priority: NotificationPriority
+  created_at: string
+  expires_at?: string
+}
+
+export interface NotificationPreference {
+  id: string
+  user_id: string
+  notification_type: string
+  enabled: boolean
+  channel: NotificationChannel
+  email_digest: boolean
+  digest_frequency?: 'daily' | 'weekly'
+  digest_time?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationPreferenceFormData {
+  notification_type: string
+  enabled: boolean
+  channel: NotificationChannel
+  email_digest?: boolean
+  digest_frequency?: 'daily' | 'weekly'
+  digest_time?: string
+}
+
+// =============================================
+// DOCUMENTOS (SPRINT 4)
+// =============================================
+
+export type DocumentCategory =
+  | 'proposta'
+  | 'contrato'
+  | 'planta'
+  | 'orcamento'
+  | 'planilha'
+  | 'rrt_art'
+  | 'imagem'
+  | 'email'
+  | 'outro'
+
+export type DocumentStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected'
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface DealDocument {
+  id: string
+  deal_id: string
+  category: DocumentCategory
+  file_name: string
+  file_path: string
+  file_size: number
+  file_type: string
+  version: number
+  is_current: boolean
+  parent_document_id?: string
+  description?: string
+  tags?: string[]
+  status: DocumentStatus
+  requires_approval: boolean
+  is_shared: boolean
+  shared_with_client: boolean
+  uploaded_by: string
+  uploaded_at: string
+  created_at: string
+  updated_at: string
+
+  // Relacionamentos expandidos
+  uploader?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+}
+
+export interface DocumentVersion {
+  id: string
+  document_id: string
+  version: number
+  file_path: string
+  file_size: number
+  changes_description?: string
+  uploaded_by: string
+  uploaded_at: string
+
+  // Relacionamentos expandidos
+  uploader?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+}
+
+export interface DocumentApproval {
+  id: string
+  document_id: string
+  approver_id: string
+  status: ApprovalStatus
+  comment?: string
+  required: boolean
+  order_index: number
+  approved_at?: string
+  created_at: string
+
+  // Relacionamentos expandidos
+  approver?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+  document?: DealDocument
+}
+
+export interface DocumentSharedLink {
+  id: string
+  document_id: string
+  token: string
+  password_hash?: string
+  expires_at?: string
+  max_downloads?: number
+  download_count: number
+  created_by: string
+  created_at: string
+  last_accessed_at?: string
+}
+
+export interface DocumentLinkAccess {
+  id: string
+  link_id: string
+  accessed_at: string
+  ip_address?: string
+  user_agent?: string
+  action: 'view' | 'download'
+  success: boolean
+}
+
+export interface DealDocumentFormData {
+  deal_id: string
+  category: DocumentCategory
+  file_name: string
+  file_path: string
+  file_size: number
+  file_type: string
+  description?: string
+  tags?: string[]
+  requires_approval?: boolean
+  shared_with_client?: boolean
+}
+
+export interface DocumentApprovalFormData {
+  document_id: string
+  approver_id: string
+  required?: boolean
+  order_index?: number
+}
+
+export interface DocumentSharedLinkFormData {
+  document_id: string
+  password?: string
+  expires_at?: string
+  max_downloads?: number
+}
+
+export interface DocumentComment {
+  id: string
+  document_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+  user?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+}

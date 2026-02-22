@@ -34,6 +34,16 @@ export type NotificationType =
   | 'comment_added'
   | 'project_updated'
   | 'message'
+  // Pipeline notifications
+  | 'deal_stage_changed'
+  | 'deal_assigned'
+  | 'automation_executed'
+  | 'automation_failed'
+  | 'document_approval_requested'
+  | 'document_approval_approved'
+  | 'document_approval_rejected'
+  | 'document_uploaded'
+  | 'deadline_approaching'
 
 export interface Notification {
   id: string
@@ -42,16 +52,36 @@ export interface Notification {
   title: string
   description?: string
   message?: string
+
+  // Action/Link
+  link?: string
+  action_label?: string
+
+  // Old reference fields (backwards compatibility)
   reference_type?: string
   reference_id?: string
   related_task_id?: string
   related_subtask_id?: string
   related_project_id?: string
+
+  // Pipeline-specific fields
+  deal_id?: string
+  document_id?: string
+  automation_log_id?: string
+  data?: Record<string, any>
+
+  // Priority
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
+
+  // Status
   read: boolean
   is_read?: boolean
   read_at?: string
+
+  // Timestamps
   created_at: string
   updated_at?: string
+  expires_at?: string
 }
 
 export const notificationTypeLabels: Record<string, string> = {
@@ -66,6 +96,16 @@ export const notificationTypeLabels: Record<string, string> = {
   comment_added: 'Novo Comentário',
   project_updated: 'Projeto Atualizado',
   message: 'Mensagem',
+  // Pipeline
+  deal_stage_changed: 'Etapa Alterada',
+  deal_assigned: 'Deal Atribuído',
+  automation_executed: 'Automação Executada',
+  automation_failed: 'Automação Falhou',
+  document_approval_requested: 'Aprovação Solicitada',
+  document_approval_approved: 'Documento Aprovado',
+  document_approval_rejected: 'Documento Rejeitado',
+  document_uploaded: 'Documento Enviado',
+  deadline_approaching: 'Prazo Próximo',
 }
 
 export const notificationTypeColors: Record<string, string> = {
@@ -80,6 +120,16 @@ export const notificationTypeColors: Record<string, string> = {
   comment_added: 'bg-purple-100 text-purple-800',
   project_updated: 'bg-gray-100 text-gray-800',
   message: 'bg-indigo-100 text-indigo-800',
+  // Pipeline
+  deal_stage_changed: 'bg-blue-100 text-blue-800',
+  deal_assigned: 'bg-purple-100 text-purple-800',
+  automation_executed: 'bg-green-100 text-green-800',
+  automation_failed: 'bg-red-100 text-red-800',
+  document_approval_requested: 'bg-yellow-100 text-yellow-800',
+  document_approval_approved: 'bg-green-100 text-green-800',
+  document_approval_rejected: 'bg-red-100 text-red-800',
+  document_uploaded: 'bg-blue-100 text-blue-800',
+  deadline_approaching: 'bg-orange-100 text-orange-800',
 }
 
 export interface CreateAccessRequestData {

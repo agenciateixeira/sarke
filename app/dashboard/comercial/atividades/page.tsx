@@ -4,8 +4,7 @@ import { Construction } from 'lucide-react'
 
 export default function AtividadesPage() {
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Atividades</h1>
           <p className="text-muted-foreground mt-2">
@@ -23,7 +22,6 @@ export default function AtividadesPage() {
             Aqui você poderá criar e acompanhar ligações, reuniões, emails e tarefas relacionadas aos clientes.
           </p>
         </div>
-      </div>
     </div>
   )
 }

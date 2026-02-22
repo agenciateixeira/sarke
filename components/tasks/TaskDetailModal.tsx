@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TaskWithDetails, Subtask, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/types/tasks'
 import { SubtaskGroupedList } from './SubtaskGroupedList'
-import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,

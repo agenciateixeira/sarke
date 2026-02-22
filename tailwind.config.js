@@ -10,7 +10,13 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: '1rem',   // 16px mobile
+        sm: '1.5rem',      // 24px tablet
+        md: '2rem',        // 32px desktop
+        lg: '2.5rem',      // 40px desktop grande
+        xl: '3rem',        // 48px telas muito grandes
+      },
       screens: {
         "2xl": "1400px",
       },
