@@ -122,6 +122,8 @@ export function usePipeline() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
+      console.log('📤 Tentando criar deal com dados:', dealData)
+
       const { data, error } = await supabase
         .from('deals')
         .insert({
@@ -131,13 +133,28 @@ export function usePipeline() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Erro do Supabase:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        })
+        throw error
+      }
 
+      console.log('✅ Deal criado com sucesso:', data)
       toast.success('Negócio criado com sucesso!')
       await fetchDeals()
       return data
     } catch (error: any) {
       console.error('Error creating deal:', error)
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+      })
       toast.error('Erro ao criar negócio')
       throw error
     }

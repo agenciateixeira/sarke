@@ -127,6 +127,7 @@ export interface TaskWithDetails extends Task {
   // Informações do responsável
   assigned_to_name?: string
   assigned_to_avatar?: string
+  assigned_to_email?: string
 
   // Informações da coluna
   column_name?: string
@@ -148,6 +149,13 @@ export interface TaskWithDetails extends Task {
 
   // Criado por
   created_by_name?: string
+  creator_name?: string
+  creator_email?: string
+
+  // Deal integration (para tasks vindas de deal_activities)
+  deal_id?: string
+  deal_title?: string
+  source?: 'pipeline' | 'deal' // Origem da task
 }
 
 export interface SubtaskWithDetails extends Subtask {

@@ -1,90 +1,92 @@
 -- =====================================================
--- TESTE: Automação no deal "teste"
+-- TESTE: Verificar por que o trigger está falando
 -- =====================================================
 
--- 1. Ver informações do deal
+-- 1. Ver o deal que você está tentando atualizar (último modificado)
 SELECT
-  id,
-  title,
-  stage_id,
-  value,
-  temperature,
-  status,
-  business_type,
-  lead_source
-FROM deals
-WHERE id = '363d1700-d68e-4caa-aa94-b3a41a8c0186';
-
--- 2. Ver qual etapa o deal está
-SELECT
-  d.title as deal_title,
-  s.name as stage_name,
-  s.id as stage_id
+  d.id,
+  d.title,
+  d.client_id,
+  d.value,
+  d.original_value,
+  d.stage_id,
+  d.owner_id,
+  c.name as client_name,
+  c.company_name,
+  c.email as client_email,
+  s.name as stage_name
 FROM deals d
-JOIN pipeline_stages s ON s.id = d.stage_id
-WHERE d.id = '363d1700-d68e-4caa-aa94-b3a41a8c0186';
+LEFT JOIN clients c ON c.id = d.client_id
+LEFT JOIN pipeline_stages s ON s.id = d.stage_id
+ORDER BY d.updated_at DESC
+LIMIT 1;
 
--- 3. Ver todas as regras ativas de value_changed
+-- 2. Ver se o cliente existe
+SELECT
+  d.client_id,
+  CASE WHEN d.client_id IS NULL THEN '❌ SEM CLIENTE' ELSE '✅ TEM CLIENTE' END as has_client,
+  c.name,
+  c.company_name,
+  c.email
+FROM deals d
+LEFT JOIN clients c ON c.id = d.client_id
+ORDER BY d.updated_at DESC
+LIMIT 1;
+
+-- 3. Ver se existe etapa de negociação
 SELECT
   id,
   name,
-  is_active,
-  trigger_type,
-  conditions,
-  action_type,
-  action_params
-FROM pipeline_automation_rules
-WHERE trigger_type = 'value_changed'
-AND is_active = true;
+  CASE WHEN name ILIKE '%negocia%' THEN '✅ MATCH' ELSE '❌ NO MATCH' END as matches
+FROM pipeline_stages;
 
--- 4. Testar se as condições são atendidas para cada regra
+-- 4. Teste manual do trigger
+-- IMPORTANTE: Copie o ID do deal acima e cole aqui
 DO $$
 DECLARE
-  v_rule RECORD;
-  v_conditions_met BOOLEAN;
+  v_deal_id UUID := (SELECT id FROM deals ORDER BY updated_at DESC LIMIT 1);
+  v_old_value NUMERIC;
+  v_new_value NUMERIC;
+  v_client_name TEXT;
+  v_stage_negociacao UUID;
 BEGIN
-  FOR v_rule IN
-    SELECT id, name, conditions
-    FROM pipeline_automation_rules
-    WHERE trigger_type = 'value_changed' AND is_active = true
-  LOOP
-    v_conditions_met := check_automation_conditions(
-      '363d1700-d68e-4caa-aa94-b3a41a8c0186'::uuid,
-      v_rule.conditions
-    );
+  -- Pegar valores do deal
+  SELECT value, original_value INTO v_new_value, v_old_value
+  FROM deals WHERE id = v_deal_id;
 
-    RAISE NOTICE 'Regra "%": Condições atendidas = %', v_rule.name, v_conditions_met;
-  END LOOP;
+  RAISE NOTICE 'Deal ID: %', v_deal_id;
+  RAISE NOTICE 'Valor Original: %', v_old_value;
+  RAISE NOTICE 'Valor Atual: %', v_new_value;
+
+  -- Testar busca do cliente
+  SELECT
+    COALESCE(c.name, c.company_name, c.email, 'Cliente não identificado')
+  INTO v_client_name
+  FROM deals d
+  LEFT JOIN clients c ON c.id = d.client_id
+  WHERE d.id = v_deal_id;
+
+  RAISE NOTICE 'Cliente encontrado: %', v_client_name;
+
+  -- Testar busca da etapa
+  SELECT id INTO v_stage_negociacao
+  FROM pipeline_stages WHERE name ILIKE '%negocia%' LIMIT 1;
+
+  RAISE NOTICE 'Etapa negociação encontrada: %', COALESCE(v_stage_negociacao::TEXT, 'NÃO ENCONTRADA');
+
+  -- Verificar se deveria mover
+  IF v_new_value < v_old_value THEN
+    RAISE NOTICE '✅ DEVERIA CRIAR TASK - Valor diminuiu de % para %', v_old_value, v_new_value;
+  ELSE
+    RAISE NOTICE '❌ NÃO DEVERIA CRIAR TASK - Valor não diminuiu';
+  END IF;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE '❌ ERRO NO TRIGGER: %', SQLERRM;
 END $$;
 
--- 5. Executar automações manualmente
-SELECT process_deal_automations(
-  '363d1700-d68e-4caa-aa94-b3a41a8c0186'::uuid,
-  'value_changed'
-);
-
--- 6. Ver logs criados
+-- 5. Verificar se há erros no log do PostgreSQL
+-- (Isso vai mostrar warnings do RAISE WARNING)
 SELECT
-  l.executed_at,
-  l.status,
-  l.error_message,
-  r.name as rule_name,
-  r.trigger_type,
-  r.action_type,
-  l.trigger_data,
-  l.action_result
-FROM pipeline_automation_logs l
-JOIN pipeline_automation_rules r ON r.id = l.rule_id
-WHERE l.deal_id = '363d1700-d68e-4caa-aa94-b3a41a8c0186'
-ORDER BY l.executed_at DESC
-LIMIT 10;
-
--- 7. Ver se a etapa mudou
-SELECT
-  d.title as deal_title,
-  s.name as stage_name,
-  d.value,
-  d.updated_at
-FROM deals d
-JOIN pipeline_stages s ON s.id = d.stage_id
-WHERE d.id = '363d1700-d68e-4caa-aa94-b3a41a8c0186';
+  NOW() as current_time,
+  'Verifique os NOTICE acima para ver o que está acontecendo' as instruction;
