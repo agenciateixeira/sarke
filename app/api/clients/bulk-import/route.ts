@@ -1,17 +1,26 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    // Create Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Check authentication
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    // Get authorization header
+    const authHeader = request.headers.get('authorization')
 
-    if (!session) {
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
+    // Verify token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
@@ -31,7 +40,7 @@ export async function POST(request: Request) {
     // Add user_id to each client
     const clientsWithUser = validClients.map(client => ({
       ...client,
-      user_id: session.user.id,
+      user_id: user.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }))

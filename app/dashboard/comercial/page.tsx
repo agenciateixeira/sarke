@@ -210,7 +210,14 @@ export default function ComercialPage() {
           </DropdownMenu>
 
           {/* Import Button */}
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              console.log('Botão Importar clicado')
+              setImportDialogOpen(true)
+            }}
+          >
             <Upload className="h-4 w-4 mr-2" />
             Importar
           </Button>

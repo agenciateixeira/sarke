@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 
 interface ClientImportDialogProps {
   open: boolean
@@ -245,10 +246,22 @@ export function ClientImportDialog({ open, onOpenChange, onImportComplete }: Cli
         return
       }
 
+      // Get session token
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        toast.error('Sessão expirada', { description: 'Faça login novamente' })
+        setImporting(false)
+        return
+      }
+
       // Import via API
       const response = await fetch('/api/clients/bulk-import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ clients: clientsData }),
       })
 
