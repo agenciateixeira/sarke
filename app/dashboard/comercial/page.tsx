@@ -25,10 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Search, MoreVertical, Edit, Trash2, Mail, Phone, MapPin, Users, Loader2 } from 'lucide-react'
+import { Plus, Search, MoreVertical, Edit, Trash2, Mail, Phone, MapPin, Users, Loader2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function ComercialPage() {
+  const router = useRouter()
   const { clients, loading, createClient, updateClient, deleteClient } = useClients()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
@@ -187,7 +190,11 @@ export default function ComercialPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => (
-            <Card key={client.id} className="hover:border-primary/50 transition-colors">
+            <Card
+              key={client.id}
+              className="hover:border-primary/50 transition-colors cursor-pointer"
+              onClick={() => router.push(`/dashboard/comercial/clientes/${client.id}`)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -195,18 +202,29 @@ export default function ComercialPage() {
                     <div className="mt-2">{getStatusBadge(client.status)}</div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEdit(client)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/dashboard/comercial/clientes/${client.id}`)
+                      }}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Detalhes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation()
+                        handleEdit(client)
+                      }}>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setClientToDelete(client)
                           setDeleteDialogOpen(true)
                         }}
