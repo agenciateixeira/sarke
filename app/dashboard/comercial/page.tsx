@@ -5,6 +5,8 @@ import { useClients } from '@/hooks/useClients'
 import { Client } from '@/types/crm'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { ClientDialog } from '@/components/comercial/ClientDialog'
+import { ClientsTable } from '@/components/comercial/ClientsTable'
+import { ClientImportDialog } from '@/components/comercial/ClientImportDialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,10 +27,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Search, MoreVertical, Edit, Trash2, Mail, Phone, MapPin, Users, Loader2, Eye } from 'lucide-react'
+import { Plus, Search, MoreVertical, Edit, Trash2, Mail, Phone, MapPin, Users, Loader2, Eye, LayoutGrid, List, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { exportClientsToExcel, exportClientsToCSV } from '@/lib/exportClients'
+
+type ViewMode = 'cards' | 'table'
 
 export default function ComercialPage() {
   const router = useRouter()
@@ -38,6 +43,8 @@ export default function ComercialPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -151,7 +158,7 @@ export default function ComercialPage() {
         ))}
       </div>
 
-      {/* Search */}
+      {/* Search and Actions */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -161,6 +168,52 @@ export default function ComercialPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center border rounded-lg p-1">
+            <Button
+              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="h-8 px-3"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Export Button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportClientsToExcel(filteredClients)}>
+                Exportar para Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportClientsToCSV(filteredClients)}>
+                Exportar para CSV (.csv)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Import Button */}
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar
+          </Button>
         </div>
       </div>
 
@@ -187,6 +240,15 @@ export default function ComercialPage() {
             )}
           </CardContent>
         </Card>
+      ) : viewMode === 'table' ? (
+        <ClientsTable
+          clients={filteredClients}
+          onEdit={handleEdit}
+          onDelete={(client) => {
+            setClientToDelete(client)
+            setDeleteDialogOpen(true)
+          }}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => (
@@ -289,6 +351,15 @@ export default function ComercialPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ClientImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImportComplete={async () => {
+          // Refresh clients list after import
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }
