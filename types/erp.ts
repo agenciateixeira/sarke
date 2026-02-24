@@ -641,3 +641,220 @@ export const FORMA_PAGAMENTO_LABELS: Record<FormaPagamentoTipo, string> = {
   cheque: 'Cheque',
   outros: 'Outros',
 }
+
+// =====================================================
+// FASE 4 - CONCILIAÇÃO BANCÁRIA E AUTOMAÇÕES
+// =====================================================
+
+// =====================================================
+// 23. EXTRATOS BANCÁRIOS
+// =====================================================
+export type ExtratoBancarioStatus = 'processando' | 'concluido' | 'erro'
+
+export interface ExtratoBancario {
+  id: string
+  conta_bancaria_id: string
+  data_importacao: string
+  arquivo_nome: string | null
+  periodo_inicio: string
+  periodo_fim: string
+  quantidade_transacoes: number
+  status: ExtratoBancarioStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface ExtratoBancarioComRelacoes extends ExtratoBancario {
+  conta_bancaria?: ContaBancaria
+  transacoes?: TransacaoBancaria[]
+}
+
+// =====================================================
+// 24. TRANSAÇÕES BANCÁRIAS
+// =====================================================
+export type TransacaoBancariaTipo = 'credito' | 'debito'
+export type TransacaoConciliacaoStatus = 'pendente' | 'conciliado' | 'ignorado'
+
+export interface TransacaoBancaria {
+  id: string
+  extrato_id: string
+  conta_bancaria_id: string
+  data_transacao: string
+  descricao: string
+  valor: number
+  tipo: TransacaoBancariaTipo
+  saldo_apos_transacao: number | null
+  documento: string | null
+  status_conciliacao: TransacaoConciliacaoStatus
+  lancamento_id: string | null
+  conciliado_em: string | null
+  conciliado_por: string | null
+  conciliacao_automatica: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TransacaoBancariaComRelacoes extends TransacaoBancaria {
+  extrato?: ExtratoBancario
+  conta_bancaria?: ContaBancaria
+  lancamento?: Lancamento
+  sugestoes?: SugestaoConciliacao[]
+  regras_aplicaveis?: RegraAplicavel[]
+}
+
+// =====================================================
+// 25. REGRAS DE CATEGORIZAÇÃO
+// =====================================================
+export type RegraTipoTransacao = 'credito' | 'debito' | 'ambos'
+
+export interface RegraCateorizacao {
+  id: string
+  nome: string
+  ativa: boolean
+  prioridade: number
+  descricao_contem: string[] | null
+  valor_minimo: number | null
+  valor_maximo: number | null
+  tipo_transacao: RegraTipoTransacao | null
+  conta_bancaria_id: string | null
+  conta_id: string | null
+  categoria: string | null
+  cliente_id: string | null
+  projeto_id: string | null
+  obra_id: string | null
+  observacao_padrao: string | null
+  total_aplicacoes: number
+  ultima_aplicacao: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+}
+
+export interface RegraCategorizacaoComRelacoes extends RegraCateorizacao {
+  conta_bancaria?: ContaBancaria
+  conta?: PlanoContas
+  cliente?: Cliente
+}
+
+// =====================================================
+// 26. ALERTAS FINANCEIROS
+// =====================================================
+export type AlertaFinanceiroTipo =
+  | 'saldo_baixo'
+  | 'titulo_vencendo'
+  | 'meta_atingida'
+  | 'conciliacao_pendente'
+  | 'fluxo_negativo'
+  | 'custom'
+
+export type AlertaSeveridade = 'info' | 'warning' | 'error' | 'success'
+
+export interface AlertaFinanceiro {
+  id: string
+  tipo: AlertaFinanceiroTipo
+  titulo: string
+  mensagem: string
+  severidade: AlertaSeveridade
+  conta_bancaria_id: string | null
+  lancamento_id: string | null
+  data_referencia: string | null
+  valor_referencia: number | null
+  lido: boolean
+  lido_em: string | null
+  lido_por: string | null
+  created_at: string
+}
+
+export interface AlertaFinanceiroComRelacoes extends AlertaFinanceiro {
+  conta_bancaria?: ContaBancaria
+  lancamento?: Lancamento
+}
+
+// =====================================================
+// 27. SUGESTÕES DE CONCILIAÇÃO
+// =====================================================
+export interface SugestaoConciliacao {
+  lancamento_id: string
+  descricao: string
+  valor_total: number
+  data_vencimento: string
+  score: number
+  motivo: string
+}
+
+export interface RegraAplicavel {
+  regra_id: string
+  regra_nome: string
+  prioridade: number
+  conta_nome: string | null
+  motivo: string
+}
+
+// =====================================================
+// 28. INPUTS - FASE 4
+// =====================================================
+export interface ConciliarTransacaoInput {
+  transacao_id: string
+  lancamento_id: string
+  usuario_id?: string
+}
+
+export interface AplicarRegraInput {
+  transacao_id: string
+  regra_id: string
+}
+
+export interface ImportarExtratoInput {
+  conta_bancaria_id: string
+  arquivo: File
+  periodo_inicio: string
+  periodo_fim: string
+}
+
+export interface CriarRegraCategorizacaoInput {
+  nome: string
+  ativa?: boolean
+  prioridade?: number
+  descricao_contem?: string[]
+  valor_minimo?: number
+  valor_maximo?: number
+  tipo_transacao?: RegraTipoTransacao
+  conta_bancaria_id?: string
+  conta_id?: string
+  categoria?: string
+  cliente_id?: string
+  projeto_id?: string
+  obra_id?: string
+  observacao_padrao?: string
+}
+
+// =====================================================
+// 29. UTILITIES - FASE 4
+// =====================================================
+export const CONCILIACAO_STATUS_LABELS: Record<TransacaoConciliacaoStatus, string> = {
+  pendente: 'Pendente',
+  conciliado: 'Conciliado',
+  ignorado: 'Ignorado',
+}
+
+export const CONCILIACAO_STATUS_COLORS: Record<TransacaoConciliacaoStatus, string> = {
+  pendente: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300',
+  conciliado: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  ignorado: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+}
+
+export const ALERTA_SEVERIDADE_COLORS: Record<AlertaSeveridade, string> = {
+  info: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300',
+  error: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  success: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+}
+
+export const ALERTA_TIPO_LABELS: Record<AlertaFinanceiroTipo, string> = {
+  saldo_baixo: 'Saldo Baixo',
+  titulo_vencendo: 'Título Vencendo',
+  meta_atingida: 'Meta Atingida',
+  conciliacao_pendente: 'Conciliação Pendente',
+  fluxo_negativo: 'Fluxo Negativo',
+  custom: 'Personalizado',
+}

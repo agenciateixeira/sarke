@@ -175,7 +175,7 @@ BEGIN
   RETURN QUERY
   SELECT
     l.cliente_id,
-    c.name AS cliente_nome,
+    c.name::VARCHAR AS cliente_nome,
     COALESCE(SUM(CASE WHEN l.tipo = 'receita' THEN l.valor_total ELSE 0 END), 0) AS receita_total,
     COALESCE(SUM(CASE WHEN l.tipo = 'despesa' THEN l.valor_total ELSE 0 END), 0) AS custo_total,
     COALESCE(SUM(CASE WHEN l.tipo = 'receita' THEN l.valor_total ELSE 0 END), 0) -
@@ -221,7 +221,7 @@ BEGIN
   RETURN QUERY
   SELECT
     l.projeto_id,
-    p.nome AS projeto_nome,
+    p.nome::VARCHAR AS projeto_nome,
     COALESCE(SUM(CASE WHEN l.tipo = 'receita' THEN l.valor_total ELSE 0 END), 0) AS receita_total,
     COALESCE(SUM(CASE WHEN l.tipo = 'despesa' THEN l.valor_total ELSE 0 END), 0) AS custo_total,
     COALESCE(SUM(CASE WHEN l.tipo = 'receita' THEN l.valor_total ELSE 0 END), 0) -
