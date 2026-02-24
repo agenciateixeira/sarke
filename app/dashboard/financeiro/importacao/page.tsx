@@ -262,6 +262,33 @@ export default function ImportacaoExtratosPage() {
         textContent += pageText + '\n'
       }
 
+      // 🔍 VALIDAR SE É EXTRATO BANCÁRIO
+      const tipoDocumento = validarTipoDocumento(textContent)
+
+      if (tipoDocumento === 'fatura_cartao') {
+        toast.error(
+          '❌ Este parece ser uma fatura de cartão de crédito. Por favor, envie apenas extratos bancários.'
+        )
+        setArquivo(null)
+        return
+      }
+
+      if (tipoDocumento === 'desconhecido') {
+        toast.error(
+          '❌ Não foi possível identificar este documento como extrato bancário. Verifique o arquivo e tente novamente.'
+        )
+        setArquivo(null)
+        return
+      }
+
+      if (tipoDocumento === 'nao_extrato') {
+        toast.error(
+          '❌ Este documento não parece ser um extrato bancário. Envie apenas extratos de conta corrente ou poupança.'
+        )
+        setArquivo(null)
+        return
+      }
+
       // Parsear texto extraído
       const transacoes = parsearTextoPDF(textContent)
 
@@ -272,11 +299,116 @@ export default function ImportacaoExtratosPage() {
 
       setTransacoesPreview(transacoes)
       await buscarCategoriasSugeridas(transacoes)
-      toast.success(`${transacoes.length} transações identificadas`)
+      toast.success(`✅ ${transacoes.length} transações identificadas do extrato bancário`)
     } catch (error: any) {
       console.error('Erro ao processar PDF:', error)
       toast.error('Erro ao processar PDF. Tente exportar como CSV do seu banco.')
     }
+  }
+
+  function validarTipoDocumento(
+    texto: string
+  ): 'extrato_bancario' | 'fatura_cartao' | 'nao_extrato' | 'desconhecido' {
+    const textoLower = texto.toLowerCase()
+
+    // Palavras-chave de EXTRATO BANCÁRIO (score positivo)
+    const keywordsExtrato = [
+      { palavra: 'extrato', peso: 10 },
+      { palavra: 'conta corrente', peso: 8 },
+      { palavra: 'conta poupança', peso: 8 },
+      { palavra: 'saldo anterior', peso: 6 },
+      { palavra: 'saldo atual', peso: 6 },
+      { palavra: 'saldo final', peso: 6 },
+      { palavra: 'lançamentos', peso: 5 },
+      { palavra: 'movimentação', peso: 5 },
+      { palavra: 'agência', peso: 4 },
+      { palavra: 'banco', peso: 3 },
+      { palavra: 'débito', peso: 2 },
+      { palavra: 'crédito', peso: 2 },
+      { palavra: 'transferência', peso: 3 },
+      { palavra: 'ted', peso: 4 },
+      { palavra: 'doc', peso: 4 },
+      { palavra: 'pix', peso: 4 },
+      { palavra: 'saque', peso: 3 },
+      { palavra: 'depósito', peso: 3 },
+    ]
+
+    // Palavras-chave de FATURA DE CARTÃO (score negativo)
+    const keywordsFatura = [
+      { palavra: 'fatura', peso: 10 },
+      { palavra: 'cartão de crédito', peso: 10 },
+      { palavra: 'valor total da fatura', peso: 8 },
+      { palavra: 'pagamento mínimo', peso: 8 },
+      { palavra: 'data de vencimento', peso: 6 },
+      { palavra: 'limite disponível', peso: 6 },
+      { palavra: 'limite de crédito', peso: 6 },
+      { palavra: 'compras parceladas', peso: 5 },
+      { palavra: 'parcela', peso: 3 },
+      { palavra: 'anuidade', peso: 4 },
+      { palavra: 'cashback', peso: 3 },
+      { palavra: 'milhas', peso: 2 },
+    ]
+
+    // Palavras-chave de OUTROS DOCUMENTOS
+    const keywordsOutros = [
+      { palavra: 'boleto', peso: 8 },
+      { palavra: 'nota fiscal', peso: 8 },
+      { palavra: 'recibo', peso: 6 },
+      { palavra: 'comprovante de pagamento', peso: 5 },
+      { palavra: 'contrato', peso: 5 },
+    ]
+
+    let scoreExtrato = 0
+    let scoreFatura = 0
+    let scoreOutros = 0
+
+    // Calcular score de extrato
+    for (const { palavra, peso } of keywordsExtrato) {
+      if (textoLower.includes(palavra)) {
+        scoreExtrato += peso
+      }
+    }
+
+    // Calcular score de fatura
+    for (const { palavra, peso } of keywordsFatura) {
+      if (textoLower.includes(palavra)) {
+        scoreFatura += peso
+      }
+    }
+
+    // Calcular score de outros
+    for (const { palavra, peso } of keywordsOutros) {
+      if (textoLower.includes(palavra)) {
+        scoreOutros += peso
+      }
+    }
+
+    console.log('📊 Validação PDF:', {
+      scoreExtrato,
+      scoreFatura,
+      scoreOutros,
+      arquivo: 'analise completa',
+    })
+
+    // Decisão baseada em scores
+    if (scoreFatura >= 10) {
+      return 'fatura_cartao'
+    }
+
+    if (scoreOutros >= 8) {
+      return 'nao_extrato'
+    }
+
+    if (scoreExtrato >= 10) {
+      return 'extrato_bancario'
+    }
+
+    // Se tiver algum indicador de extrato mas score baixo, aceitar
+    if (scoreExtrato >= 5 && scoreFatura < 5) {
+      return 'extrato_bancario'
+    }
+
+    return 'desconhecido'
   }
 
   function parsearTextoPDF(texto: string): TransacaoPreview[] {
@@ -520,7 +652,7 @@ export default function ImportacaoExtratosPage() {
                   <p className="text-sm font-medium">Excel</p>
                   <p className="text-xs text-muted-foreground">XLSX / XLS</p>
                 </div>
-                <div className="p-4 border rounded-lg text-center bg-blue-50">
+                <div className="p-4 border rounded-lg text-center">
                   <FileText className="h-8 w-8 mx-auto mb-2 text-red-600" />
                   <p className="text-sm font-medium">PDF</p>
                   <p className="text-xs text-muted-foreground">Extrato digital</p>
