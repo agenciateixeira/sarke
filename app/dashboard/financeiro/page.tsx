@@ -15,12 +15,13 @@ import {
   ArrowUpRight,
   AlertCircle,
   Clock,
+  CreditCard,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { ContaBancariaCard } from '@/components/erp/ContaBancariaCard'
 import { LancamentoCard } from '@/components/erp/LancamentoCard'
 import { formatarMoeda } from '@/types/erp'
-import type { ContaBancaria, LancamentoComRelacoes } from '@/types/erp'
+import type { ContaBancaria, LancamentoComRelacoes, CartaoCredito, FaturaCartao } from '@/types/erp'
 import Link from 'next/link'
 
 interface DashboardStats {
@@ -33,6 +34,8 @@ interface DashboardStats {
   vencimentos_proximos: number
   variacao_receita_percentual: number
   variacao_despesa_percentual: number
+  gastos_cartoes_mes: number
+  faturas_cartao_pendentes: number
 }
 
 export default function FinanceiroPage() {
@@ -46,8 +49,11 @@ export default function FinanceiroPage() {
     vencimentos_proximos: 0,
     variacao_receita_percentual: 0,
     variacao_despesa_percentual: 0,
+    gastos_cartoes_mes: 0,
+    faturas_cartao_pendentes: 0,
   })
   const [contas, setContas] = useState<ContaBancaria[]>([])
+  const [cartoes, setCartoes] = useState<CartaoCredito[]>([])
   const [lancamentosRecentes, setLancamentosRecentes] = useState<LancamentoComRelacoes[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -132,6 +138,35 @@ export default function FinanceiroPage() {
         0
       ) || 0
 
+      // Buscar cartões de crédito ativos
+      const { data: cartoesData } = await supabase
+        .from('cartoes_credito')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome')
+
+      // Buscar faturas do mês atual
+      const mesAtual = new Date().getMonth() + 1
+      const anoAtual = new Date().getFullYear()
+
+      const { data: faturasMes } = await supabase
+        .from('faturas_cartao')
+        .select('valor_total')
+        .eq('mes_referencia', mesAtual)
+        .eq('ano_referencia', anoAtual)
+
+      // Buscar faturas pendentes
+      const { data: faturasPendentes } = await supabase
+        .from('faturas_cartao')
+        .select('valor_total, valor_pago')
+        .in('status', ['pendente', 'parcial'])
+
+      const totalGastosCartoesMes = faturasMes?.reduce((acc, f) => acc + f.valor_total, 0) || 0
+      const totalFaturasPendentes = faturasPendentes?.reduce(
+        (acc, f) => acc + (f.valor_total - (f.valor_pago || 0)),
+        0
+      ) || 0
+
       setStats({
         receita_mes: resumo?.[0]?.receita_total || 0,
         despesa_mes: resumo?.[0]?.despesa_total || 0,
@@ -142,9 +177,12 @@ export default function FinanceiroPage() {
         vencimentos_proximos: proximos || 0,
         variacao_receita_percentual: 0, // TODO: calcular variação mês anterior
         variacao_despesa_percentual: 0, // TODO: calcular variação mês anterior
+        gastos_cartoes_mes: totalGastosCartoesMes,
+        faturas_cartao_pendentes: totalFaturasPendentes,
       })
 
       setContas((contasData as ContaBancaria[]) || [])
+      setCartoes((cartoesData as CartaoCredito[]) || [])
       setLancamentosRecentes((lancamentosData as any) || [])
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error)
@@ -175,10 +213,12 @@ export default function FinanceiroPage() {
           title="Financeiro - ERP"
           description="Gestão financeira completa, receitas, despesas e fluxo de caixa"
           actions={
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Lançamento
-            </Button>
+            <Link href="/dashboard/financeiro/lancamentos">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Lançamento
+              </Button>
+            </Link>
           }
         />
 
@@ -277,6 +317,51 @@ export default function FinanceiroPage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                   Ver detalhes <ArrowUpRight className="h-3 w-3" />
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Cards de Cartões de Crédito */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link href="/dashboard/financeiro/cartoes">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Gastos com Cartões (Mês)
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950 text-purple-600">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  {loading ? '...' : formatarMoeda(stats.gastos_cartoes_mes)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  Ver cartões <ArrowUpRight className="h-3 w-3" />
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/financeiro/cartoes">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Faturas Pendentes
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950 text-orange-600">
+                  <AlertCircle className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {loading ? '...' : formatarMoeda(stats.faturas_cartao_pendentes)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  Gerenciar <ArrowUpRight className="h-3 w-3" />
                 </p>
               </CardContent>
             </Card>
