@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -22,7 +23,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Upload, FileText, AlertCircle, CheckCircle2, Sparkles, Eye } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Upload, FileText, AlertCircle, CheckCircle2, Sparkles, Eye, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { formatarMoeda } from '@/types/erp'
@@ -49,6 +58,79 @@ export default function ImportacaoExtratosPage() {
   const [transacoesPreview, setTransacoesPreview] = useState<TransacaoPreview[]>([])
   const [loading, setLoading] = useState(false)
   const [processando, setProcessando] = useState(false)
+  const [modalCriarConta, setModalCriarConta] = useState(false)
+  const [novaConta, setNovaConta] = useState({
+    nome: '',
+    banco_nome: '',
+    tipo: 'conta_corrente',
+    agencia: '',
+    numero_conta: '',
+    saldo_inicial: 0,
+  })
+
+  useEffect(() => {
+    carregarContas()
+  }, [])
+
+  async function carregarContas() {
+    try {
+      const { data, error } = await supabase
+        .from('contas_bancarias')
+        .select('*')
+        .eq('ativa', true)
+        .order('nome')
+
+      if (error) throw error
+      setContas(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar contas:', error)
+      toast.error('Erro ao carregar contas bancárias')
+    }
+  }
+
+  async function criarContaBancaria() {
+    try {
+      if (!novaConta.nome || !novaConta.banco_nome) {
+        toast.error('Preencha nome e banco')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('contas_bancarias')
+        .insert({
+          nome: novaConta.nome,
+          banco_nome: novaConta.banco_nome,
+          tipo: novaConta.tipo,
+          agencia: novaConta.agencia || null,
+          numero_conta: novaConta.numero_conta || null,
+          saldo_inicial: novaConta.saldo_inicial,
+          saldo_atual: novaConta.saldo_inicial,
+          ativa: true,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      toast.success('Conta bancária criada com sucesso!')
+      setContaSelecionada(data.id)
+      setModalCriarConta(false)
+      carregarContas()
+
+      // Resetar form
+      setNovaConta({
+        nome: '',
+        banco_nome: '',
+        tipo: 'conta_corrente',
+        agencia: '',
+        numero_conta: '',
+        saldo_inicial: 0,
+      })
+    } catch (error: any) {
+      console.error('Erro ao criar conta:', error)
+      toast.error(error.message || 'Erro ao criar conta bancária')
+    }
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -365,8 +447,27 @@ export default function ImportacaoExtratosPage() {
                   <SelectValue placeholder="Selecione a conta bancária" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* TODO: Carregar contas do banco */}
-                  <SelectItem value="teste">Conta Principal - Itaú</SelectItem>
+                  <div className="p-2 border-b">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => setModalCriarConta(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Nova Conta
+                    </Button>
+                  </div>
+                  {contas.map((conta) => (
+                    <SelectItem key={conta.id} value={conta.id}>
+                      {conta.nome} - {conta.banco_nome}
+                    </SelectItem>
+                  ))}
+                  {contas.length === 0 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma conta cadastrada
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -518,6 +619,102 @@ export default function ImportacaoExtratosPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal Criar Conta Bancária */}
+        <Dialog open={modalCriarConta} onOpenChange={setModalCriarConta}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Criar Nova Conta Bancária</DialogTitle>
+              <DialogDescription>
+                Cadastre uma nova conta bancária para importar extratos
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome da Conta *</Label>
+                <Input
+                  id="nome"
+                  placeholder="Ex: Conta Principal"
+                  value={novaConta.nome}
+                  onChange={(e) => setNovaConta({ ...novaConta, nome: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="banco">Banco *</Label>
+                <Input
+                  id="banco"
+                  placeholder="Ex: Itaú, Bradesco, Nubank..."
+                  value={novaConta.banco_nome}
+                  onChange={(e) => setNovaConta({ ...novaConta, banco_nome: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tipo">Tipo de Conta</Label>
+                <Select
+                  value={novaConta.tipo}
+                  onValueChange={(value) => setNovaConta({ ...novaConta, tipo: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="conta_corrente">Conta Corrente</SelectItem>
+                    <SelectItem value="conta_poupanca">Conta Poupança</SelectItem>
+                    <SelectItem value="conta_investimento">Conta Investimento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="agencia">Agência</Label>
+                  <Input
+                    id="agencia"
+                    placeholder="0000"
+                    value={novaConta.agencia}
+                    onChange={(e) => setNovaConta({ ...novaConta, agencia: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="numero">Número da Conta</Label>
+                  <Input
+                    id="numero"
+                    placeholder="00000-0"
+                    value={novaConta.numero_conta}
+                    onChange={(e) =>
+                      setNovaConta({ ...novaConta, numero_conta: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="saldo">Saldo Inicial</Label>
+                <Input
+                  id="saldo"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={novaConta.saldo_inicial}
+                  onChange={(e) =>
+                    setNovaConta({ ...novaConta, saldo_inicial: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setModalCriarConta(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={criarContaBancaria}>Criar Conta</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   )

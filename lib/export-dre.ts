@@ -90,10 +90,8 @@ export function exportarDREParaPDF(dre: DREData, periodo: { inicio: string; fim:
     }
 
     .logo {
-      font-size: 32px;
-      font-weight: bold;
-      color: #2563eb;
-      letter-spacing: 2px;
+      height: 60px;
+      width: auto;
     }
 
     .report-info {
@@ -210,7 +208,7 @@ export function exportarDREParaPDF(dre: DREData, periodo: { inicio: string; fim:
 </head>
 <body>
   <div class="header">
-    <div class="logo">SARKE</div>
+    <img src="/Artboard.png" alt="Sarke" class="logo">
     <div class="report-info">
       <div class="report-title">Demonstração do Resultado do Exercício</div>
       <div class="report-period">Período: ${formatarData(periodo.inicio)} a ${formatarData(periodo.fim)}</div>
