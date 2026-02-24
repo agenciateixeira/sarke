@@ -17,31 +17,35 @@ Criar a base fundamental do sistema financeiro: plano de contas, bancos e lança
 
 ### Tarefas
 
-#### 1.1 - Database Schema
-- [ ] Criar tabela `plano_contas`
-- [ ] Criar tabela `contas_bancarias`
-- [ ] Criar tabela `lancamentos`
-- [ ] Criar tabela `lancamentos_itens` (partidas dobradas)
-- [ ] Criar triggers de validação
-- [ ] Criar triggers de atualização de saldo
-- [ ] Popular plano de contas inicial
-- [ ] Criar índices de performance
-- [ ] Habilitar RLS e criar policies
+#### 1.1 - Database Schema ✅ CONCLUÍDO
+- [x] Criar tabela `plano_contas`
+- [x] Criar tabela `contas_bancarias`
+- [x] Criar tabela `lancamentos`
+- [x] Criar tabela `lancamentos_itens` (partidas dobradas)
+- [x] Criar triggers de validação
+- [x] Criar triggers de atualização de saldo
+- [x] Popular plano de contas inicial
+- [x] Criar índices de performance
+- [x] Habilitar RLS e criar policies
 
 **Arquivo:** `supabase/migrations/20260224_erp_fase1_core.sql`
+**Commit:** b591d71
+**Executado no DB:** ✅ SIM
 
-#### 1.2 - API / Backend
-- [ ] Criar funções SQL para lançamentos
-- [ ] Criar view de saldo de contas
-- [ ] Criar função de validação de partidas dobradas
-- [ ] Criar função de cálculo de saldo bancário
-- [ ] Criar function para DRE simplificado
-- [ ] Criar function para Fluxo de Caixa
+#### 1.2 - API / Backend ✅ CONCLUÍDO
+- [x] Criar funções SQL para lançamentos
+- [x] Criar view de saldo de contas
+- [x] Criar função de validação de partidas dobradas
+- [x] Criar função de cálculo de saldo bancário
+- [x] Criar function para DRE simplificado
+- [x] Criar function para Fluxo de Caixa
 
 **Arquivo:** `supabase/migrations/20260224_erp_fase1_functions.sql`
+**Commit:** b591d71
+**Executado no DB:** ✅ SIM
 
-#### 1.3 - Types e Interfaces (TypeScript)
-- [ ] Criar `types/erp.ts` com interfaces:
+#### 1.3 - Types e Interfaces (TypeScript) ✅ CONCLUÍDO
+- [x] Criar `types/erp.ts` com interfaces:
   - `PlanoContas`
   - `ContaBancaria`
   - `Lancamento`
@@ -50,6 +54,7 @@ Criar a base fundamental do sistema financeiro: plano de contas, bancos e lança
   - `FluxoCaixa`
 
 **Arquivo:** `types/erp.ts`
+**Commit:** 89c7344
 
 #### 1.4 - Componentes UI Base
 - [ ] `components/erp/PlanoContasSelector.tsx` - Seletor de contas
@@ -453,11 +458,16 @@ Antes de considerar uma fase concluída:
 
 ## 🎯 Status Atual
 
-**Fase Atual:** 🔵 Iniciando Fase 1 - Core
+**Fase Atual:** 🟢 Fase 1 - Core (em andamento)
 
-**Próxima Tarefa:** Criar schema do banco de dados (Fase 1.1)
+**Concluído:**
+- ✅ 1.1 - Database Schema (commit b591d71) - **EXECUTADO NO DB**
+- ✅ 1.2 - Functions SQL (commit b591d71) - **EXECUTADO NO DB**
+- ✅ 1.3 - Types TypeScript (commit 89c7344)
 
-**Última Atualização:** 24/02/2026
+**Próxima Tarefa:** Criar componentes UI base (Fase 1.4)
+
+**Última Atualização:** 24/02/2026 - 18:45
 
 ---
 
