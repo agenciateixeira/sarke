@@ -858,3 +858,230 @@ export const ALERTA_TIPO_LABELS: Record<AlertaFinanceiroTipo, string> = {
   fluxo_negativo: 'Fluxo Negativo',
   custom: 'Personalizado',
 }
+
+// =====================================================
+// SPRINT 1 - CARTÕES DE CRÉDITO
+// =====================================================
+
+// =====================================================
+// 30. CARTÕES DE CRÉDITO
+// =====================================================
+export type CartaoBandeira = 'Visa' | 'Mastercard' | 'Amex' | 'Elo' | 'Hipercard' | 'Diners' | 'Outros'
+
+export interface CartaoCredito {
+  id: string
+  nome: string
+  bandeira: CartaoBandeira | null
+  ultimos_digitos: string | null
+  limite_total: number
+  limite_disponivel: number
+  dia_vencimento: number
+  dia_fechamento: number
+  portador: string | null
+  observacoes: string | null
+  ativo: boolean
+  created_at: string
+  updated_at: string
+  created_by: string | null
+}
+
+export interface CartaoCreditoComFaturas extends CartaoCredito {
+  faturas?: FaturaCartao[]
+  total_faturas_pendentes?: number
+  proxima_fatura?: FaturaCartao
+}
+
+// =====================================================
+// 31. FATURAS DE CARTÃO
+// =====================================================
+export type FaturaCartaoStatus = 'pendente' | 'parcial' | 'pago' | 'vencido'
+
+export interface FaturaCartao {
+  id: string
+  cartao_id: string
+  mes_referencia: number
+  ano_referencia: number
+  data_fechamento: string
+  data_vencimento: string
+  valor_total: number
+  valor_pago: number
+  status: FaturaCartaoStatus
+  arquivo_nome: string | null
+  conta_pagar_id: string | null
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FaturaCartaoComRelacoes extends FaturaCartao {
+  cartao?: CartaoCredito
+  compras?: CompraCartao[]
+  conta_pagar?: ContaPagar
+  quantidade_compras?: number
+}
+
+// =====================================================
+// 32. COMPRAS DE CARTÃO
+// =====================================================
+export interface CompraCartao {
+  id: string
+  fatura_id: string
+  cartao_id: string
+  data_compra: string
+  descricao: string
+  categoria_id: string | null
+  valor: number
+  parcelado: boolean
+  parcela_atual: number | null
+  parcela_total: number | null
+  categoria_sugerida_id: string | null
+  categoria_score: number | null
+  categoria_confirmada: boolean
+  observacoes: string | null
+  created_at: string
+}
+
+export interface CompraCartaoComRelacoes extends CompraCartao {
+  fatura?: FaturaCartao
+  cartao?: CartaoCredito
+  categoria?: CategoriaFinanceira
+  categoria_sugerida?: CategoriaFinanceira
+}
+
+// =====================================================
+// 33. CATEGORIAS FINANCEIRAS (IA)
+// =====================================================
+export type CategoriaFinanceiraTipo = 'receita' | 'despesa'
+
+export interface CategoriaFinanceira {
+  id: string
+  nome: string
+  tipo: CategoriaFinanceiraTipo
+  icone: string | null
+  cor: string | null
+  conta_id: string | null
+  created_at: string
+}
+
+export interface CategoriaComPalavrasChave extends CategoriaFinanceira {
+  palavras_chave?: PalavraChaveCategoria[]
+}
+
+export interface PalavraChaveCategoria {
+  id: string
+  categoria_id: string
+  palavra_chave: string
+  peso: number
+}
+
+// =====================================================
+// 34. ANÁLISES - CARTÃO
+// =====================================================
+export interface GastoPorPortador {
+  portador: string
+  total_compras: number
+  valor_total: number
+  valor_medio: number
+  categoria_mais_gasta: string | null
+}
+
+export interface FaturaProximaVencimento {
+  fatura_id: string
+  cartao_nome: string
+  portador: string | null
+  valor_total: number
+  data_vencimento: string
+  dias_ate_vencimento: number
+  status: FaturaCartaoStatus
+}
+
+export interface DeteccaoParcelamento {
+  parcelado: boolean
+  parcela_atual: number | null
+  parcela_total: number | null
+}
+
+// =====================================================
+// 35. INPUTS - CARTÃO
+// =====================================================
+export interface CriarCartaoInput {
+  nome: string
+  bandeira?: CartaoBandeira
+  ultimos_digitos?: string
+  limite_total: number
+  dia_vencimento: number
+  dia_fechamento: number
+  portador?: string
+  observacoes?: string
+}
+
+export interface AtualizarCartaoInput {
+  cartao_id: string
+  nome?: string
+  bandeira?: CartaoBandeira
+  ultimos_digitos?: string
+  limite_total?: number
+  dia_vencimento?: number
+  dia_fechamento?: number
+  portador?: string
+  observacoes?: string
+  ativo?: boolean
+}
+
+export interface ImportarFaturaInput {
+  cartao_id: string
+  mes_referencia: number
+  ano_referencia: number
+  arquivo: File
+}
+
+export interface PagarFaturaInput {
+  fatura_id: string
+  data_pagamento: string
+  valor_pago: number
+}
+
+// =====================================================
+// 36. UTILITIES - CARTÃO
+// =====================================================
+export const BANDEIRA_LABELS: Record<CartaoBandeira, string> = {
+  Visa: 'Visa',
+  Mastercard: 'Mastercard',
+  Amex: 'American Express',
+  Elo: 'Elo',
+  Hipercard: 'Hipercard',
+  Diners: 'Diners Club',
+  Outros: 'Outros',
+}
+
+export const FATURA_STATUS_LABELS: Record<FaturaCartaoStatus, string> = {
+  pendente: 'Pendente',
+  parcial: 'Parcial',
+  pago: 'Pago',
+  vencido: 'Vencido',
+}
+
+export const FATURA_STATUS_COLORS: Record<FaturaCartaoStatus, string> = {
+  pendente: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300',
+  parcial: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  pago: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  vencido: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+}
+
+// Helper: Calcular limite disponível percentual
+export function calcularLimiteDisponivel(cartao: CartaoCredito): number {
+  if (cartao.limite_total === 0) return 0
+  return (cartao.limite_disponivel / cartao.limite_total) * 100
+}
+
+// Helper: Formatear parcela (3/12)
+export function formatarParcela(parcela_atual: number, parcela_total: number): string {
+  return `${parcela_atual}/${parcela_total}`
+}
+
+// Helper: Verificar se fatura está vencida
+export function faturaVencida(data_vencimento: string): boolean {
+  const hoje = new Date()
+  const vencimento = new Date(data_vencimento + 'T00:00:00')
+  return vencimento < hoje
+}
