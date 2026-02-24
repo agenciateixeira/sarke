@@ -140,8 +140,8 @@ export default function ImportacaoExtratosPage() {
 
     // Validar tipo de arquivo
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (!['ofx', 'csv', 'xlsx', 'xls'].includes(ext || '')) {
-      toast.error('Formato não suportado. Use OFX, CSV ou Excel')
+    if (!['ofx', 'csv', 'xlsx', 'xls', 'pdf'].includes(ext || '')) {
+      toast.error('Formato não suportado. Use OFX, CSV, Excel ou PDF')
       setArquivo(null)
       return
     }
@@ -157,6 +157,8 @@ export default function ImportacaoExtratosPage() {
 
       if (ext === 'csv') {
         await processarCSV(file)
+      } else if (ext === 'pdf') {
+        await processarPDF(file)
       } else if (ext === 'ofx') {
         toast.info('Parser OFX em desenvolvimento. Use CSV por enquanto.')
       } else if (ext === 'xlsx' || ext === 'xls') {
@@ -227,6 +229,114 @@ export default function ImportacaoExtratosPage() {
     await buscarCategoriasSugeridas(transacoes)
 
     toast.success(`${transacoes.length} transações identificadas`)
+  }
+
+  async function processarPDF(file: File) {
+    try {
+      // Importar apenas no cliente para evitar problemas de SSR
+      if (typeof window === 'undefined') {
+        toast.error('PDF só pode ser processado no navegador')
+        return
+      }
+
+      // Carregar PDF.js dinamicamente (apenas o core necessário)
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+
+      // Configurar worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+
+      // Ler arquivo como ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer()
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+      const pdf = await loadingTask.promise
+
+      let textContent = ''
+
+      // Extrair texto de todas as páginas
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ')
+        textContent += pageText + '\n'
+      }
+
+      // Parsear texto extraído
+      const transacoes = parsearTextoPDF(textContent)
+
+      if (transacoes.length === 0) {
+        toast.error('Nenhuma transação encontrada no PDF. Verifique o formato do arquivo.')
+        return
+      }
+
+      setTransacoesPreview(transacoes)
+      await buscarCategoriasSugeridas(transacoes)
+      toast.success(`${transacoes.length} transações identificadas`)
+    } catch (error: any) {
+      console.error('Erro ao processar PDF:', error)
+      toast.error('Erro ao processar PDF. Tente exportar como CSV do seu banco.')
+    }
+  }
+
+  function parsearTextoPDF(texto: string): TransacaoPreview[] {
+    const transacoes: TransacaoPreview[] = []
+    const lines = texto.split('\n')
+
+    // Regex para identificar padrões comuns em extratos:
+    // Data: DD/MM/YYYY ou DD/MM
+    // Valor: R$ 1.234,56 ou 1.234,56 ou -1.234,56
+    const regexData = /(\d{2}\/\d{2}(?:\/\d{4})?)/
+    const regexValor = /(?:R\$\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})/
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+
+      const matchData = line.match(regexData)
+      const matchValor = line.match(regexValor)
+
+      if (matchData && matchValor) {
+        try {
+          // Parsear data
+          let dataStr = matchData[1]
+          if (!dataStr.includes('/20')) {
+            // Assumir ano atual se não tiver ano
+            const anoAtual = new Date().getFullYear()
+            dataStr += `/${anoAtual}`
+          }
+          const [dia, mes, ano] = dataStr.split('/')
+          const data = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia))
+
+          // Parsear valor
+          const valorStr = matchValor[1].replace(/\./g, '').replace(',', '.')
+          const valor = parseFloat(valorStr)
+
+          // Extrair descrição (texto entre data e valor)
+          const posData = line.indexOf(matchData[0])
+          const posValor = line.indexOf(matchValor[0])
+          let descricao = line.substring(posData + matchData[0].length, posValor).trim()
+
+          // Se descrição vazia, pegar próxima linha
+          if (!descricao && i + 1 < lines.length) {
+            descricao = lines[i + 1].trim()
+          }
+
+          if (!descricao) descricao = 'Transação sem descrição'
+
+          transacoes.push({
+            data: data.toISOString().split('T')[0],
+            descricao,
+            valor: Math.abs(valor),
+            tipo: valor >= 0 ? 'credito' : 'debito',
+          })
+        } catch (err) {
+          console.error('Erro ao parsear linha:', line, err)
+        }
+      }
+    }
+
+    return transacoes
   }
 
   async function buscarCategoriasSugeridas(transacoes: TransacaoPreview[]) {
@@ -394,7 +504,7 @@ export default function ImportacaoExtratosPage() {
           <CardContent className="space-y-4">
             <div>
               <Label>Tipo de Extrato</Label>
-              <div className="grid grid-cols-3 gap-3 mt-2">
+              <div className="grid grid-cols-4 gap-3 mt-2">
                 <div className="p-4 border rounded-lg text-center">
                   <FileText className="h-8 w-8 mx-auto mb-2 text-blue-600" />
                   <p className="text-sm font-medium">OFX</p>
@@ -410,6 +520,11 @@ export default function ImportacaoExtratosPage() {
                   <p className="text-sm font-medium">Excel</p>
                   <p className="text-xs text-muted-foreground">XLSX / XLS</p>
                 </div>
+                <div className="p-4 border rounded-lg text-center bg-blue-50">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-red-600" />
+                  <p className="text-sm font-medium">PDF</p>
+                  <p className="text-xs text-muted-foreground">Extrato digital</p>
+                </div>
               </div>
             </div>
 
@@ -419,7 +534,7 @@ export default function ImportacaoExtratosPage() {
                 <input
                   type="file"
                   id="arquivo"
-                  accept=".ofx,.csv,.xlsx,.xls"
+                  accept=".ofx,.csv,.xlsx,.xls,.pdf"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -433,7 +548,7 @@ export default function ImportacaoExtratosPage() {
                       {arquivo ? arquivo.name : 'Clique para selecionar ou arraste aqui'}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Formatos: OFX, CSV, Excel (máx 10MB)
+                      Formatos: OFX, CSV, Excel, PDF (máx 10MB)
                     </p>
                   </div>
                 </label>
