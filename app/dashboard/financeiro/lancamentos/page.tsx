@@ -259,9 +259,9 @@ export default function LancamentosPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
               {/* Busca */}
-              <div className="md:col-span-2">
+              <div className="md:col-span-3 lg:col-span-2">
                 <Label htmlFor="busca">Buscar</Label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -309,23 +309,26 @@ export default function LancamentosPage() {
                 </Select>
               </div>
 
-              {/* Período */}
+              {/* Período - Data Início */}
               <div>
-                <Label>Período</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="date"
-                    value={filtroDataInicio}
-                    onChange={(e) => setFiltroDataInicio(e.target.value)}
-                    placeholder="Início"
-                  />
-                  <Input
-                    type="date"
-                    value={filtroDataFim}
-                    onChange={(e) => setFiltroDataFim(e.target.value)}
-                    placeholder="Fim"
-                  />
-                </div>
+                <Label>Data Início</Label>
+                <Input
+                  type="date"
+                  value={filtroDataInicio}
+                  onChange={(e) => setFiltroDataInicio(e.target.value)}
+                  placeholder="Início"
+                />
+              </div>
+
+              {/* Período - Data Fim */}
+              <div>
+                <Label>Data Fim</Label>
+                <Input
+                  type="date"
+                  value={filtroDataFim}
+                  onChange={(e) => setFiltroDataFim(e.target.value)}
+                  placeholder="Fim"
+                />
               </div>
             </div>
           </CardContent>
