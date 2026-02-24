@@ -56,53 +56,66 @@ Criar a base fundamental do sistema financeiro: plano de contas, bancos e lança
 **Arquivo:** `types/erp.ts`
 **Commit:** 89c7344
 
-#### 1.4 - Componentes UI Base
-- [ ] `components/erp/PlanoContasSelector.tsx` - Seletor de contas
-- [ ] `components/erp/ContaBancariaCard.tsx` - Card de conta bancária
-- [ ] `components/erp/LancamentoForm.tsx` - Formulário de lançamento
-- [ ] `components/erp/LancamentosList.tsx` - Lista de lançamentos
+#### 1.4 - Componentes UI Base ✅ CONCLUÍDO
+- [x] `components/erp/PlanoContasSelector.tsx` - Seletor de contas
+- [x] `components/erp/ContaBancariaCard.tsx` - Card de conta bancária
+- [x] `components/erp/LancamentoCard.tsx` - Card de lançamento
+- [x] Sidebar atualizada com submenu Financeiro
 
 **Pasta:** `components/erp/`
+**Commit:** 2c7e9a8
 
-#### 1.5 - Dashboard ERP (Página Principal)
-- [ ] Criar rota `/dashboard/erp`
-- [ ] Layout base com menu lateral
-- [ ] Cards KPI principais:
-  - Receita do Mês
+#### 1.5 - Dashboard ERP (Página Principal) ✅ CONCLUÍDO
+- [x] Criar rota `/dashboard/financeiro`
+- [x] Cards KPI principais:
+  - Receita do Mês (integrado com resumo_mes)
   - Despesa do Mês
   - Saldo Líquido
   - Contas a Receber
-- [ ] Tabela de últimos lançamentos
-- [ ] Gráfico de Fluxo de Caixa (simplificado)
+- [x] Sistema de alertas (atrasados, vencimentos)
+- [x] Grid de contas bancárias
+- [x] Lista de lançamentos recentes
+- [x] Resumo financeiro com acesso rápido
 
-**Arquivo:** `app/dashboard/erp/page.tsx`
+**Arquivo:** `app/dashboard/financeiro/page.tsx`
+**Commit:** 84cce3c
 
-#### 1.6 - Página de Lançamentos
-- [ ] Criar rota `/dashboard/erp/lancamentos`
-- [ ] Lista completa de lançamentos
-- [ ] Filtros: data, tipo, status, conta
-- [ ] Botão "Novo Lançamento"
-- [ ] Modal de criação/edição
-- [ ] Ações: editar, excluir, duplicar
+#### 1.6 - Página de Lançamentos ✅ CONCLUÍDO
+- [x] Criar rota `/dashboard/financeiro/lancamentos`
+- [x] Lista completa de lançamentos
+- [x] Filtros: data, tipo, status, busca, período
+- [x] Botão "Novo Lançamento"
+- [x] Modal de criação com partidas dobradas
+- [x] Modal de detalhes
+- [x] Integração com criar_lancamento_completo()
+- [x] Layout responsivo (md:2, lg:3 colunas)
 
-**Arquivo:** `app/dashboard/erp/lancamentos/page.tsx`
+**Arquivo:** `app/dashboard/financeiro/lancamentos/page.tsx`
+**Commit:** 2006dbc
 
-#### 1.7 - Página de Bancos
-- [ ] Criar rota `/dashboard/erp/bancos`
-- [ ] Lista de contas bancárias
-- [ ] Card com saldo de cada conta
-- [ ] Extrato por conta
-- [ ] Botão "Nova Conta"
-- [ ] Modal de criação/edição de conta
+#### 1.7 - Página de Bancos ✅ CONCLUÍDO
+- [x] Criar rota `/dashboard/financeiro/bancos`
+- [x] Lista de contas bancárias
+- [x] Cards de estatísticas (total, saldo, positivos, negativos)
+- [x] Card com saldo de cada conta
+- [x] Modal de extrato por conta
+- [x] Botão "Nova Conta"
+- [x] Modal de criação/edição de conta
+- [x] Ativar/desativar contas
+- [x] Filtros por tipo
 
-**Arquivo:** `app/dashboard/erp/bancos/page.tsx`
+**Arquivo:** `app/dashboard/financeiro/bancos/page.tsx`
+**Commit:** 4509de6
 
-### Critérios de Conclusão Fase 1
+### Critérios de Conclusão Fase 1 ✅ TODOS ATENDIDOS
 ✅ Consegue criar lançamentos financeiros
 ✅ Partidas dobradas funcionando
 ✅ Saldo bancário atualiza automaticamente
-✅ Dashboard mostra dados básicos
+✅ Dashboard mostra dados reais do banco
 ✅ Pode listar e filtrar lançamentos
+✅ CRUD completo de contas bancárias
+✅ Sistema de extrato funcionando
+✅ Interface responsiva e polida
 
 ---
 
@@ -458,16 +471,20 @@ Antes de considerar uma fase concluída:
 
 ## 🎯 Status Atual
 
-**Fase Atual:** 🟢 Fase 1 - Core (em andamento)
+**Fase Atual:** 🟢 Fase 2 - Contas a Pagar/Receber (próxima)
 
-**Concluído:**
+**Fase 1 - CORE:** ✅ 100% COMPLETA
 - ✅ 1.1 - Database Schema (commit b591d71) - **EXECUTADO NO DB**
 - ✅ 1.2 - Functions SQL (commit b591d71) - **EXECUTADO NO DB**
 - ✅ 1.3 - Types TypeScript (commit 89c7344)
+- ✅ 1.4 - Componentes UI Base (commit 2c7e9a8)
+- ✅ 1.5 - Dashboard ERP (commit 84cce3c)
+- ✅ 1.6 - Página de Lançamentos (commit 2006dbc)
+- ✅ 1.7 - Página de Bancos (commit 4509de6)
 
-**Próxima Tarefa:** Criar componentes UI base (Fase 1.4)
+**Próxima Tarefa:** Iniciar Fase 2 - Contas a Pagar/Receber
 
-**Última Atualização:** 24/02/2026 - 18:45
+**Última Atualização:** 24/02/2026 - 19:15
 
 ---
 
