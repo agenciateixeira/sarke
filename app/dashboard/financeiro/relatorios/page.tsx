@@ -73,11 +73,12 @@ export default function RelatoriosPage() {
   )
   const [dataFim, setDataFim] = useState(new Date().toISOString().split('T')[0])
 
-  useEffect(() => {
-    if (dataInicio && dataFim) {
-      gerarRelatorios()
-    }
-  }, [])
+  // Não gerar automaticamente ao carregar
+  // useEffect(() => {
+  //   if (dataInicio && dataFim) {
+  //     gerarRelatorios()
+  //   }
+  // }, [])
 
   async function gerarRelatorios() {
     if (!dataInicio || !dataFim) {
@@ -125,7 +126,12 @@ export default function RelatoriosPage() {
       if (evolError) throw evolError
       setEvolucao(evolData || [])
 
-      toast.success('Relatórios gerados com sucesso!')
+      // Só mostrar sucesso se tiver dados
+      if (dreData && dreData.length > 0) {
+        toast.success('Relatórios gerados com sucesso!')
+      } else {
+        toast.info('Nenhum dado encontrado para o período selecionado')
+      }
     } catch (error: any) {
       console.error('Erro ao gerar relatórios:', error)
       toast.error(error.message || 'Erro ao gerar relatórios')
