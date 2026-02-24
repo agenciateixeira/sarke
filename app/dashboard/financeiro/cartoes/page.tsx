@@ -24,6 +24,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { CreditCard, Plus, Edit, Trash2, Upload, TrendingDown, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -41,6 +51,8 @@ export default function CartoesPage() {
   const [loading, setLoading] = useState(true)
   const [modalAberto, setModalAberto] = useState(false)
   const [cartaoEditando, setCartaoEditando] = useState<CartaoCredito | null>(null)
+  const [alertExcluirAberto, setAlertExcluirAberto] = useState(false)
+  const [cartaoParaExcluir, setCartaoParaExcluir] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     nome: '',
     bandeira: 'Visa' as CartaoBandeira,
@@ -157,11 +169,16 @@ export default function CartoesPage() {
     }
   }
 
-  async function excluirCartao(id: string) {
-    if (!confirm('Tem certeza que deseja excluir este cartão?')) return
+  function abrirAlertExcluir(id: string) {
+    setCartaoParaExcluir(id)
+    setAlertExcluirAberto(true)
+  }
+
+  async function confirmarExclusao() {
+    if (!cartaoParaExcluir) return
 
     try {
-      const { error } = await supabase.from('cartoes_credito').delete().eq('id', id)
+      const { error } = await supabase.from('cartoes_credito').delete().eq('id', cartaoParaExcluir)
 
       if (error) throw error
       toast.success('Cartão excluído com sucesso!')
@@ -169,6 +186,9 @@ export default function CartoesPage() {
     } catch (error: any) {
       console.error('Erro ao excluir cartão:', error)
       toast.error(error.message || 'Erro ao excluir cartão')
+    } finally {
+      setAlertExcluirAberto(false)
+      setCartaoParaExcluir(null)
     }
   }
 
@@ -325,7 +345,7 @@ export default function CartoesPage() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
-                          excluirCartao(cartao.id)
+                          abrirAlertExcluir(cartao.id)
                         }}
                         className="h-8 w-8 p-0 shadow-lg"
                       >
@@ -517,6 +537,25 @@ export default function CartoesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Excluir */}
+        <AlertDialog open={alertExcluirAberto} onOpenChange={setAlertExcluirAberto}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir cartão de crédito?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O cartão será excluído permanentemente do sistema,
+                mas as faturas e compras já registradas serão mantidas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmarExclusao} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )
