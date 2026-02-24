@@ -210,6 +210,16 @@ const menuItems: MenuItem[] = [
         setor: 'financeiro',
       },
       {
+        title: 'Conciliação Bancária',
+        href: '/dashboard/financeiro/conciliacao',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Regras de Automação',
+        href: '/dashboard/financeiro/regras',
+        setor: 'financeiro',
+      },
+      {
         title: 'Relatórios',
         href: '/dashboard/financeiro/relatorios',
         setor: 'financeiro',
