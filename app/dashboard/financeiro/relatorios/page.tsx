@@ -20,6 +20,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { formatarMoeda } from '@/types/erp'
 import { toast } from 'sonner'
+import { exportarDREParaPDF, exportarDREParaCSV } from '@/lib/export-dre'
 
 interface DREData {
   receitas_operacionais: number
@@ -203,10 +204,24 @@ export default function RelatoriosPage() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>DRE - Demonstração do Resultado</CardTitle>
-                    <Button variant="outline" size="sm">
-                      <Download className="mr-2 h-4 w-4" />
-                      Exportar PDF
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportarDREParaPDF(dre, { inicio: dataInicio, fim: dataFim })}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportarDREParaCSV(dre, { inicio: dataInicio, fim: dataFim })}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        CSV
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {/* Receitas */}

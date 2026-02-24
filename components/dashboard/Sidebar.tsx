@@ -215,6 +215,11 @@ const menuItems: MenuItem[] = [
         setor: 'financeiro',
       },
       {
+        title: 'Importação de Extratos',
+        href: '/dashboard/financeiro/importacao',
+        setor: 'financeiro',
+      },
+      {
         title: 'Conciliação Bancária',
         href: '/dashboard/financeiro/conciliacao',
         setor: 'financeiro',
