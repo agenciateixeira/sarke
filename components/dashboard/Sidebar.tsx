@@ -210,6 +210,11 @@ const menuItems: MenuItem[] = [
         setor: 'financeiro',
       },
       {
+        title: 'Plano de Contas',
+        href: '/dashboard/financeiro/plano-contas',
+        setor: 'financeiro',
+      },
+      {
         title: 'Conciliação Bancária',
         href: '/dashboard/financeiro/conciliacao',
         setor: 'financeiro',

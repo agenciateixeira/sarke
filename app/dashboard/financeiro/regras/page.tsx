@@ -445,16 +445,16 @@ export default function RegrasAutomacaoPage() {
               <div>
                 <Label>Conta Bancária (opcional)</Label>
                 <Select
-                  value={formData.conta_bancaria_id}
+                  value={formData.conta_bancaria_id || 'todas'}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, conta_bancaria_id: value })
+                    setFormData({ ...formData, conta_bancaria_id: value === 'todas' ? '' : value })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="todas">Todas</SelectItem>
                     {contasBancarias.map((conta) => (
                       <SelectItem key={conta.id} value={conta.id}>
                         {conta.nome}
