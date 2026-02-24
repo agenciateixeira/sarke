@@ -438,10 +438,12 @@ export const Sidebar = () => {
                       <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
                         {item.subItems!.map((subItem) => {
                           // Lógica especial para páginas exatas (não usar startsWith)
+                          // Dashboard principal, Obra, Projetos, Comercial e Financeiro devem usar match exato
                           const isSubActive =
                             subItem.href === '/dashboard/obra' ||
                             subItem.href === '/dashboard/projetos' ||
-                            subItem.href === '/dashboard/comercial'
+                            subItem.href === '/dashboard/comercial' ||
+                            subItem.href === '/dashboard/financeiro'
                               ? pathname === subItem.href
                               : pathname.startsWith(subItem.href)
 
