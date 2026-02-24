@@ -403,3 +403,241 @@ export function calcularDiasRestantes(dataVencimento: string): number {
   const diff = Math.floor((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
   return diff
 }
+
+// =====================================================
+// FASE 2 - CONTAS A PAGAR/RECEBER
+// =====================================================
+
+// =====================================================
+// 14. FORMAS DE PAGAMENTO
+// =====================================================
+export type FormaPagamentoTipo =
+  | 'dinheiro'
+  | 'pix'
+  | 'ted'
+  | 'doc'
+  | 'boleto'
+  | 'cartao_credito'
+  | 'cartao_debito'
+  | 'cheque'
+  | 'outros'
+
+export interface FormaPagamento {
+  id: string
+  nome: string
+  tipo: FormaPagamentoTipo
+  taxa_percentual: number
+  dias_compensacao: number
+  ativa: boolean
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+// =====================================================
+// 15. PARCELAS
+// =====================================================
+export type ParcelaStatus = 'pendente' | 'pago' | 'parcial' | 'atrasado' | 'cancelado'
+
+export interface LancamentoParcela {
+  id: string
+  lancamento_id: string
+  numero_parcela: number
+  total_parcelas: number
+  valor_original: number
+  valor_juros: number
+  valor_multa: number
+  valor_desconto: number
+  valor_total: number
+  valor_pago: number
+  data_vencimento: string
+  data_pagamento: string | null
+  status: ParcelaStatus
+  forma_pagamento_id: string | null
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ParcelaComRelacoes extends LancamentoParcela {
+  lancamento?: Lancamento
+  forma_pagamento?: FormaPagamento
+}
+
+// =====================================================
+// 16. RECORRÊNCIA
+// =====================================================
+export type RecorrenciaFrequencia =
+  | 'diaria'
+  | 'semanal'
+  | 'quinzenal'
+  | 'mensal'
+  | 'bimestral'
+  | 'trimestral'
+  | 'semestral'
+  | 'anual'
+
+export interface LancamentoRecorrencia {
+  id: string
+  lancamento_modelo_id: string
+  frequencia: RecorrenciaFrequencia
+  dia_vencimento: number | null
+  data_inicio: string
+  data_fim: string | null
+  numero_repeticoes: number | null
+  ativa: boolean
+  proxima_geracao: string | null
+  ultima_geracao: string | null
+  ajustar_valor_automatico: boolean
+  percentual_reajuste: number
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RecorrenciaComLancamento extends LancamentoRecorrencia {
+  lancamento?: Lancamento
+}
+
+// =====================================================
+// 17. AGING (ANÁLISE DE VENCIMENTOS)
+// =====================================================
+export interface AgingReceber {
+  a_vencer: number
+  vencido_0_30: number
+  vencido_31_60: number
+  vencido_61_90: number
+  vencido_91_180: number
+  vencido_acima_180: number
+  total_receber: number
+}
+
+export interface AgingPagar {
+  a_vencer: number
+  vencido_0_30: number
+  vencido_31_60: number
+  vencido_61_90: number
+  vencido_91_180: number
+  vencido_acima_180: number
+  total_pagar: number
+}
+
+// =====================================================
+// 18. PROJEÇÃO DE FLUXO DE CAIXA
+// =====================================================
+export interface ProjecaoFluxoCaixa {
+  data: string
+  receitas_previstas: number
+  despesas_previstas: number
+  saldo_dia: number
+  saldo_acumulado: number
+}
+
+// =====================================================
+// 19. TOP DEVEDORES
+// =====================================================
+export interface Cliente {
+  id: string
+  name: string
+}
+
+export interface TopDevedor {
+  cliente_id: string
+  cliente_nome: string
+  quantidade_titulos: number
+  valor_total_em_aberto: number
+  valor_em_atraso: number
+  dias_medio_atraso: number
+}
+
+// =====================================================
+// 20. RESUMO CONTAS A RECEBER/PAGAR
+// =====================================================
+export interface ResumoContasReceber {
+  total_receber: number
+  total_vencido: number
+  total_a_vencer: number
+  quantidade_total: number
+  quantidade_vencidas: number
+  ticket_medio: number
+}
+
+export interface ResumoContasPagar {
+  total_pagar: number
+  total_vencido: number
+  total_a_vencer: number
+  quantidade_total: number
+  quantidade_vencidas: number
+  ticket_medio: number
+}
+
+// =====================================================
+// 21. INPUTS - FASE 2
+// =====================================================
+export interface GerarParcelasInput {
+  lancamento_id: string
+  numero_parcelas: number
+  data_primeiro_vencimento: string
+  intervalo_dias?: number
+}
+
+export interface DarBaixaParcelaInput {
+  parcela_id: string
+  data_pagamento: string
+  forma_pagamento_id?: string
+  valor_pago?: number
+  aplicar_juros_multa?: boolean
+}
+
+export interface CriarRecorrenciaInput {
+  lancamento_modelo_id: string
+  frequencia: RecorrenciaFrequencia
+  dia_vencimento?: number
+  data_inicio: string
+  data_fim?: string
+  numero_repeticoes?: number
+  ajustar_valor_automatico?: boolean
+  percentual_reajuste?: number
+}
+
+// =====================================================
+// 22. UTILITIES - FASE 2
+// =====================================================
+export const PARCELA_STATUS_LABELS: Record<ParcelaStatus, string> = {
+  pendente: 'Pendente',
+  pago: 'Pago',
+  parcial: 'Parcial',
+  atrasado: 'Atrasado',
+  cancelado: 'Cancelado',
+}
+
+export const PARCELA_STATUS_COLORS: Record<ParcelaStatus, string> = {
+  pendente: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300',
+  pago: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  parcial: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  atrasado: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  cancelado: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+}
+
+export const RECORRENCIA_LABELS: Record<RecorrenciaFrequencia, string> = {
+  diaria: 'Diária',
+  semanal: 'Semanal',
+  quinzenal: 'Quinzenal',
+  mensal: 'Mensal',
+  bimestral: 'Bimestral',
+  trimestral: 'Trimestral',
+  semestral: 'Semestral',
+  anual: 'Anual',
+}
+
+export const FORMA_PAGAMENTO_LABELS: Record<FormaPagamentoTipo, string> = {
+  dinheiro: 'Dinheiro',
+  pix: 'PIX',
+  ted: 'TED',
+  doc: 'DOC',
+  boleto: 'Boleto',
+  cartao_credito: 'Cartão de Crédito',
+  cartao_debito: 'Cartão de Débito',
+  cheque: 'Cheque',
+  outros: 'Outros',
+}
