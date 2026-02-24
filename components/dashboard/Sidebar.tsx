@@ -210,6 +210,11 @@ const menuItems: MenuItem[] = [
         setor: 'financeiro',
       },
       {
+        title: 'Cartões de Crédito',
+        href: '/dashboard/financeiro/cartoes',
+        setor: 'financeiro',
+      },
+      {
         title: 'Plano de Contas',
         href: '/dashboard/financeiro/plano-contas',
         setor: 'financeiro',
