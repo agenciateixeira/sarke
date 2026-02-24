@@ -24,17 +24,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { CreditCard, Plus, Edit, Trash2, Upload, TrendingDown, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { CartaoCreditoCard } from '@/components/erp/CartaoCreditoCard'
 import {
   type CartaoCredito,
   type CartaoBandeira,
@@ -284,68 +277,89 @@ export default function CartoesPage() {
         </div>
 
         {/* Lista de Cartões */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Cartões Cadastrados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8">Carregando...</div>
-            ) : cartoes.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum cartão cadastrado
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cartão</TableHead>
-                    <TableHead>Bandeira</TableHead>
-                    <TableHead>Portador</TableHead>
-                    <TableHead className="text-right">Limite Total</TableHead>
-                    <TableHead className="text-right">Disponível</TableHead>
-                    <TableHead className="text-center">% Disponível</TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cartoes.map((cartao) => {
-                    const percentualDisponivel = calcularLimiteDisponivel(cartao)
-                    return (
-                      <TableRow key={cartao.id}>
-                        <TableCell>
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Cartões Cadastrados</h3>
+            <Link href="/dashboard/financeiro/cartoes/analise">
+              <Button variant="outline" size="sm">
+                Ver Análise de Gastos
+              </Button>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-8">Carregando...</div>
+          ) : cartoes.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-muted-foreground">
+                  <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">Nenhum cartão cadastrado</p>
+                  <p className="text-sm mt-2">Cadastre seu primeiro cartão de crédito</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {cartoes.map((cartao) => {
+                const percentualDisponivel = calcularLimiteDisponivel(cartao)
+                return (
+                  <div key={cartao.id} className="relative group">
+                    <CartaoCreditoCard cartao={cartao} onClick={() => abrirModalEditar(cartao)} />
+
+                    {/* Action buttons */}
+                    <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          abrirModalEditar(cartao)
+                        }}
+                        className="h-8 w-8 p-0 shadow-lg"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          excluirCartao(cartao.id)
+                        }}
+                        className="h-8 w-8 p-0 shadow-lg"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Info card below */}
+                    <Card className="mt-4">
+                      <CardContent className="p-4">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <div className="font-medium">{cartao.nome}</div>
-                            {cartao.ultimos_digitos && (
-                              <div className="text-sm text-muted-foreground">
-                                •••• {cartao.ultimos_digitos}
-                              </div>
-                            )}
+                            <div className="text-muted-foreground text-xs">Limite Total</div>
+                            <div className="font-semibold">{formatarMoeda(cartao.limite_total)}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {cartao.bandeira ? BANDEIRA_LABELS[cartao.bandeira] : '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{cartao.portador || '-'}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatarMoeda(cartao.limite_total)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          <span className={getLimiteColor(percentualDisponivel)}>
-                            {formatarMoeda(cartao.limite_disponivel)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className={getLimiteColor(percentualDisponivel)}>
-                            {percentualDisponivel.toFixed(1)}%
-                          </span>
-                        </TableCell>
-                        <TableCell>Dia {cartao.dia_vencimento}</TableCell>
-                        <TableCell>
+                          <div>
+                            <div className="text-muted-foreground text-xs">Disponível</div>
+                            <div className={`font-semibold ${getLimiteColor(percentualDisponivel)}`}>
+                              {formatarMoeda(cartao.limite_disponivel)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground text-xs">% Disponível</div>
+                            <div className={`font-semibold ${getLimiteColor(percentualDisponivel)}`}>
+                              {percentualDisponivel.toFixed(1)}%
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground text-xs">Vencimento</div>
+                            <div className="font-semibold">Dia {cartao.dia_vencimento}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t flex items-center justify-between">
                           <Badge
                             variant={cartao.ativo ? 'default' : 'secondary'}
                             className="cursor-pointer"
@@ -353,33 +367,19 @@ export default function CartoesPage() {
                           >
                             {cartao.ativo ? 'Ativo' : 'Inativo'}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => abrirModalEditar(cartao)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => excluirCartao(cartao.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+
+                          <div className="text-xs text-muted-foreground">
+                            Fechamento: dia {cartao.dia_fechamento}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Modal Criar/Editar */}
         <Dialog open={modalAberto} onOpenChange={setModalAberto}>
