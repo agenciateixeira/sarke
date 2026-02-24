@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -274,10 +275,12 @@ export default function CartoesPage() {
             <Plus className="mr-2 h-4 w-4" />
             Novo Cartão
           </Button>
-          <Button variant="outline" disabled>
-            <Upload className="mr-2 h-4 w-4" />
-            Importar Fatura
-          </Button>
+          <Link href="/dashboard/financeiro/cartoes/importar-fatura">
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Fatura
+            </Button>
+          </Link>
         </div>
 
         {/* Lista de Cartões */}
