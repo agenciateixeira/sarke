@@ -177,11 +177,44 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
+  // FINANCEIRO/ERP - Menu hierárquico
   {
     title: 'Financeiro',
     href: '/dashboard/financeiro',
     icon: DollarSign,
     setor: 'financeiro',
+    subItems: [
+      {
+        title: 'Dashboard',
+        href: '/dashboard/financeiro',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Lançamentos',
+        href: '/dashboard/financeiro/lancamentos',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Contas a Receber',
+        href: '/dashboard/financeiro/contas-receber',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Contas a Pagar',
+        href: '/dashboard/financeiro/contas-pagar',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Bancos e Caixas',
+        href: '/dashboard/financeiro/bancos',
+        setor: 'financeiro',
+      },
+      {
+        title: 'Relatórios',
+        href: '/dashboard/financeiro/relatorios',
+        setor: 'financeiro',
+      },
+    ],
   },
   {
     title: 'Jurídico',
