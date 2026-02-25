@@ -249,9 +249,11 @@ export function ClientDialog({ open, onOpenChange, client, onSave }: ClientDialo
 
       if (data.message) {
         toast.info('CNPJ não encontrado')
+        setLoadingDocument(false)
         return
       }
 
+      // Preencher dados da empresa
       setFormData((prev) => ({
         ...prev,
         name: data.razao_social || prev.name,
@@ -267,12 +269,38 @@ export function ClientDialog({ open, onOpenChange, client, onSave }: ClientDialo
         address_zip: data.cep ? formatCEP(data.cep) : prev.address_zip,
       }))
 
+      // Se o CEP foi preenchido mas faltam dados de endereço, buscar no ViaCEP
+      if (data.cep && (!data.logradouro || !data.bairro || !data.municipio)) {
+        const cepNumeros = data.cep.replace(/\D/g, '')
+        await buscarCEPComplementar(cepNumeros)
+      }
+
       toast.success('Dados da empresa preenchidos automaticamente!')
     } catch (error) {
       console.error('Erro ao buscar CNPJ:', error)
       toast.error('Erro ao buscar dados do CNPJ')
     } finally {
       setLoadingDocument(false)
+    }
+  }
+
+  // Buscar CEP complementar (chamado automaticamente pelo CNPJ se necessário)
+  const buscarCEPComplementar = async (cepNumeros: string) => {
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepNumeros}/json/`)
+      const data = await response.json()
+
+      if (data.erro) return
+
+      setFormData((prev) => ({
+        ...prev,
+        address_street: prev.address_street || data.logradouro || '',
+        address_neighborhood: prev.address_neighborhood || data.bairro || '',
+        address_city: prev.address_city || data.localidade || '',
+        address_state: prev.address_state || data.uf || '',
+      }))
+    } catch (error) {
+      console.error('Erro ao buscar CEP complementar:', error)
     }
   }
 
