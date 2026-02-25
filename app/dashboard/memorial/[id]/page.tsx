@@ -17,6 +17,21 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
   Archive,
   ArrowLeft,
   Calendar,
@@ -33,7 +48,8 @@ import {
   TrendingDown,
   Package,
   CalendarDays,
-  Users
+  Users,
+  ChevronDown
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -139,6 +155,15 @@ export default function MemorialObraPage() {
   const [fotos, setFotos] = useState<MemorialFoto[]>([])
   const [documentos, setDocumentos] = useState<MemorialDocumento[]>([])
   const [loading, setLoading] = useState(true)
+  const [dialogParcialOpen, setDialogParcialOpen] = useState(false)
+  const [secoesSelecionadas, setSecoesSelecionadas] = useState({
+    geral: true,
+    empresas: true,
+    financeiro: true,
+    materiais: true,
+    fotos: true,
+    documentos: true,
+  })
 
   const totalEntradas = movimentacoes
     .filter((m) => m.tipo === 'entrada')
@@ -233,11 +258,48 @@ export default function MemorialObraPage() {
     }
   }
 
-  function handleExportarPDF() {
-    toast.success('Preparando PDF para impressão...')
+  function handleExportarCompleto() {
+    // Resetar todas as seções para visíveis
+    setSecoesSelecionadas({
+      geral: true,
+      empresas: true,
+      financeiro: true,
+      materiais: true,
+      fotos: true,
+      documentos: true,
+    })
+
+    toast.success('Preparando PDF completo para impressão...')
     setTimeout(() => {
       window.print()
     }, 500)
+  }
+
+  function handleAbrirDialogParcial() {
+    setDialogParcialOpen(true)
+  }
+
+  function handleExportarParcial() {
+    const secoesMarcadas = Object.values(secoesSelecionadas).filter(Boolean).length
+
+    if (secoesMarcadas === 0) {
+      toast.error('Selecione pelo menos uma seção para exportar')
+      return
+    }
+
+    setDialogParcialOpen(false)
+    toast.success(`Preparando PDF com ${secoesMarcadas} seção(ões) selecionada(s)...`)
+
+    setTimeout(() => {
+      window.print()
+    }, 500)
+  }
+
+  function handleToggleSecao(secao: keyof typeof secoesSelecionadas) {
+    setSecoesSelecionadas(prev => ({
+      ...prev,
+      [secao]: !prev[secao]
+    }))
   }
 
   if (loading) {
@@ -302,6 +364,9 @@ export default function MemorialObraPage() {
           .page-break {
             page-break-before: always;
           }
+          .print-section-hidden {
+            display: none !important;
+          }
           @page {
             margin: 2cm;
           }
@@ -326,10 +391,25 @@ export default function MemorialObraPage() {
             description="Memorial Descritivo - Relatório Executivo da Obra"
             actions={
               <div className="flex gap-2">
-                <Button onClick={handleExportarPDF} variant="default">
-                  <Download className="mr-2 h-4 w-4" />
-                  Exportar PDF
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="default">
+                      <Download className="mr-2 h-4 w-4" />
+                      Exportar PDF
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportarCompleto}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Exportar arquivo completo
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleAbrirDialogParcial}>
+                      <Package className="mr-2 h-4 w-4" />
+                      Exportar arquivo parcial
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Link href="/dashboard/memorial">
                   <Button variant="outline">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -843,7 +923,7 @@ export default function MemorialObraPage() {
         {/* Versão completa para impressão - Mostra todas as seções */}
         <div className="hidden print:block space-y-6">
           {/* 1. Informações Gerais */}
-          <div className="page-break">
+          <div className={`page-break ${!secoesSelecionadas.geral ? 'print-section-hidden' : ''}`}>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">1. Informações Gerais</h2>
 
             <Card className="mb-4">
@@ -940,7 +1020,7 @@ export default function MemorialObraPage() {
           </div>
 
           {/* 2. Empresas Parceiras */}
-          <div className="page-break">
+          <div className={`page-break ${!secoesSelecionadas.empresas ? 'print-section-hidden' : ''}`}>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">2. Empresas Parceiras</h2>
             <Card>
               <CardHeader>
@@ -983,7 +1063,7 @@ export default function MemorialObraPage() {
           </div>
 
           {/* 3. Resumo Financeiro */}
-          <div className="page-break">
+          <div className={`page-break ${!secoesSelecionadas.financeiro ? 'print-section-hidden' : ''}`}>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">3. Resumo Financeiro</h2>
 
             <div className="grid grid-cols-3 gap-4 mb-4">
@@ -1053,7 +1133,7 @@ export default function MemorialObraPage() {
           </div>
 
           {/* 4. Orçamento de Materiais */}
-          <div className="page-break">
+          <div className={`page-break ${!secoesSelecionadas.materiais ? 'print-section-hidden' : ''}`}>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">4. Orçamento de Materiais</h2>
             <Card>
               <CardHeader>
@@ -1096,7 +1176,7 @@ export default function MemorialObraPage() {
 
           {/* 5. Galeria de Fotos */}
           {fotos.length > 0 && (
-            <div className="page-break">
+            <div className={`page-break ${!secoesSelecionadas.fotos ? 'print-section-hidden' : ''}`}>
               <h2 className="text-2xl font-bold mb-4 text-gray-900">5. Galeria de Fotos</h2>
               <Card>
                 <CardContent className="pt-6">
@@ -1128,7 +1208,7 @@ export default function MemorialObraPage() {
 
           {/* 6. Documentos */}
           {documentos.length > 0 && (
-            <div className="page-break">
+            <div className={`page-break ${!secoesSelecionadas.documentos ? 'print-section-hidden' : ''}`}>
               <h2 className="text-2xl font-bold mb-4 text-gray-900">6. Documentos Anexados</h2>
               <Card>
                 <CardContent className="pt-6">
@@ -1156,6 +1236,132 @@ export default function MemorialObraPage() {
           <p className="mt-1">Sarke - Sistema de Gerenciamento de Obras</p>
         </div>
       </div>
+
+      {/* Dialog de Exportação Parcial */}
+      <Dialog open={dialogParcialOpen} onOpenChange={setDialogParcialOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar Arquivo Parcial</DialogTitle>
+            <DialogDescription>
+              Selecione as seções que deseja incluir no PDF
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-geral"
+                checked={secoesSelecionadas.geral}
+                onCheckedChange={() => handleToggleSecao('geral')}
+              />
+              <label
+                htmlFor="secao-geral"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Informações Gerais
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-empresas"
+                checked={secoesSelecionadas.empresas}
+                onCheckedChange={() => handleToggleSecao('empresas')}
+              />
+              <label
+                htmlFor="secao-empresas"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  Empresas Parceiras ({empresas.length})
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-financeiro"
+                checked={secoesSelecionadas.financeiro}
+                onCheckedChange={() => handleToggleSecao('financeiro')}
+              />
+              <label
+                htmlFor="secao-financeiro"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  Resumo Financeiro ({movimentacoes.length} movimentações)
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-materiais"
+                checked={secoesSelecionadas.materiais}
+                onCheckedChange={() => handleToggleSecao('materiais')}
+              />
+              <label
+                htmlFor="secao-materiais"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  Orçamento de Materiais ({materiais.length} itens)
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-fotos"
+                checked={secoesSelecionadas.fotos}
+                onCheckedChange={() => handleToggleSecao('fotos')}
+              />
+              <label
+                htmlFor="secao-fotos"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  Galeria de Fotos ({fotos.length} fotos)
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="secao-documentos"
+                checked={secoesSelecionadas.documentos}
+                onCheckedChange={() => handleToggleSecao('documentos')}
+              />
+              <label
+                htmlFor="secao-documentos"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Documentos ({documentos.length} documentos)
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogParcialOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExportarParcial}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Selecionadas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   )
 }
