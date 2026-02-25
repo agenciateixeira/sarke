@@ -152,7 +152,7 @@ BEGIN
 
   DELETE FROM obra_caixa WHERE obra_id = p_obra_id;
 
-  -- 7. Mover orçamento de materiais
+  -- 7. Mover orçamento de materiais (NOME CORRETO: obra_orcamento_materiais)
   INSERT INTO memorial_orcamento_materiais (
     memorial_obra_id, material_original_id, categoria, item, descricao,
     unidade, quantidade, valor_unitario, valor_total, fornecedor, observacoes,
@@ -162,25 +162,32 @@ BEGIN
     v_memorial_id, id, categoria, item, descricao,
     unidade, quantidade, valor_unitario, valor_total, fornecedor, observacoes,
     created_at, updated_at
-  FROM orcamento_materiais
+  FROM obra_orcamento_materiais
   WHERE obra_id = p_obra_id;
 
-  DELETE FROM orcamento_materiais WHERE obra_id = p_obra_id;
+  DELETE FROM obra_orcamento_materiais WHERE obra_id = p_obra_id;
 
-  -- 8. Registrar empresas parceiras (snapshot)
+  -- 8. Registrar empresas parceiras (NOME CORRETO: obra_empresas)
   INSERT INTO memorial_obra_empresas (
     memorial_obra_id, empresa_parceira_id, empresa_nome, empresa_cnpj,
     tipo_servico, data_inicio, data_fim, valor_contrato, status, created_at
   )
   SELECT
-    v_memorial_id, ep.id, ep.nome, ep.cnpj,
-    oeh.tipo_servico, oeh.data_inicio, oeh.data_fim, oeh.valor_contrato,
-    oeh.status, oeh.created_at
-  FROM obra_empresas_historico oeh
-  JOIN empresas_parceiras ep ON ep.id = oeh.empresa_id
-  WHERE oeh.obra_id = p_obra_id;
+    v_memorial_id,
+    ep.id,
+    ep.nome,
+    ep.cnpj,
+    oe.servico_executado,
+    oe.data_inicio,
+    oe.data_termino,
+    oe.valor_contratado,
+    oe.status,
+    oe.created_at
+  FROM obra_empresas oe
+  JOIN empresas_parceiras ep ON ep.id = oe.empresa_id
+  WHERE oe.obra_id = p_obra_id;
 
-  DELETE FROM obra_empresas_historico WHERE obra_id = p_obra_id;
+  DELETE FROM obra_empresas WHERE obra_id = p_obra_id;
 
   -- 9. Registrar no histórico
   INSERT INTO memorial_historico (memorial_obra_id, acao, realizado_por, motivo)
