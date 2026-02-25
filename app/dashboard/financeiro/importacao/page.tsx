@@ -240,7 +240,7 @@ export default function ImportacaoExtratosPage() {
       }
 
       // Carregar PDF.js dinamicamente (apenas o core necessário)
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      const pdfjsLib = await import('pdfjs-dist')
 
       // Configurar worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`

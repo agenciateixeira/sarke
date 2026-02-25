@@ -160,7 +160,7 @@ export default function ImportarFaturaPage() {
         return
       }
 
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      const pdfjsLib = await import('pdfjs-dist')
       pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
 
       const arrayBuffer = await file.arrayBuffer()
