@@ -14,12 +14,22 @@ export async function arquivarObra({ obra_id, user_id, motivo }: ArquivarObraPar
       p_motivo: motivo || null,
     })
 
-    if (error) throw error
+    if (error) {
+      // Log completo do erro
+      console.error('=== ERRO SUPABASE RPC ===')
+      console.error('Message:', error.message)
+      console.error('Code:', error.code)
+      console.error('Details:', error.details)
+      console.error('Hint:', error.hint)
+      console.error('JSON:', JSON.stringify(error, null, 2))
+      console.error('========================')
+      throw error
+    }
 
     return { success: true, memorial_id: data }
   } catch (error: any) {
     console.error('Erro ao arquivar obra:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error.message || error.details || 'Erro desconhecido ao arquivar' }
   }
 }
 

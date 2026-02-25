@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Obra, StatusObra } from '@/types/obra'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +51,7 @@ interface ObraStatusChangerProps {
 }
 
 export function ObraStatusChanger({ obra, onStatusChanged }: ObraStatusChangerProps) {
+  const router = useRouter()
   const { user } = useAuth()
   const [novoStatus, setNovoStatus] = useState<StatusObra>(obra.status)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -102,7 +104,12 @@ export function ObraStatusChanger({ obra, onStatusChanged }: ObraStatusChangerPr
         })
 
         if (result.success) {
-          toast.success('Obra arquivada no memorial!')
+          toast.success('Obra arquivada no memorial! Redirecionando...')
+          // Redirecionar para o memorial após 1 segundo
+          setTimeout(() => {
+            router.push(`/dashboard/memorial/${result.memorial_id}`)
+          }, 1000)
+          return // Não chamar onStatusChanged pois a obra foi deletada
         } else {
           toast.error('Erro ao arquivar: ' + result.error)
         }
