@@ -188,12 +188,12 @@ export function ObraStatusChanger({ obra, onStatusChanged }: ObraStatusChangerPr
               <Archive className="h-5 w-5 text-pink-600" />
               Arquivar obra no Memorial?
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
                 A obra <strong>"{obra.nome}"</strong> está sendo marcada como{' '}
                 <strong>{novoStatus === 'concluida' ? 'concluída' : 'cancelada'}</strong>.
               </p>
-              <p>
+              <p className="text-sm text-muted-foreground">
                 Deseja arquivá-la no <strong>Memorial de Obras</strong>?
               </p>
               <div className="text-sm space-y-2">
@@ -214,7 +214,7 @@ export function ObraStatusChanger({ obra, onStatusChanged }: ObraStatusChangerPr
                   </ul>
                 </div>
               </div>
-            </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleConfirmarArquivamento(false)}>
