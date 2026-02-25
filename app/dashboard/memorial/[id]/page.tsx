@@ -234,8 +234,10 @@ export default function MemorialObraPage() {
   }
 
   function handleExportarPDF() {
-    toast.info('Funcionalidade de exportação em desenvolvimento...')
-    // TODO: Implementar exportação para PDF
+    toast.success('Preparando PDF para impressão...')
+    setTimeout(() => {
+      window.print()
+    }, 500)
   }
 
   if (loading) {
@@ -279,25 +281,65 @@ export default function MemorialObraPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title={obra.nome}
-          description="Memorial Descritivo - Relatório Executivo da Obra"
-          actions={
-            <div className="flex gap-2">
-              <Button onClick={handleExportarPDF} variant="default">
-                <Download className="mr-2 h-4 w-4" />
-                Exportar PDF
-              </Button>
-              <Link href="/dashboard/memorial">
-                <Button variant="outline">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar
-                </Button>
-              </Link>
-            </div>
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
           }
-        />
+          #memorial-print-content,
+          #memorial-print-content * {
+            visibility: visible;
+          }
+          #memorial-print-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .print-hide {
+            display: none !important;
+          }
+          .page-break {
+            page-break-before: always;
+          }
+          @page {
+            margin: 2cm;
+          }
+        }
+      `}</style>
+
+      <div className="flex flex-col gap-6 p-6" id="memorial-print-content">
+        {/* Cabeçalho de Impressão com Logo */}
+        <div className="hidden print:block mb-8 border-b-2 border-gray-300 pb-4">
+          <div className="flex items-center justify-between">
+            <img src="/logo.png" alt="Sarke" className="h-16" />
+            <div className="text-right">
+              <h1 className="text-2xl font-bold text-gray-900">{obra.nome}</h1>
+              <p className="text-gray-600">Memorial Descritivo da Obra</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="print-hide">
+          <PageHeader
+            title={obra.nome}
+            description="Memorial Descritivo - Relatório Executivo da Obra"
+            actions={
+              <div className="flex gap-2">
+                <Button onClick={handleExportarPDF} variant="default">
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar PDF
+                </Button>
+                <Link href="/dashboard/memorial">
+                  <Button variant="outline">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar
+                  </Button>
+                </Link>
+              </div>
+            }
+          />
+        </div>
 
         {/* Resumo Executivo */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -797,6 +839,12 @@ export default function MemorialObraPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Rodapé de Impressão */}
+        <div className="hidden print:block mt-8 pt-4 border-t-2 border-gray-300 text-center text-sm text-gray-600">
+          <p>Documento gerado em {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="mt-1">Sarke - Sistema de Gerenciamento de Obras</p>
+        </div>
       </div>
     </ProtectedRoute>
   )
