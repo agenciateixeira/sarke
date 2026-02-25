@@ -128,18 +128,27 @@ BEGIN
 
   DELETE FROM rdos WHERE obra_id = p_obra_id;
 
-  -- 6. Mover caixa de obra (NOME CORRETO: obra_caixa)
+  -- 6. Mover caixa de obra (usando estrutura correta)
   INSERT INTO memorial_caixa_obra (
     memorial_obra_id, movimentacao_original_id, tipo, categoria, descricao,
     valor, data, forma_pagamento, comprovante_url, empresa_parceira_id,
     created_by, created_at
   )
   SELECT
-    v_memorial_id, id, tipo, categoria, descricao,
-    valor, data, forma_pagamento, comprovante_url, empresa_parceira_id,
-    created_by, created_at
-  FROM obra_caixa
-  WHERE obra_id = p_obra_id;
+    v_memorial_id,
+    oc.id,
+    CASE WHEN oc.valor < 0 THEN 'saida' ELSE 'entrada' END,
+    COALESCE(oc.categoria, 'Não informado'),
+    oc.descricao,
+    ABS(oc.valor),
+    oc.data,
+    oc.tipo_recibo,
+    oc.anexo_url,
+    NULL, -- empresa_parceira_id não existe em obra_caixa
+    NULL, -- created_by não existe em obra_caixa
+    oc.created_at
+  FROM obra_caixa oc
+  WHERE oc.obra_id = p_obra_id;
 
   DELETE FROM obra_caixa WHERE obra_id = p_obra_id;
 
