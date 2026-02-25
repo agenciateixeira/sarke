@@ -103,24 +103,26 @@ BEGIN
     DELETE FROM cronograma_obras WHERE id = v_cronograma_id;
   END IF;
 
-  -- 5. Mover RDOs
+  -- 5. Mover RDOs (usando estrutura correta da tabela rdos)
   INSERT INTO memorial_rdos (
     memorial_obra_id, rdo_original_id, data, clima, responsavel_id,
     atividades, materiais, equipamentos, mao_de_obra, observacoes, fotos,
     created_at, updated_at
   )
   SELECT
-    v_memorial_id, rdos.id, rdos.data, rdos.clima, rdos.responsavel_id,
-    rdos.atividades_executadas, rdos.materiais_recebidos, rdos.equipamentos_utilizados,
-    jsonb_build_object(
-      'operarios', rdos.num_operarios,
-      'serventes', rdos.num_serventes,
-      'mestres', rdos.num_mestres,
-      'encarregados', rdos.num_encarregados
-    )::TEXT,
-    rdos.observacoes,
-    to_jsonb(rdos.fotos),
-    rdos.created_at, rdos.updated_at
+    v_memorial_id,
+    rdos.id,
+    rdos.data_relatorio,
+    COALESCE(rdos.clima_manha_tempo || ' / ' || rdos.clima_noite_tempo, 'Não informado'),
+    rdos.created_by,
+    '', -- atividades (não existe na nova estrutura)
+    '', -- materiais (não existe na nova estrutura)
+    '', -- equipamentos (não existe na nova estrutura)
+    '', -- mao_de_obra (será preenchido por outra tabela)
+    COALESCE(rdos.observacoes_gerais, ''),
+    NULL, -- fotos (não existe na nova estrutura)
+    rdos.created_at,
+    rdos.updated_at
   FROM rdos
   WHERE rdos.obra_id = p_obra_id;
 
