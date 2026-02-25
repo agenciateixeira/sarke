@@ -110,19 +110,19 @@ BEGIN
     created_at, updated_at
   )
   SELECT
-    v_memorial_id, id, data, clima, responsavel_id,
-    atividades_executadas, materiais_recebidos, equipamentos_utilizados,
+    v_memorial_id, rdos.id, rdos.data, rdos.clima, rdos.responsavel_id,
+    rdos.atividades_executadas, rdos.materiais_recebidos, rdos.equipamentos_utilizados,
     jsonb_build_object(
-      'operarios', num_operarios,
-      'serventes', num_serventes,
-      'mestres', num_mestres,
-      'encarregados', num_encarregados
+      'operarios', rdos.num_operarios,
+      'serventes', rdos.num_serventes,
+      'mestres', rdos.num_mestres,
+      'encarregados', rdos.num_encarregados
     )::TEXT,
-    observacoes,
-    to_jsonb(fotos),
-    created_at, updated_at
+    rdos.observacoes,
+    to_jsonb(rdos.fotos),
+    rdos.created_at, rdos.updated_at
   FROM rdos
-  WHERE obra_id = p_obra_id;
+  WHERE rdos.obra_id = p_obra_id;
 
   DELETE FROM rdos WHERE obra_id = p_obra_id;
 
