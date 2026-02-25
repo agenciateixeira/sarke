@@ -389,8 +389,8 @@ export default function MemorialObraPage() {
           </Card>
         </div>
 
-        {/* Tabs com Informações Detalhadas */}
-        <Tabs defaultValue="geral" className="w-full">
+        {/* Tabs com Informações Detalhadas - Oculto na impressão */}
+        <Tabs defaultValue="geral" className="w-full print:hidden">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="geral">Geral</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
@@ -839,6 +839,316 @@ export default function MemorialObraPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Versão completa para impressão - Mostra todas as seções */}
+        <div className="hidden print:block space-y-6">
+          {/* 1. Informações Gerais */}
+          <div className="page-break">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">1. Informações Gerais</h2>
+
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Informações do Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nome</p>
+                  <p className="font-medium text-lg">{obra.clients?.name || 'Não informado'}</p>
+                </div>
+                {obra.clients?.email && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">E-mail</p>
+                    <p className="font-medium">{obra.clients.email}</p>
+                  </div>
+                )}
+                {obra.clients?.phone && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Telefone</p>
+                    <p className="font-medium">{obra.clients.phone}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações da Obra</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                {obra.tipo_obra && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tipo de Obra</p>
+                    <p className="font-medium">{obra.tipo_obra}</p>
+                  </div>
+                )}
+                {(obra.cidade || obra.estado) && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Localização</p>
+                    <p className="font-medium">
+                      {[obra.cidade, obra.estado].filter(Boolean).join(' - ')}
+                    </p>
+                    {obra.endereco && <p className="text-sm text-muted-foreground">{obra.endereco}</p>}
+                    {obra.cep && <p className="text-sm text-muted-foreground">CEP: {obra.cep}</p>}
+                  </div>
+                )}
+                {obra.area_construida && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Área Construída</p>
+                    <p className="font-medium">{obra.area_construida} m²</p>
+                  </div>
+                )}
+                {obra.area_terreno && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Área do Terreno</p>
+                    <p className="font-medium">{obra.area_terreno} m²</p>
+                  </div>
+                )}
+                {obra.duracao_meses && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Duração</p>
+                    <p className="font-medium">{obra.duracao_meses} meses</p>
+                  </div>
+                )}
+                {obra.data_inicio && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Data de Início</p>
+                    <p className="font-medium">{new Date(obra.data_inicio).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                )}
+                {obra.data_termino_real && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Data de Término</p>
+                    <p className="font-medium">{new Date(obra.data_termino_real).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {obra.descricao && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Descrição da Obra</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap">{obra.descricao}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* 2. Empresas Parceiras */}
+          <div className="page-break">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">2. Empresas Parceiras</h2>
+            <Card>
+              <CardHeader>
+                <CardDescription>
+                  {empresas.length} {empresas.length === 1 ? 'empresa trabalhou' : 'empresas trabalharam'} nesta obra
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {empresas.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhuma empresa parceira registrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead>CNPJ</TableHead>
+                        <TableHead>Serviço</TableHead>
+                        <TableHead>Período</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {empresas.map((empresa) => (
+                        <TableRow key={empresa.id}>
+                          <TableCell className="font-medium">{empresa.empresa_nome}</TableCell>
+                          <TableCell>{empresa.empresa_cnpj || '-'}</TableCell>
+                          <TableCell>{empresa.tipo_servico}</TableCell>
+                          <TableCell>
+                            {empresa.data_inicio && new Date(empresa.data_inicio).toLocaleDateString('pt-BR')}
+                            {empresa.data_fim && ` - ${new Date(empresa.data_fim).toLocaleDateString('pt-BR')}`}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(empresa.valor_contrato)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 3. Resumo Financeiro */}
+          <div className="page-break">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">3. Resumo Financeiro</h2>
+
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(totalEntradas)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Saídas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl font-bold text-red-600">{formatCurrency(totalSaidas)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Saldo Final</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={`text-xl font-bold ${saldoFinal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(saldoFinal)}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Movimentações Financeiras</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {movimentacoes.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhuma movimentação financeira registrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {movimentacoes.map((mov) => (
+                        <TableRow key={mov.id}>
+                          <TableCell>{new Date(mov.data).toLocaleDateString('pt-BR')}</TableCell>
+                          <TableCell>{mov.tipo === 'entrada' ? 'Entrada' : 'Saída'}</TableCell>
+                          <TableCell>{mov.categoria || '-'}</TableCell>
+                          <TableCell>{mov.descricao}</TableCell>
+                          <TableCell className={`text-right font-semibold ${mov.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                            {mov.tipo === 'entrada' ? '+' : '-'} {formatCurrency(mov.valor)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 4. Orçamento de Materiais */}
+          <div className="page-break">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">4. Orçamento de Materiais</h2>
+            <Card>
+              <CardHeader>
+                <CardDescription>
+                  Total orçado: <span className="font-semibold">{formatCurrency(totalOrcamento)}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {materiais.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhum material orçado</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Qtd</TableHead>
+                        <TableHead>Unid</TableHead>
+                        <TableHead className="text-right">Valor Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {materiais.map((material) => (
+                        <TableRow key={material.id}>
+                          <TableCell className="font-medium">{material.item}</TableCell>
+                          <TableCell>{material.categoria || '-'}</TableCell>
+                          <TableCell>{material.descricao || '-'}</TableCell>
+                          <TableCell>{material.quantidade || '-'}</TableCell>
+                          <TableCell>{material.unidade || '-'}</TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(material.valor_total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 5. Galeria de Fotos */}
+          {fotos.length > 0 && (
+            <div className="page-break">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">5. Galeria de Fotos</h2>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {fotos.map((foto) => (
+                      <div key={foto.id} className="border rounded-lg overflow-hidden">
+                        <img
+                          src={foto.url}
+                          alt={foto.titulo || 'Foto da obra'}
+                          className="w-full h-48 object-cover"
+                        />
+                        {foto.titulo && (
+                          <div className="p-2 bg-gray-50">
+                            <p className="text-xs font-medium">{foto.titulo}</p>
+                            {foto.data_foto && (
+                              <p className="text-xs text-gray-600">
+                                {new Date(foto.data_foto).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* 6. Documentos */}
+          {documentos.length > 0 && (
+            <div className="page-break">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">6. Documentos Anexados</h2>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    {documentos.map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-medium">{doc.titulo}</p>
+                          {doc.descricao && <p className="text-sm text-muted-foreground">{doc.descricao}</p>}
+                          {doc.tipo && <span className="text-xs text-gray-600">{doc.tipo}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
 
         {/* Rodapé de Impressão */}
         <div className="hidden print:block mt-8 pt-4 border-t-2 border-gray-300 text-center text-sm text-gray-600">
