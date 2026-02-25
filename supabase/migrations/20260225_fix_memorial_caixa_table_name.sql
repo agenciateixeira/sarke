@@ -1,9 +1,20 @@
 -- =====================================================
--- FIX: Corrige referências da tabela caixa_obra para obra_caixa
--- A tabela correta é obra_caixa, mas a função usava caixa_obra
+-- FIX: Corrige TODAS as referências de tabelas e colunas
 -- =====================================================
 
--- Recriar função arquivar_obra_no_memorial com nome correto da tabela
+-- IMPORTANTE: Esta migration corrige:
+-- 1. caixa_obra → obra_caixa
+-- 2. rdos.data → rdos.data_relatorio
+-- 3. rdos.clima → rdos.clima_manha_tempo / clima_noite_tempo
+-- 4. rdos.observacoes → rdos.observacoes_gerais
+-- 5. orcamento_materiais → obra_orcamento_materiais
+-- 6. obra_empresas_historico → obra_empresas
+-- 7. Colunas corretas de obra_empresas
+
+-- Drop função antiga se existir (para garantir recriação limpa)
+DROP FUNCTION IF EXISTS arquivar_obra_no_memorial(UUID, UUID, TEXT);
+
+-- Recriar função com TODAS as correções
 CREATE OR REPLACE FUNCTION arquivar_obra_no_memorial(
   p_obra_id UUID,
   p_user_id UUID,
