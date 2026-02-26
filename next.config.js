@@ -18,7 +18,12 @@ const nextConfig = {
     optimisticClientCache: true,
   },
   webpack: (config, { isServer }) => {
-    // Ignorar canvas module (usado apenas server-side pelo pdfjs-dist)
+    // Ignorar canvas em todos os ambientes (pdfjs-dist não precisa no browser)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    }
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -26,6 +31,7 @@ const nextConfig = {
         fs: false,
       }
     }
+
     return config
   },
 }
