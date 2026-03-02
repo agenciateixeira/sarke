@@ -2,67 +2,82 @@
 -- INTEGRAÇÃO DE CALENDÁRIO (CalDAV - Hostgator)
 -- =====================================================
 
--- Tabela para armazenar configurações de calendário
+-- 1. Criar tabelas
 CREATE TABLE IF NOT EXISTS calendar_integrations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-
-  -- Configuração CalDAV
-  provider TEXT NOT NULL DEFAULT 'hostgator', -- 'hostgator', 'google', 'outlook', etc
+  provider TEXT NOT NULL DEFAULT 'hostgator',
   server_url TEXT NOT NULL,
   username TEXT NOT NULL,
-  password_encrypted TEXT NOT NULL, -- Criptografado
+  password_encrypted TEXT NOT NULL,
   calendar_url TEXT,
-
-  -- Configurações
   sync_enabled BOOLEAN DEFAULT true,
   sync_interval_minutes INTEGER DEFAULT 15,
   last_sync_at TIMESTAMPTZ,
-
-  -- Metadados
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-
   CONSTRAINT unique_user_provider UNIQUE(user_id, provider)
 );
 
--- Tabela para eventos sincronizados
 CREATE TABLE IF NOT EXISTS calendar_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  integration_id UUID REFERENCES calendar_integrations(id) ON DELETE CASCADE NOT NULL,
-
-  -- Dados do evento
-  external_id TEXT NOT NULL, -- ID do evento no calendário externo
+  integration_id UUID NOT NULL,
+  external_id TEXT NOT NULL,
   summary TEXT NOT NULL,
   description TEXT,
   location TEXT,
   start_date TIMESTAMPTZ NOT NULL,
   end_date TIMESTAMPTZ NOT NULL,
   all_day BOOLEAN DEFAULT false,
-  attendees TEXT[], -- Array de emails
-
-  -- Associação com obra (opcional)
-  obra_id UUID REFERENCES obras(id) ON DELETE SET NULL,
-
-  -- Sincronização
+  attendees TEXT[],
+  obra_id UUID,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
-  sync_status TEXT DEFAULT 'synced', -- 'synced', 'pending', 'error'
-
+  sync_status TEXT DEFAULT 'synced',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-
-  CONSTRAINT unique_external_event UNIQUE(integration_id, external_id)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Índices para performance
+-- 2. Adicionar foreign keys depois
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'calendar_events_integration_id_fkey'
+  ) THEN
+    ALTER TABLE calendar_events
+    ADD CONSTRAINT calendar_events_integration_id_fkey
+    FOREIGN KEY (integration_id)
+    REFERENCES calendar_integrations(id)
+    ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'calendar_events_obra_id_fkey'
+  ) THEN
+    ALTER TABLE calendar_events
+    ADD CONSTRAINT calendar_events_obra_id_fkey
+    FOREIGN KEY (obra_id)
+    REFERENCES obras(id)
+    ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'unique_external_event'
+  ) THEN
+    ALTER TABLE calendar_events
+    ADD CONSTRAINT unique_external_event
+    UNIQUE(integration_id, external_id);
+  END IF;
+END $$;
+
+-- 3. Criar índices
 CREATE INDEX IF NOT EXISTS idx_calendar_integrations_user ON calendar_integrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_integrations_active ON calendar_integrations(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_calendar_events_integration ON calendar_events(integration_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_dates ON calendar_events(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_obra ON calendar_events(obra_id) WHERE obra_id IS NOT NULL;
 
--- RLS (Row Level Security)
+-- 4. Habilitar RLS
 ALTER TABLE calendar_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 
