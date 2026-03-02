@@ -2,10 +2,14 @@
 -- INTEGRAÇÃO DE CALENDÁRIO (CalDAV - Hostgator)
 -- =====================================================
 
--- 1. Criar tabelas
-CREATE TABLE IF NOT EXISTS calendar_integrations (
+-- Dropar tabelas existentes se houver (ordem inversa por causa de foreign keys)
+DROP TABLE IF EXISTS calendar_events CASCADE;
+DROP TABLE IF EXISTS calendar_integrations CASCADE;
+
+-- 1. Criar tabela de integrações
+CREATE TABLE calendar_integrations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   provider TEXT NOT NULL DEFAULT 'hostgator',
   server_url TEXT NOT NULL,
   username TEXT NOT NULL,
@@ -20,9 +24,10 @@ CREATE TABLE IF NOT EXISTS calendar_integrations (
   CONSTRAINT unique_user_provider UNIQUE(user_id, provider)
 );
 
-CREATE TABLE IF NOT EXISTS calendar_events (
+-- 2. Criar tabela de eventos
+CREATE TABLE calendar_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  integration_id UUID NOT NULL,
+  integration_id UUID NOT NULL REFERENCES calendar_integrations(id) ON DELETE CASCADE,
   external_id TEXT NOT NULL,
   summary TEXT NOT NULL,
   description TEXT,
@@ -31,44 +36,13 @@ CREATE TABLE IF NOT EXISTS calendar_events (
   end_date TIMESTAMPTZ NOT NULL,
   all_day BOOLEAN DEFAULT false,
   attendees TEXT[],
-  obra_id UUID,
+  obra_id UUID REFERENCES obras(id) ON DELETE SET NULL,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
   sync_status TEXT DEFAULT 'synced',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_external_event UNIQUE(integration_id, external_id)
 );
-
--- 2. Adicionar foreign keys depois
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'calendar_events_integration_id_fkey'
-  ) THEN
-    ALTER TABLE calendar_events
-    ADD CONSTRAINT calendar_events_integration_id_fkey
-    FOREIGN KEY (integration_id)
-    REFERENCES calendar_integrations(id)
-    ON DELETE CASCADE;
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'calendar_events_obra_id_fkey'
-  ) THEN
-    ALTER TABLE calendar_events
-    ADD CONSTRAINT calendar_events_obra_id_fkey
-    FOREIGN KEY (obra_id)
-    REFERENCES obras(id)
-    ON DELETE SET NULL;
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'unique_external_event'
-  ) THEN
-    ALTER TABLE calendar_events
-    ADD CONSTRAINT unique_external_event
-    UNIQUE(integration_id, external_id);
-  END IF;
-END $$;
 
 -- 3. Criar índices
 CREATE INDEX IF NOT EXISTS idx_calendar_integrations_user ON calendar_integrations(user_id);
