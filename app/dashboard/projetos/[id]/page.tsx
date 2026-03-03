@@ -40,9 +40,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ProjetoCompleto, etapaLabels, etapaCores, areaLabels, formatarFrente } from '@/types/projeto'
 import { Subtask, TeamMember } from '@/types/tasks'
+import { ProjectDocumentCategoryWithFiles } from '@/types/documents'
 import { SubtaskStageView } from '@/components/tasks/SubtaskStageView'
 import { SubtaskFilters } from '@/components/tasks/SubtaskFilters'
 import { ProjectTimeline } from '@/components/projetos/ProjectTimeline'
+import { DocumentStageView } from '@/components/documents/DocumentStageView'
 import { useSubtaskFilters } from '@/hooks/useSubtaskFilters'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -60,6 +62,8 @@ export default function ProjetoDetalhePage() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loadingSubtasks, setLoadingSubtasks] = useState(false)
+  const [documentCategories, setDocumentCategories] = useState<ProjectDocumentCategoryWithFiles[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
 
   // Filtros para cada etapa
   const planejamentoFilters = useSubtaskFilters(subtasks.filter((s) => s.projeto_etapa === 'planejamento'))
@@ -75,6 +79,9 @@ export default function ProjetoDetalhePage() {
   useEffect(() => {
     if (projeto?.id && (activeTab === 'planejamento' || activeTab === 'planta_baixa' || activeTab === '3d' || activeTab === 'executivo' || activeTab === 'timeline')) {
       loadSubtasks()
+    }
+    if (projeto?.id && activeTab === 'arquivos') {
+      loadDocumentCategories()
     }
   }, [projeto?.id, activeTab])
 
@@ -171,6 +178,44 @@ export default function ProjetoDetalhePage() {
       toast.error('Erro ao atualizar subtarefa')
       // Em caso de erro, recarregar para restaurar o estado correto
       await loadSubtasks()
+    }
+  }
+
+  async function loadDocumentCategories() {
+    try {
+      setLoadingDocuments(true)
+
+      // Buscar categorias com contagem de arquivos
+      const { data: categories, error: catError } = await supabase
+        .from('project_document_categories')
+        .select('*')
+        .eq('projeto_id', projeto?.id)
+        .order('order_index')
+
+      if (catError) throw catError
+
+      // Buscar todos os arquivos das categorias
+      const { data: files, error: filesError } = await supabase
+        .from('project_document_files')
+        .select('*')
+        .eq('projeto_id', projeto?.id)
+        .order('uploaded_at', { ascending: false })
+
+      if (filesError) throw filesError
+
+      // Agrupar arquivos por categoria
+      const categoriesWithFiles: ProjectDocumentCategoryWithFiles[] = (categories || []).map(cat => ({
+        ...cat,
+        files: (files || []).filter(f => f.category_id === cat.id),
+        file_count: (files || []).filter(f => f.category_id === cat.id).length
+      }))
+
+      setDocumentCategories(categoriesWithFiles)
+    } catch (error: any) {
+      console.error('Erro ao carregar categorias de documentos:', error)
+      toast.error('Erro ao carregar documentos')
+    } finally {
+      setLoadingDocuments(false)
     }
   }
 
@@ -982,15 +1027,42 @@ export default function ProjetoDetalhePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Arquivos do Projeto</CardTitle>
-                <CardDescription>Documentos, DWGs, renders e outros arquivos</CardDescription>
+                <CardDescription>Documentos, DWGs, renders e outros arquivos organizados por etapa</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Conteúdo em desenvolvimento</p>
+                {loadingDocuments ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                    <p className="text-muted-foreground">Carregando documentos...</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-6">
+                    <DocumentStageView
+                      categories={documentCategories.filter(c => c.stage === 'planejamento')}
+                      stageName="Planejamento"
+                      stageIcon={<ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                      onRefresh={loadDocumentCategories}
+                    />
+                    <DocumentStageView
+                      categories={documentCategories.filter(c => c.stage === 'planta_baixa')}
+                      stageName="Planta Baixa"
+                      stageIcon={<FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+                      onRefresh={loadDocumentCategories}
+                    />
+                    <DocumentStageView
+                      categories={documentCategories.filter(c => c.stage === '3d')}
+                      stageName="Modelo 3D"
+                      stageIcon={<Box className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+                      onRefresh={loadDocumentCategories}
+                    />
+                    <DocumentStageView
+                      categories={documentCategories.filter(c => c.stage === 'executivo')}
+                      stageName="Executivo"
+                      stageIcon={<Layers className="h-4 w-4 text-green-600 dark:text-green-400" />}
+                      onRefresh={loadDocumentCategories}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
