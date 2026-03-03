@@ -102,7 +102,7 @@ function SortableSubtaskItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'grid grid-cols-[40px_1fr_160px_120px_140px_40px] gap-2 px-3 py-2 items-center hover:bg-accent/50 rounded-md group',
+        'grid grid-cols-[40px_1fr_160px_120px_140px_40px] gap-2 px-3 py-2 items-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md group transition-colors',
         subtask.is_completed && 'opacity-50',
         isDragging && 'opacity-50 bg-accent'
       )}
@@ -378,7 +378,7 @@ export function SubtaskStageView({
   return (
     <div className="space-y-2">
       {/* Header do Grupo */}
-      <div className="flex items-center gap-2 py-2 px-3 hover:bg-accent/50 rounded-md cursor-pointer group"
+      <div className="flex items-center gap-2 py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer group transition-colors"
            onClick={() => setIsExpanded(!isExpanded)}>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
           {isExpanded ? (
