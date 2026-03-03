@@ -160,7 +160,7 @@ function SortableSubtaskItem({
           })
         }
       >
-        <SelectTrigger className="h-7 border-0 shadow-none hover:bg-accent text-xs">
+        <SelectTrigger className="h-7 border-0 shadow-none hover:bg-gray-100 dark:hover:bg-gray-800 text-xs">
           <SelectValue>
             <div className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -189,7 +189,7 @@ function SortableSubtaskItem({
           })
         }
       >
-        <SelectTrigger className="h-7 border-0 shadow-none hover:bg-accent text-xs">
+        <SelectTrigger className="h-7 border-0 shadow-none hover:bg-gray-100 dark:hover:bg-gray-800 text-xs">
           <SelectValue>
             <div className="flex items-center gap-1.5">
               {priorityIcons[subtask.priority] || priorityIcons.medium}
@@ -227,7 +227,7 @@ function SortableSubtaskItem({
           <Button
             variant="ghost"
             className={cn(
-              'h-7 justify-start text-xs font-normal border-0 shadow-none hover:bg-accent',
+              'h-7 justify-start text-xs font-normal border-0 shadow-none hover:bg-gray-100 dark:hover:bg-gray-800',
               !subtask.due_date && 'text-muted-foreground',
               isOverdue && 'text-red-500'
             )}
