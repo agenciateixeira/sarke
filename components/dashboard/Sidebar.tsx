@@ -102,6 +102,11 @@ const menuItems: MenuItem[] = [
         href: '/dashboard/projetos/corporativos',
         setor: 'dashboard',
       },
+      {
+        title: 'Memorial',
+        href: '/dashboard/projetos/memorial',
+        setor: 'dashboard',
+      },
     ],
   },
   // OBRA - Menu hierárquico
