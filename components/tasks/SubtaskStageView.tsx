@@ -227,7 +227,7 @@ function SortableSubtaskItem({
           <Button
             variant="ghost"
             className={cn(
-              'h-7 justify-start text-xs font-normal border-0 shadow-none hover:!bg-gray-100 dark:hover:!bg-gray-800 hover:!text-gray-900 dark:hover:!text-gray-100 transition-colors',
+              'h-7 justify-start text-xs font-normal border-0 shadow-none hover:!bg-pink-50 dark:hover:!bg-pink-900/30 hover:!text-pink-900 dark:hover:!text-pink-100 transition-colors',
               !subtask.due_date && 'text-muted-foreground',
               isOverdue && 'text-red-500 hover:!text-red-600 dark:hover:!text-red-400'
             )}
