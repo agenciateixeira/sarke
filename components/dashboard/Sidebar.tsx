@@ -170,23 +170,6 @@ const menuItems: MenuItem[] = [
         href: '/dashboard/comercial/relatorios',
         setor: 'comercial',
       },
-      {
-        title: 'Configurações',
-        href: '/dashboard/comercial/configuracoes',
-        setor: 'comercial',
-        subItems: [
-          {
-            title: 'Templates',
-            href: '/dashboard/comercial/templates',
-            setor: 'comercial',
-          },
-          {
-            title: 'Automações',
-            href: '/dashboard/comercial/automacoes',
-            setor: 'comercial',
-          },
-        ],
-      },
     ],
   },
   // FINANCEIRO/ERP - Menu hierárquico
