@@ -161,16 +161,6 @@ const menuItems: MenuItem[] = [
         setor: 'comercial',
       },
       {
-        title: 'Automações',
-        href: '/dashboard/comercial/automacoes',
-        setor: 'comercial',
-      },
-      {
-        title: 'Templates',
-        href: '/dashboard/comercial/templates',
-        setor: 'comercial',
-      },
-      {
         title: 'Contratos',
         href: '/dashboard/comercial/contratos',
         setor: 'comercial',
@@ -179,6 +169,23 @@ const menuItems: MenuItem[] = [
         title: 'Relatórios',
         href: '/dashboard/comercial/relatorios',
         setor: 'comercial',
+      },
+      {
+        title: 'Configurações',
+        href: '/dashboard/comercial/configuracoes',
+        setor: 'comercial',
+        subItems: [
+          {
+            title: 'Templates',
+            href: '/dashboard/comercial/templates',
+            setor: 'comercial',
+          },
+          {
+            title: 'Automações',
+            href: '/dashboard/comercial/automacoes',
+            setor: 'comercial',
+          },
+        ],
       },
     ],
   },
