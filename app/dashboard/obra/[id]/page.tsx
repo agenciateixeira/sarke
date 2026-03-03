@@ -263,16 +263,61 @@ export default function ObraDetailPage() {
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-9">
-            <TabsTrigger value="info">Informações</TabsTrigger>
-            <TabsTrigger value="cronograma">Cronograma</TabsTrigger>
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="empresas">Empresas</TabsTrigger>
-            <TabsTrigger value="fotos">Fotos</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger value="medicoes">Medições</TabsTrigger>
-            <TabsTrigger value="etapas">Etapas</TabsTrigger>
-            <TabsTrigger value="rdo">RDO</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-9 bg-pink-50 dark:bg-pink-900/40 border-pink-200 dark:border-pink-700">
+            <TabsTrigger
+              value="info"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Informações
+            </TabsTrigger>
+            <TabsTrigger
+              value="cronograma"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Cronograma
+            </TabsTrigger>
+            <TabsTrigger
+              value="financeiro"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Financeiro
+            </TabsTrigger>
+            <TabsTrigger
+              value="empresas"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Empresas
+            </TabsTrigger>
+            <TabsTrigger
+              value="fotos"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Fotos
+            </TabsTrigger>
+            <TabsTrigger
+              value="documentos"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Documentos
+            </TabsTrigger>
+            <TabsTrigger
+              value="medicoes"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Medições
+            </TabsTrigger>
+            <TabsTrigger
+              value="etapas"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Etapas
+            </TabsTrigger>
+            <TabsTrigger
+              value="rdo"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              RDO
+            </TabsTrigger>
           </TabsList>
 
           {/* Aba Informações */}
@@ -600,9 +645,19 @@ export default function ObraDetailPage() {
           {/* Aba Financeiro */}
           <TabsContent value="financeiro">
             <Tabs defaultValue="orcamento" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="orcamento">Orçamento de Materiais</TabsTrigger>
-                <TabsTrigger value="caixa">Caixa de Obra</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 bg-pink-50 dark:bg-pink-900/20 border-pink-100 dark:border-pink-800">
+                <TabsTrigger
+                  value="orcamento"
+                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 dark:hover:bg-pink-800/50"
+                >
+                  Orçamento de Materiais
+                </TabsTrigger>
+                <TabsTrigger
+                  value="caixa"
+                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 dark:hover:bg-pink-800/50"
+                >
+                  Caixa de Obra
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="orcamento" className="mt-4">

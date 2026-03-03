@@ -307,7 +307,7 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
                 </tr>
               ) : (
                 materiais.map((material) => (
-                  <tr key={material.id} className="hover:bg-gray-50">
+                  <tr key={material.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-3 py-3 text-sm text-gray-900">{material.local || '-'}</td>
                     <td className="px-3 py-3 text-sm font-medium text-gray-900">{material.item}</td>
                     <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate" title={material.descricao}>

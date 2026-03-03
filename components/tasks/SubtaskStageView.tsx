@@ -222,7 +222,7 @@ function SortableSubtaskItem({
       </Select>
 
       {/* Data de vencimento */}
-      <Popover>
+      <Popover modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
@@ -238,15 +238,32 @@ function SortableSubtaskItem({
               : 'Sem data'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent
+          className="w-auto p-0"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Calendar
             mode="single"
             selected={subtask.due_date ? parseISO(subtask.due_date) : undefined}
-            onSelect={(date) =>
-              onUpdateSubtask(subtask.id, {
-                due_date: date ? format(date, 'yyyy-MM-dd') : undefined,
-              })
-            }
+            onSelect={(date) => {
+              if (date) {
+                // Formatar data no timezone local para evitar problemas de conversão
+                const year = date.getFullYear()
+                const month = String(date.getMonth() + 1).padStart(2, '0')
+                const day = String(date.getDate()).padStart(2, '0')
+                const localDate = `${year}-${month}-${day}`
+
+                onUpdateSubtask(subtask.id, {
+                  due_date: localDate,
+                })
+              } else {
+                onUpdateSubtask(subtask.id, {
+                  due_date: undefined,
+                })
+              }
+            }}
             locale={ptBR}
           />
         </PopoverContent>

@@ -148,6 +148,14 @@ export default function ProjetoDetalhePage() {
 
   async function handleToggleSubtask(subtaskId: string, isCompleted: boolean) {
     try {
+      // Atualização otimista
+      setSubtasks(prev => prev.map(s =>
+        s.id === subtaskId
+          ? { ...s, is_completed: isCompleted, completed_at: isCompleted ? new Date().toISOString() : null }
+          : s
+      ))
+
+      // Salvar no servidor
       const { error } = await supabase
         .from('subtasks')
         .update({
@@ -157,26 +165,36 @@ export default function ProjetoDetalhePage() {
         .eq('id', subtaskId)
 
       if (error) throw error
-      await loadSubtasks()
       toast.success(isCompleted ? 'Subtarefa concluída' : 'Subtarefa reaberta')
     } catch (error: any) {
       console.error('Erro ao atualizar subtarefa:', error)
       toast.error('Erro ao atualizar subtarefa')
+      // Em caso de erro, recarregar para restaurar o estado correto
+      await loadSubtasks()
     }
   }
 
   async function handleUpdateSubtask(subtaskId: string, data: Partial<Subtask>) {
     try {
+      // Atualização otimista - atualizar UI imediatamente
+      setSubtasks(prev => prev.map(s =>
+        s.id === subtaskId ? { ...s, ...data } : s
+      ))
+
+      // Salvar no servidor em background
       const { error } = await supabase
         .from('subtasks')
         .update(data)
         .eq('id', subtaskId)
 
       if (error) throw error
-      await loadSubtasks()
+
+      // Não recarregar tudo, apenas sincronizar silenciosamente
     } catch (error: any) {
       console.error('Erro ao atualizar subtarefa:', error)
       toast.error('Erro ao atualizar subtarefa')
+      // Em caso de erro, recarregar para restaurar o estado correto
+      await loadSubtasks()
     }
   }
 
@@ -427,14 +445,49 @@ export default function ProjetoDetalhePage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="informacoes">Informações</TabsTrigger>
-            <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
-            <TabsTrigger value="planta_baixa">Planta Baixa</TabsTrigger>
-            <TabsTrigger value="3d">3D</TabsTrigger>
-            <TabsTrigger value="executivo">Executivo</TabsTrigger>
-            <TabsTrigger value="arquivos">Arquivos</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-7 bg-pink-50 dark:bg-pink-900/40 border-pink-200 dark:border-pink-700">
+            <TabsTrigger
+              value="informacoes"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Informações
+            </TabsTrigger>
+            <TabsTrigger
+              value="planejamento"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Planejamento
+            </TabsTrigger>
+            <TabsTrigger
+              value="planta_baixa"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Planta Baixa
+            </TabsTrigger>
+            <TabsTrigger
+              value="3d"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              3D
+            </TabsTrigger>
+            <TabsTrigger
+              value="executivo"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Executivo
+            </TabsTrigger>
+            <TabsTrigger
+              value="arquivos"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Arquivos
+            </TabsTrigger>
+            <TabsTrigger
+              value="timeline"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+            >
+              Timeline
+            </TabsTrigger>
           </TabsList>
 
           {/* Aba Informações */}
