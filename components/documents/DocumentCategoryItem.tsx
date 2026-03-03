@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ProjectDocumentCategory, ProjectDocumentFile } from '@/types/documents'
 import { Upload, FileText, Image as ImageIcon, File, X, Download, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 interface DocumentCategoryItemProps {
@@ -19,7 +19,6 @@ export function DocumentCategoryItem({ category, files, onUploadComplete }: Docu
   const [isOpen, setIsOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const supabase = createClient()
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
