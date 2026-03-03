@@ -448,43 +448,43 @@ export default function ProjetoDetalhePage() {
           <TabsList className="grid w-full grid-cols-7 bg-pink-50 dark:bg-pink-900/40 border-pink-200 dark:border-pink-700">
             <TabsTrigger
               value="informacoes"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Informações
             </TabsTrigger>
             <TabsTrigger
               value="planejamento"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Planejamento
             </TabsTrigger>
             <TabsTrigger
               value="planta_baixa"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Planta Baixa
             </TabsTrigger>
             <TabsTrigger
               value="3d"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               3D
             </TabsTrigger>
             <TabsTrigger
               value="executivo"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Executivo
             </TabsTrigger>
             <TabsTrigger
               value="arquivos"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Arquivos
             </TabsTrigger>
             <TabsTrigger
               value="timeline"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Timeline
             </TabsTrigger>

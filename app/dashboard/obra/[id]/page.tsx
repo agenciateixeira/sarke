@@ -266,55 +266,55 @@ export default function ObraDetailPage() {
           <TabsList className="grid w-full grid-cols-9 bg-pink-50 dark:bg-pink-900/40 border-pink-200 dark:border-pink-700">
             <TabsTrigger
               value="info"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Informações
             </TabsTrigger>
             <TabsTrigger
               value="cronograma"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Cronograma
             </TabsTrigger>
             <TabsTrigger
               value="financeiro"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Financeiro
             </TabsTrigger>
             <TabsTrigger
               value="empresas"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Empresas
             </TabsTrigger>
             <TabsTrigger
               value="fotos"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Fotos
             </TabsTrigger>
             <TabsTrigger
               value="documentos"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Documentos
             </TabsTrigger>
             <TabsTrigger
               value="medicoes"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Medições
             </TabsTrigger>
             <TabsTrigger
               value="etapas"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               Etapas
             </TabsTrigger>
             <TabsTrigger
               value="rdo"
-              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 dark:hover:bg-pink-700/50"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white dark:data-[state=active]:bg-pink-400 dark:data-[state=active]:text-gray-900 hover:bg-pink-100 hover:text-pink-900 dark:hover:bg-pink-700/50 dark:hover:text-white"
             >
               RDO
             </TabsTrigger>
@@ -648,13 +648,13 @@ export default function ObraDetailPage() {
               <TabsList className="grid w-full grid-cols-2 bg-pink-50 dark:bg-pink-900/20 border-pink-100 dark:border-pink-800">
                 <TabsTrigger
                   value="orcamento"
-                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 dark:hover:bg-pink-800/50"
+                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 hover:text-pink-900 dark:hover:bg-pink-800/50 dark:hover:text-white"
                 >
                   Orçamento de Materiais
                 </TabsTrigger>
                 <TabsTrigger
                   value="caixa"
-                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 dark:hover:bg-pink-800/50"
+                  className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-900 dark:data-[state=active]:bg-pink-300 dark:data-[state=active]:text-gray-900 hover:bg-pink-50 hover:text-pink-900 dark:hover:bg-pink-800/50 dark:hover:text-white"
                 >
                   Caixa de Obra
                 </TabsTrigger>
