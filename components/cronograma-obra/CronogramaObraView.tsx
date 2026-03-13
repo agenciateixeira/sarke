@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,31 @@ import {
   DollarSign,
   Edit,
   Trash2,
+  GripVertical,
+  EditIcon,
+  X,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import {
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   CronogramaObra,
   CronogramaObraAtividade,
@@ -58,12 +83,167 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { exportarCronogramaExcel, importarCronogramaExcel, AtividadeImportada } from '@/lib/cronogramaExcel'
+import { exportarCronogramaExcel } from '@/lib/cronogramaExcel'
+import { importarCronogramaExcelV2, AtividadeImportada, ResultadoImportacao } from '@/lib/cronogramaExcelV2'
 import { generateCronogramaPDF } from '@/lib/cronogramaPdf'
 
 interface CronogramaObraViewProps {
   obraId: string
   obraNome?: string
+}
+
+// Componente para linha sortable (drag and drop)
+function SortableAtividadeRow({
+  atividade,
+  modoEdicao,
+  selecionada,
+  onToggleSelecao,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  getTarjaClass,
+  getStatusColor,
+  getStatusLabel,
+}: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: atividade.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  // Mapear prioridade para cores e labels
+  const prioridadeColors: Record<string, string> = {
+    baixa: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+    normal: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400',
+    alta: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400',
+    urgente: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400',
+  }
+
+  const prioridadeLabels: Record<string, string> = {
+    baixa: 'Baixa',
+    normal: 'Normal',
+    alta: 'Alta',
+    urgente: 'Urgente',
+  }
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`
+        border-t hover:bg-muted/50
+        ${getTarjaClass(atividade.status, atividade.data_prevista)}
+        ${selecionada ? 'bg-blue-50 dark:bg-blue-950/30' : ''}
+        ${isDragging ? 'shadow-lg' : ''}
+      `}
+    >
+      {modoEdicao && (
+        <>
+          <td className="p-2 text-center">
+            <button
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          </td>
+          <td className="p-2 text-center">
+            <Checkbox
+              checked={selecionada}
+              onCheckedChange={() => onToggleSelecao(atividade.id)}
+            />
+          </td>
+        </>
+      )}
+
+      <td className="p-2 border-r">
+        {atividade.data_prevista
+          ? format(new Date(atividade.data_prevista), 'dd/MM/yyyy')
+          : '-'}
+      </td>
+
+      <td className="p-2 border-r font-medium">{atividade.descricao_servico}</td>
+
+      <td className="p-2 border-r text-xs">
+        {(atividade as any).empresa_parceira?.nome ||
+         (atividade.empresa ? (
+           <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded">
+             ⚠️ {atividade.empresa}
+           </span>
+         ) : '-')}
+      </td>
+
+      <td className="p-2 border-r">
+        {modoEdicao ? (
+          <Badge className={getStatusColor(atividade.status)}>
+            {getStatusLabel(atividade.status)}
+          </Badge>
+        ) : (
+          <Select
+            value={atividade.status}
+            onValueChange={(novoStatus) => onStatusChange(atividade.id, novoStatus)}
+          >
+            <SelectTrigger className={`h-7 w-full border-none ${getStatusColor(atividade.status)}`}>
+              <SelectValue>
+                {getStatusLabel(atividade.status)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="em_andamento">Em Andamento</SelectItem>
+              <SelectItem value="concluida">Concluída</SelectItem>
+              <SelectItem value="atrasada">Atrasada</SelectItem>
+              <SelectItem value="pausada">Pausada</SelectItem>
+              <SelectItem value="cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </td>
+
+      <td className="p-2 border-r">
+        <Badge variant="outline" className={prioridadeColors[atividade.prioridade || 'normal']}>
+          {prioridadeLabels[atividade.prioridade || 'normal']}
+        </Badge>
+      </td>
+
+      <td className="p-2 border-r text-muted-foreground text-xs">
+        {atividade.observacao || '-'}
+      </td>
+
+      {!modoEdicao && (
+        <td className="p-2 text-center">
+          <div className="flex gap-1 justify-center">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => onEdit(atividade)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => onDelete(atividade.id)}
+            >
+              <Trash2 className="h-3 w-3 text-red-600" />
+            </Button>
+          </div>
+        </td>
+      )}
+    </tr>
+  )
 }
 
 export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps) {
@@ -95,6 +275,20 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
   })
   const [editandoVinculo, setEditandoVinculo] = useState<any | null>(null)
   const [vinculoToDelete, setVinculoToDelete] = useState<string | null>(null)
+
+  // Novos estados para modo de edição e seleção múltipla
+  const [modoEdicao, setModoEdicao] = useState(false)
+  const [atividadesSelecionadas, setAtividadesSelecionadas] = useState<Set<string>>(new Set())
+  const [salvandoOrdem, setSalvandoOrdem] = useState(false)
+  const [deletandoMultiplas, setDeletandoMultiplas] = useState(false)
+
+  // Configuração do drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     loadCronograma()
@@ -347,6 +541,101 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
     })
   }
 
+  // ===== FUNÇÕES DO MODO DE EDIÇÃO =====
+  function toggleModoEdicao() {
+    setModoEdicao(!modoEdicao)
+    setAtividadesSelecionadas(new Set()) // Limpar seleção ao sair do modo edição
+  }
+
+  function toggleSelecao(atividadeId: string) {
+    const novaSelecao = new Set(atividadesSelecionadas)
+    if (novaSelecao.has(atividadeId)) {
+      novaSelecao.delete(atividadeId)
+    } else {
+      novaSelecao.add(atividadeId)
+    }
+    setAtividadesSelecionadas(novaSelecao)
+  }
+
+  function selecionarTodas() {
+    if (atividadesSelecionadas.size === atividades.length) {
+      // Se todas estão selecionadas, desselecionar todas
+      setAtividadesSelecionadas(new Set())
+    } else {
+      // Selecionar todas
+      const todasIds = new Set(atividades.map(a => a.id))
+      setAtividadesSelecionadas(todasIds)
+    }
+  }
+
+  async function deletarSelecionadas() {
+    if (atividadesSelecionadas.size === 0) {
+      toast.error('Nenhuma atividade selecionada')
+      return
+    }
+
+    try {
+      setDeletandoMultiplas(true)
+
+      // Deletar todas as atividades selecionadas
+      const { error } = await supabase
+        .from('cronograma_obra_atividades')
+        .delete()
+        .in('id', Array.from(atividadesSelecionadas))
+
+      if (error) throw error
+
+      toast.success(`${atividadesSelecionadas.size} atividades excluídas com sucesso!`)
+      setAtividadesSelecionadas(new Set())
+      setModoEdicao(false)
+      loadCronograma()
+    } catch (error: any) {
+      console.error('Erro ao excluir atividades:', error)
+      toast.error('Erro ao excluir atividades selecionadas')
+    } finally {
+      setDeletandoMultiplas(false)
+    }
+  }
+
+  // Função para lidar com o fim do drag and drop
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) return
+
+    const oldIndex = atividades.findIndex((item) => item.id === active.id)
+    const newIndex = atividades.findIndex((item) => item.id === over.id)
+
+    const novasAtividades = arrayMove(atividades, oldIndex, newIndex)
+    setAtividades(novasAtividades) // Atualizar UI imediatamente
+
+    try {
+      setSalvandoOrdem(true)
+
+      // Atualizar ordem no banco de dados
+      const updates = novasAtividades.map((atividade, index) => ({
+        id: atividade.id,
+        ordem: index,
+      }))
+
+      // Fazer update batch
+      for (const update of updates) {
+        await supabase
+          .from('cronograma_obra_atividades')
+          .update({ ordem: update.ordem })
+          .eq('id', update.id)
+      }
+
+      toast.success('Ordem das atividades atualizada')
+    } catch (error) {
+      console.error('Erro ao salvar nova ordem:', error)
+      toast.error('Erro ao salvar nova ordem')
+      loadCronograma() // Recarregar em caso de erro
+    } finally {
+      setSalvandoOrdem(false)
+    }
+  }
+
   // ===== FUNÇÕES DE EMPRESAS PARCEIRAS =====
   async function loadEmpresasVinculadas() {
     if (!cronograma?.id) return
@@ -569,18 +858,44 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
       setImporting(true)
       toast.info('Importando Excel...')
 
-      const atividadesImportadas = await importarCronogramaExcel(file)
+      // Usar a nova versão V2 que corrige o problema de múltiplas tarefas por dia
+      const resultado = await importarCronogramaExcelV2(file)
 
-      if (atividadesImportadas.length === 0) {
+      // Mostrar avisos se houver
+      if (resultado.avisos.length > 0) {
+        resultado.avisos.forEach(aviso => console.log('Aviso:', aviso))
+      }
+
+      if (resultado.cronograma.totalImportado === 0) {
         toast.error('Nenhuma atividade encontrada no arquivo')
         return
       }
 
-      // Inserir atividades no banco
-      const atividadesParaInserir = atividadesImportadas.map((ativ, index) => {
+      // ===== VALIDAR EMPRESAS PARCEIRAS =====
+      let empresasNaoCadastradas: string[] = []
+      if (resultado.empresasNaoCadastradas && resultado.empresasNaoCadastradas.length > 0) {
+        // Buscar empresas cadastradas no sistema
+        const { data: empresasCadastradas, error: errorEmpresas } = await supabase
+          .from('empresas_parceiras')
+          .select('nome')
+          .eq('status', 'ativa')
+
+        if (!errorEmpresas && empresasCadastradas) {
+          const nomesCadastrados = empresasCadastradas.map(e => e.nome.toUpperCase())
+
+          // Filtrar empresas da planilha que não estão cadastradas
+          empresasNaoCadastradas = resultado.empresasNaoCadastradas.filter(
+            empresa => !nomesCadastrados.includes(empresa.toUpperCase())
+          )
+        }
+      }
+
+      // Inserir atividades do cronograma no banco
+      const atividadesParaInserir = resultado.cronograma.atividades.map((ativ, index) => {
         const data = new Date(ativ.data_prevista)
-        const mes = format(data, 'MMMM', { locale: ptBR })
-        const diaSemana = format(data, 'EEEE', { locale: ptBR })
+        // Usar mês e dia da semana da planilha se disponível, senão calcular
+        const mes = ativ.mes || format(data, 'MMMM', { locale: ptBR })
+        const diaSemana = ativ.dia_semana || format(data, 'EEEE', { locale: ptBR })
 
         return {
           cronograma_id: cronograma.id,
@@ -589,19 +904,97 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
           data_prevista: ativ.data_prevista,
           descricao_servico: ativ.descricao_servico,
           observacao: ativ.observacao || null,
+          empresa: ativ.empresa || null, // Adicionar campo empresa se existir
           status: (ativ.status as AtividadeStatus) || 'pendente',
           prioridade: (ativ.prioridade as AtividadePrioridade) || 'normal',
           ordem: atividades.length + index,
         }
       })
 
-      const { error } = await supabase
+      const { error: errorCronograma } = await supabase
         .from('cronograma_obra_atividades')
         .insert(atividadesParaInserir)
 
-      if (error) throw error
+      if (errorCronograma) throw errorCronograma
 
-      toast.success(`${atividadesImportadas.length} atividades importadas com sucesso!`)
+      // Se houver caixa de obra, processar também
+      let mensagemCaixa = ''
+      if (resultado.caixaObra && resultado.caixaObra.totalImportado > 0) {
+        try {
+          // Inserir itens do caixa da obra (materiais/serviços)
+          const materiaisParaInserir = resultado.caixaObra.materiais.map(mat => ({
+            obra_id: obraId,
+            local: mat.servico || null,
+            item: mat.descricao_material || mat.servico || 'Item importado',
+            descricao: mat.descricao_material || '',
+            quantidade: mat.quantidade || null,
+            medida: mat.medida || null,
+            valor_total: mat.valor_total || mat.valor_unitario || 0,
+            valor_pago: 0, // Por padrão, nada pago ainda
+            forma_pagamento: null,
+            responsavel_sarke: mat.responsavel || null,
+            status_obra: 'PENDENTE',
+            status_pagamento: 'A PAGAR',
+            observacoes: null,
+            ordem: 0,
+          }))
+
+          const { error: errorCaixa } = await supabase
+            .from('obra_orcamento_materiais')
+            .insert(materiaisParaInserir)
+
+          if (!errorCaixa) {
+            mensagemCaixa = ` e ${resultado.caixaObra.totalImportado} itens no caixa da obra`
+          } else {
+            console.error('Erro ao importar caixa da obra:', errorCaixa)
+            mensagemCaixa = ' (erro ao importar caixa da obra)'
+          }
+        } catch (err) {
+          console.error('Erro ao processar caixa da obra:', err)
+        }
+      }
+
+      // ===== MENSAGEM DE SUCESSO COM DETALHES =====
+      let mensagemFinal = `✅ ${resultado.cronograma.totalImportado} atividades importadas${mensagemCaixa}!`
+
+      // Se houver empresas não cadastradas, avisar
+      if (empresasNaoCadastradas.length > 0) {
+        toast.warning(
+          mensagemFinal,
+          {
+            description: (
+              <div className="space-y-2">
+                <p>De {resultado.cronograma.totalLinhas} linhas processadas</p>
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded">
+                  <p className="font-semibold text-red-700 dark:text-red-400 text-sm">
+                    ⚠️ {empresasNaoCadastradas.length} empresa(s) não cadastrada(s):
+                  </p>
+                  <ul className="list-disc list-inside text-xs text-red-600 dark:text-red-300 mt-1">
+                    {empresasNaoCadastradas.map(emp => (
+                      <li key={emp}>{emp}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-red-600 dark:text-red-300 mt-2 italic">
+                    Cadastre estas empresas em "Empresas Parceiras" para melhor controle
+                  </p>
+                </div>
+              </div>
+            ),
+            duration: 10000 // Mostrar por 10 segundos para dar tempo de ler
+          }
+        )
+
+        // Também logar no console para referência
+        console.warn('Empresas não cadastradas:', empresasNaoCadastradas)
+      } else {
+        toast.success(
+          mensagemFinal,
+          {
+            description: `De ${resultado.cronograma.totalLinhas} linhas processadas`
+          }
+        )
+      }
+
       loadCronograma()
     } catch (error: any) {
       console.error('Erro ao importar Excel:', error)
@@ -842,11 +1235,50 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Cronograma de Atividades</CardTitle>
-          <CardDescription>
-            {atividades.length} atividade{atividades.length !== 1 ? 's' : ''} programada{atividades.length !== 1 ? 's' : ''}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Cronograma de Atividades</CardTitle>
+            <CardDescription>
+              {atividades.length} atividade{atividades.length !== 1 ? 's' : ''} programada{atividades.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Botões do modo de edição */}
+            {modoEdicao && atividadesSelecionadas.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={deletarSelecionadas}
+                disabled={deletandoMultiplas}
+              >
+                {deletandoMultiplas ? (
+                  <>Excluindo...</>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir {atividadesSelecionadas.size} selecionada{atividadesSelecionadas.size !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              variant={modoEdicao ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleModoEdicao}
+            >
+              {modoEdicao ? (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  Sair do Modo Edição
+                </>
+              ) : (
+                <>
+                  <EditIcon className="h-4 w-4 mr-2" />
+                  Modo Edição
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {atividades.length === 0 ? (
@@ -854,84 +1286,69 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
               Nenhuma atividade cadastrada. Importe do Excel ou adicione manualmente.
             </div>
           ) : (
-            <div className="border rounded-lg overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="p-2 text-left font-medium border-r">Mes</th>
-                    <th className="p-2 text-left font-medium border-r">Dia Semana</th>
-                    <th className="p-2 text-left font-medium border-r">Data</th>
-                    <th className="p-2 text-left font-medium border-r">Descricao Servico</th>
-                    <th className="p-2 text-left font-medium border-r">Observacao</th>
-                    <th className="p-2 text-left font-medium border-r">Empresa</th>
-                    <th className="p-2 text-left font-medium border-r">Status</th>
-                    <th className="p-2 text-center font-medium">Acoes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {atividades.map((atividade) => (
-                    <tr
-                      key={atividade.id}
-                      className={`border-t hover:bg-muted/50 ${getTarjaClass(atividade.status, atividade.data_prevista)}`}
-                    >
-                      <td className="p-2 border-r">{atividade.mes}</td>
-                      <td className="p-2 border-r">{atividade.dia_semana}</td>
-                      <td className="p-2 border-r">
-                        {atividade.data_prevista
-                          ? format(new Date(atividade.data_prevista), 'dd/MM/yyyy')
-                          : '-'}
-                      </td>
-                      <td className="p-2 border-r font-medium">{atividade.descricao_servico}</td>
-                      <td className="p-2 border-r text-muted-foreground text-xs">
-                        {atividade.observacao || '-'}
-                      </td>
-                      <td className="p-2 border-r text-xs">
-                        {(atividade as any).empresa_parceira?.nome || '-'}
-                      </td>
-                      <td className="p-2 border-r">
-                        <Select
-                          value={atividade.status}
-                          onValueChange={(novoStatus) => atualizarStatusAtividade(atividade.id, novoStatus)}
-                        >
-                          <SelectTrigger className={`h-7 w-full border-none ${getStatusColor(atividade.status)}`}>
-                            <SelectValue>
-                              {getStatusLabel(atividade.status)}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                            <SelectItem value="realizado">Realizado</SelectItem>
-                            <SelectItem value="atrasado">Atrasado</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="p-2 text-center">
-                        <div className="flex gap-1 justify-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={() => abrirEditarAtividade(atividade)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={() => setAtividadeToDelete(atividade.id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-red-600" />
-                          </Button>
-                        </div>
-                      </td>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="border rounded-lg overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      {modoEdicao && (
+                        <>
+                          <th className="p-2 text-center font-medium w-10">
+                            <GripVertical className="h-4 w-4 mx-auto text-gray-400" />
+                          </th>
+                          <th className="p-2 text-center font-medium w-10">
+                            <Checkbox
+                              checked={atividadesSelecionadas.size === atividades.length && atividades.length > 0}
+                              onCheckedChange={selecionarTodas}
+                            />
+                          </th>
+                        </>
+                      )}
+                      <th className="p-2 text-left font-medium border-r">Data</th>
+                      <th className="p-2 text-left font-medium border-r">Descrição Serviço</th>
+                      <th className="p-2 text-left font-medium border-r">Empresa</th>
+                      <th className="p-2 text-left font-medium border-r">Status</th>
+                      <th className="p-2 text-left font-medium border-r">Prioridade</th>
+                      <th className="p-2 text-left font-medium border-r">Observação</th>
+                      {!modoEdicao && (
+                        <th className="p-2 text-center font-medium">Ações</th>
+                      )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    <SortableContext
+                      items={atividades.map(a => a.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {atividades.map((atividade) => (
+                        <SortableAtividadeRow
+                          key={atividade.id}
+                          atividade={atividade}
+                          modoEdicao={modoEdicao}
+                          selecionada={atividadesSelecionadas.has(atividade.id)}
+                          onToggleSelecao={toggleSelecao}
+                          onEdit={abrirEditarAtividade}
+                          onDelete={setAtividadeToDelete}
+                          onStatusChange={atualizarStatusAtividade}
+                          getTarjaClass={getTarjaClass}
+                          getStatusColor={getStatusColor}
+                          getStatusLabel={getStatusLabel}
+                        />
+                      ))}
+                    </SortableContext>
+                  </tbody>
+                </table>
+                {salvandoOrdem && (
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950 text-center text-sm text-blue-600 dark:text-blue-400">
+                    Salvando nova ordem...
+                  </div>
+                )}
+              </div>
+            </DndContext>
           )}
         </CardContent>
       </Card>
