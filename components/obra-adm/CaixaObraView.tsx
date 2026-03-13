@@ -317,21 +317,32 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       setImporting(true);
       toast.info('Analisando Excel...');
 
-      // Tentar primeiro o novo importador financeiro (ADM - Prime)
-      let resultadoFinanceiro = null;
-      let erroPrincipal = null;
-
+      // PRIORIDADE 1: Tentar detectar formato de SEMANAS primeiro
+      console.log('[CaixaObra] Tentando detectar semanas na planilha ADM...');
       try {
-        console.log('[CaixaObra] Tentando importador financeiro...');
-        resultadoFinanceiro = await importarFinanceiroObra(file);
-      } catch (error: any) {
-        console.log('[CaixaObra] Erro no importador financeiro:', error.message);
-        erroPrincipal = error;
+        const semanasDetectadas = await detectarSemanasExcel(file);
+        if (semanasDetectadas.length > 0) {
+          console.log(`[CaixaObra] ${semanasDetectadas.length} semana(s) detectada(s)!`);
+          setSemanaDetectada(semanasDetectadas);
+          setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
+          setShowDialogImport(true);
+          toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`, {
+            description: 'Selecione as semanas que deseja importar'
+          });
+          return; // Encontrou semanas, para aqui
+        }
+      } catch (errorSemanas: any) {
+        console.log('[CaixaObra] Não detectou formato de semanas:', errorSemanas.message);
       }
 
-      // Se conseguiu ler o arquivo e tem CAIXA DE OBRA, processar
-      if (resultadoFinanceiro && resultadoFinanceiro.caixaObra && resultadoFinanceiro.caixaObra.total > 0) {
-        const resultado = resultadoFinanceiro;
+      // PRIORIDADE 2: Se não encontrou semanas, tentar formato ADM - Prime (aba CAIXA DE OBRA única)
+      console.log('[CaixaObra] Tentando importador financeiro ADM - Prime...');
+      try {
+        const resultadoFinanceiro = await importarFinanceiroObra(file);
+
+        // Se conseguiu ler o arquivo e tem CAIXA DE OBRA, processar
+        if (resultadoFinanceiro && resultadoFinanceiro.caixaObra && resultadoFinanceiro.caixaObra.total > 0) {
+          const resultado = resultadoFinanceiro;
           toast.success(
             `📊 ${resultado.caixaObra.total} movimentos do CAIXA DE OBRA detectados!`,
             {
@@ -404,48 +415,35 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               }
             );
           }
-
-        // Se não conseguiu ler com o importador financeiro ou não tem caixa de obra,
-        // só tentar o formato antigo se houver indicação de que é esse formato
-      } else if (resultadoFinanceiro && resultadoFinanceiro.avisos && resultadoFinanceiro.avisos.length > 0) {
-        // Se o importador financeiro funcionou mas não encontrou caixa de obra
-        toast.warning('Aba CAIXA DE OBRA não encontrada na planilha', {
-          description: resultadoFinanceiro.avisos.join('. ')
-        });
-
-        // Avisar sobre outras abas detectadas
-        if (resultadoFinanceiro.materiais && resultadoFinanceiro.materiais.total > 0) {
-          toast.info(
-            `📦 Aba MATERIAIS detectada!`,
-            {
-              description: `${resultadoFinanceiro.materiais.total} materiais encontrados. Use a página "Orçamento/Materiais" para importá-los.`,
-              duration: 5000
-            }
-          );
+          return; // Importou com sucesso, para aqui
         }
-      } else {
-        // Só tentar formato antigo se o erro indicar que pode ser esse formato
-        console.log('[CaixaObra] Tentando formato de semanas...');
-        try {
-          const semanasDetectadas = await detectarSemanasExcel(file);
-          if (semanasDetectadas.length > 0) {
-            setSemanaDetectada(semanasDetectadas);
-            setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
-            setShowDialogImport(true);
-            toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
-          } else {
-            // Se não detectou semanas, informar melhor o usuário
-            toast.error('Formato não reconhecido', {
-              description: 'A planilha deve ter uma aba "CAIXA DE OBRA" ou títulos com "SEMANA X"'
-            });
-          }
-        } catch (error2: any) {
-          // Se falhou nos dois formatos, dar mensagem clara
-          toast.error('Erro ao importar planilha', {
-            description: erroPrincipal?.message || 'Verifique o formato do arquivo'
+
+        // Se o importador funcionou mas não encontrou caixa de obra
+        if (resultadoFinanceiro && resultadoFinanceiro.avisos && resultadoFinanceiro.avisos.length > 0) {
+          toast.warning('Aba CAIXA DE OBRA não encontrada na planilha', {
+            description: resultadoFinanceiro.avisos.join('. ')
           });
+
+          // Avisar sobre outras abas detectadas
+          if (resultadoFinanceiro.materiais && resultadoFinanceiro.materiais.total > 0) {
+            toast.info(
+              `📦 Aba MATERIAIS detectada!`,
+              {
+                description: `${resultadoFinanceiro.materiais.total} materiais encontrados. Use a página "Orçamento/Materiais" para importá-los.`,
+                duration: 5000
+              }
+            );
+          }
+          return;
         }
+      } catch (errorFinanceiro: any) {
+        console.log('[CaixaObra] Erro no importador financeiro:', errorFinanceiro.message);
       }
+
+      // Se chegou aqui, não conseguiu importar com nenhum formato
+      toast.error('Formato não reconhecido', {
+        description: 'A planilha deve ter títulos com "SEMANA X" ou uma aba "CAIXA DE OBRA"'
+      });
     } catch (error: any) {
       console.error('Erro ao importar:', error);
       toast.error('Erro ao importar Excel', {
