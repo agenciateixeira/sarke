@@ -149,6 +149,11 @@ export function detectarSemanasExcel(file: File): Promise<SemanaDetectada[]> {
               continue
             }
 
+            // MELHORIA 8: Determinar categoria baseada no título (antes do loop)
+            const categoria = cellStr.toUpperCase().includes('ELÉTRICA') || cellStr.toUpperCase().includes('ELETRICA')
+              ? 'ELÉTRICA'
+              : 'OBRA'
+
             // MELHORIA 5: Ler movimentações até encontrar próxima semana ou linha vazia
             const movimentacoes: MovimentacaoImportada[] = []
 
@@ -202,11 +207,6 @@ export function detectarSemanasExcel(file: File): Promise<SemanaDetectada[]> {
                 console.warn(`⚠️ Valor inválido na linha ${dataRowIdx + 1}:`, valor)
                 continue
               }
-
-              // MELHORIA 8: Determinar categoria baseada no título
-              const categoria = cellStr.toUpperCase().includes('ELÉTRICA') || cellStr.toUpperCase().includes('ELETRICA')
-                ? 'ELÉTRICA'
-                : 'OBRA'
 
               movimentacoes.push({
                 semana: `SEMANA ${semanaNumero}`,
