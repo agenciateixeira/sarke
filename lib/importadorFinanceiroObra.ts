@@ -25,11 +25,10 @@ export interface CaixaObraImportado {
   data: string
   descricao: string
   empresa?: string
-  valor: number // Negativo = Saída, Positivo = Entrada
+  valor: number // Negativo = Saída, Positivo = Entrada (schema determina o tipo pelo sinal)
   recibo?: string
   codigo?: string
   status?: string
-  tipo_movimento: 'entrada' | 'saida'
   categoria?: string
 }
 
@@ -275,25 +274,26 @@ function processarAbaCaixaObra(workbook: XLSX.WorkBook, sheetName: string): any 
     // Verificar se tem data e descrição
     if (indices.data >= 0 && indices.descricao >= 0 && row[indices.data] && row[indices.descricao]) {
       const valor = indices.valor >= 0 ? parseNumber(row[indices.valor]) || 0 : 0
-      const tipoMovimento = valor >= 0 ? 'entrada' : 'saida'
 
+      // O valor já mantém o sinal correto (negativo = despesa, positivo = receita)
+      // Não precisamos converter para Math.abs() nem adicionar tipo_movimento
       const movimento: CaixaObraImportado = {
         item_numero: indices.item >= 0 ? parseInt(row[indices.item]) || undefined : undefined,
         data: parseExcelDate(row[indices.data]) || '',
         descricao: String(row[indices.descricao]),
         empresa: indices.empresa >= 0 ? String(row[indices.empresa] || '') : undefined,
-        valor: Math.abs(valor),
+        valor: valor, // Mantém o sinal: negativo = despesa, positivo = receita
         recibo: indices.recibo >= 0 ? String(row[indices.recibo] || '') : undefined,
         codigo: indices.codigo >= 0 ? String(row[indices.codigo] || '') : undefined,
         status: indices.status >= 0 ? String(row[indices.status] || '') : 'PENDENTE',
-        tipo_movimento: tipoMovimento,
         categoria: identificarCategoria(String(row[indices.descricao]))
       }
 
       movimentos.push(movimento)
 
-      if (tipoMovimento === 'entrada') {
-        totalEntradas += Math.abs(valor)
+      // Para contabilizar entradas e saídas, usamos o sinal
+      if (valor >= 0) {
+        totalEntradas += valor
       } else {
         totalSaidas += Math.abs(valor)
       }

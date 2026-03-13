@@ -353,7 +353,6 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             data: mov.data,
             descricao: mov.descricao,
             valor: mov.valor,
-            tipo_movimento: mov.tipo_movimento,
             categoria: mov.categoria || 'OUTROS',
             empresa: mov.empresa,
             codigo_recibo: mov.recibo,
@@ -883,25 +882,39 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       </AlertDialog>
 
       {/* Dialog de Exclusão em Massa de Movimentações */}
-      <AlertDialog open={showDeleteMovDialog} onOpenChange={setShowDeleteMovDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir {movimentacoesSelecionadas.size} movimentação(ões)?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={showDeleteMovDialog} onOpenChange={(open) => {
+        console.log('[CaixaObra] Dialog onOpenChange chamado com:', open);
+        setShowDeleteMovDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Excluir {movimentacoesSelecionadas.size} movimentação(ões)?</DialogTitle>
+            <DialogDescription>
               Tem certeza que deseja excluir as {movimentacoesSelecionadas.size} movimentações selecionadas? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleExcluirSelecionadas}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                console.log('[CaixaObra] Botão Cancelar clicado');
+                setShowDeleteMovDialog(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                console.log('[CaixaObra] Botão "Excluir Todas" clicado no dialog');
+                handleExcluirSelecionadas();
+              }}
             >
               Excluir Todas
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!semanaToDelete} onOpenChange={(o) => { if (!o) setSemanaToDelete(null); }}>
         <AlertDialogContent>

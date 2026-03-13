@@ -26,6 +26,15 @@ import { importarOrcamentoExcel } from '@/lib/orcamentoExcel';
 import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface OrcamentoMateriaisViewProps {
   obraId: string;
@@ -507,6 +516,62 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
           }}
         />
       )}
+
+      {/* Dialog de Exclusão Individual */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(o) => { if (!o) setItemToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este item do orçamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluir}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Exclusão em Massa */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        console.log('[OrcamentoMateriais] Dialog onOpenChange chamado com:', open);
+        setShowDeleteDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Excluir {itensSelecionados.size} item(ns)?</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir os {itensSelecionados.size} itens selecionados? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                console.log('[OrcamentoMateriais] Botão Cancelar clicado');
+                setShowDeleteDialog(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                console.log('[OrcamentoMateriais] Botão "Excluir Todos" clicado no dialog');
+                handleExcluirSelecionados();
+              }}
+            >
+              Excluir Todos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -747,57 +812,6 @@ function FormularioMaterial({ material, obraId, onSalvar, onCancelar }: Formular
           </form>
         </div>
       </div>
-
-      <AlertDialog open={!!itemToDelete} onOpenChange={(o) => { if (!o) setItemToDelete(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este item do orçamento? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleExcluir}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Dialog de Exclusão em Massa */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
-        console.log('[OrcamentoMateriais] Dialog onOpenChange chamado com:', open);
-        setShowDeleteDialog(open);
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir {itensSelecionados.size} item(ns)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir os {itensSelecionados.size} itens selecionados? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              console.log('[OrcamentoMateriais] Botão Cancelar clicado');
-            }}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                console.log('[OrcamentoMateriais] Botão "Excluir Todos" clicado no dialog');
-                handleExcluirSelecionados();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir Todos
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
