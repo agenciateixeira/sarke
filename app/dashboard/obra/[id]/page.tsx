@@ -9,6 +9,16 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   ArrowLeft,
   Building,
   MapPin,
@@ -72,6 +82,7 @@ export default function ObraDetailPage() {
   const [obra, setObra] = useState<Obra | null>(null)
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cronograma, setCronograma] = useState<CronogramaObraCompleto | null>(null)
 
   useEffect(() => {
@@ -137,11 +148,11 @@ export default function ObraDetailPage() {
     loadObra()
   }
 
-  async function handleDelete() {
-    if (!confirm('Tem certeza que deseja excluir esta obra? Esta ação não pode ser desfeita.')) {
-      return
-    }
+  function openDeleteDialog() {
+    setDeleteDialogOpen(true)
+  }
 
+  async function handleConfirmDelete() {
     try {
       const { error } = await supabase
         .from('obras')
@@ -151,6 +162,7 @@ export default function ObraDetailPage() {
       if (error) throw error
 
       toast.success('Obra excluída com sucesso!')
+      setDeleteDialogOpen(false)
       router.push('/dashboard/obra')
     } catch (error: any) {
       console.error('Erro ao excluir obra:', error)
@@ -203,7 +215,7 @@ export default function ObraDetailPage() {
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </Button>
-            <Button variant="outline" className="text-red-600 hover:text-red-700" onClick={handleDelete}>
+            <Button variant="outline" className="text-red-600 hover:text-red-700" onClick={openDeleteDialog}>
               <Trash2 className="mr-2 h-4 w-4" />
               Excluir
             </Button>
@@ -745,6 +757,27 @@ export default function ObraDetailPage() {
           obra={obra}
           onSuccess={handleObraSuccess}
         />
+
+        {/* Modal de Exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir obra?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta obra? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   )
