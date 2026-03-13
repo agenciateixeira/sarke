@@ -28,7 +28,7 @@ import {
   calcularDiasRestantes,
   getStatusComprovanteCor,
 } from '@/types/obra-adm-financeiro';
-import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2, X, ChevronUp } from 'lucide-react';
 import { importarCaixaExcel, detectarSemanasExcel, SemanaDetectada } from '@/lib/caixaExcel';
 import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
@@ -72,6 +72,9 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [movimentacoesSelecionadas, setMovimentacoesSelecionadas] = useState<Set<string>>(new Set());
   const [showDeleteMovDialog, setShowDeleteMovDialog] = useState(false);
+  const [semanasSelecionadas, setSemanasSelecionadas] = useState<Set<string>>(new Set());
+  const [showGerenciarSemanasDialog, setShowGerenciarSemanasDialog] = useState(false);
+  const [consolidadosMinimizados, setConsolidadosMinimizados] = useState(false);
 
   // Carregar semanas
   useEffect(() => {
@@ -305,6 +308,94 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
     } catch (error) {
       console.error('Erro ao excluir semana:', error);
       toast.error('Erro ao excluir semana');
+    }
+  };
+
+  // Funções de seleção em massa de semanas
+  const toggleSelecionarTodasSemanas = () => {
+    if (semanasSelecionadas.size === semanas.length) {
+      console.log('[CaixaObra] Desmarcando todas as semanas');
+      setSemanasSelecionadas(new Set());
+    } else {
+      console.log('[CaixaObra] Marcando todas as', semanas.length, 'semanas');
+      setSemanasSelecionadas(new Set(semanas.map(s => s.nome)));
+    }
+  };
+
+  const toggleSelecionarSemana = (nomeSemana: string) => {
+    const novasSemanasSelecionadas = new Set(semanasSelecionadas);
+    if (novasSemanasSelecionadas.has(nomeSemana)) {
+      console.log('[CaixaObra] Desmarcando semana:', nomeSemana);
+      novasSemanasSelecionadas.delete(nomeSemana);
+    } else {
+      console.log('[CaixaObra] Marcando semana:', nomeSemana);
+      novasSemanasSelecionadas.add(nomeSemana);
+    }
+    setSemanasSelecionadas(novasSemanasSelecionadas);
+  };
+
+  const handleExcluirSemanasSelecionadas = async () => {
+    if (semanasSelecionadas.size === 0) {
+      console.log('[CaixaObra] Nenhuma semana selecionada');
+      return;
+    }
+
+    try {
+      const semanasArray = Array.from(semanasSelecionadas);
+      console.log(`[CaixaObra] Excluindo ${semanasArray.length} semanas em lotes...`);
+
+      // Dividir em lotes de 10 para evitar limites
+      const batchSize = 10;
+      const batches = [];
+      for (let i = 0; i < semanasArray.length; i += batchSize) {
+        batches.push(semanasArray.slice(i, i + batchSize));
+      }
+
+      console.log(`[CaixaObra] Total de ${batches.length} lotes`);
+      toast.info(`Excluindo ${semanasArray.length} semana(s) em ${batches.length} lote(s)...`);
+
+      let deletedCount = 0;
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`[CaixaObra] Processando lote ${i + 1}/${batches.length} (${batch.length} semanas)`);
+
+        // Excluir movimentações dessas semanas
+        const { error: errorMov } = await supabase
+          .from('obra_caixa')
+          .delete()
+          .eq('obra_id', obraId)
+          .in('semana', batch);
+
+        if (errorMov) {
+          console.error(`[CaixaObra] Erro ao excluir movimentações do lote ${i + 1}:`, errorMov);
+          throw errorMov;
+        }
+
+        // Excluir as semanas
+        const { error: errorSemanas } = await supabase
+          .from('obra_caixa_semanas')
+          .delete()
+          .eq('obra_id', obraId)
+          .in('nome', batch);
+
+        if (errorSemanas) {
+          console.error(`[CaixaObra] Erro ao excluir semanas do lote ${i + 1}:`, errorSemanas);
+          throw errorSemanas;
+        }
+
+        deletedCount += batch.length;
+        console.log(`[CaixaObra] Lote ${i + 1}/${batches.length} concluído (${deletedCount}/${semanasArray.length})`);
+      }
+
+      console.log(`[CaixaObra] ${deletedCount} semana(s) excluída(s) com sucesso`);
+      toast.success(`${deletedCount} semana(s) excluída(s) com sucesso!`);
+      setSemanasSelecionadas(new Set());
+      setShowGerenciarSemanasDialog(false);
+      setSemanaSelecionada('');
+      carregarSemanas();
+    } catch (error: any) {
+      console.error('[CaixaObra] Erro ao excluir semanas:', error);
+      toast.error(`Erro ao excluir semanas: ${error.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -628,6 +719,16 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {semanas.length > 0 && (
+            <button
+              onClick={() => setShowGerenciarSemanasDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <Calendar className="w-4 h-4" />
+              Gerenciar Semanas
+            </button>
+          )}
+
           {semanaSelecionada && (
             <>
               <button
@@ -664,9 +765,28 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       {/* Cards de Totais Consolidados (TODAS as semanas) */}
       {semanas.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            Totais Consolidados ({semanas.length} semana{semanas.length > 1 ? 's' : ''})
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Totais Consolidados ({semanas.length} semana{semanas.length > 1 ? 's' : ''})
+            </h3>
+            <button
+              onClick={() => setConsolidadosMinimizados(!consolidadosMinimizados)}
+              className="flex items-center gap-2 px-3 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              {consolidadosMinimizados ? (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Expandir
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Minimizar
+                </>
+              )}
+            </button>
+          </div>
+          {!consolidadosMinimizados && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-4 shadow-sm">
               <div className="flex items-center justify-between">
@@ -730,6 +850,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               </div>
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -1043,6 +1164,95 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Gerenciar Semanas (Seleção e Exclusão em Massa) */}
+      <Dialog open={showGerenciarSemanasDialog} onOpenChange={setShowGerenciarSemanasDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Semanas</DialogTitle>
+            <DialogDescription>
+              Selecione as semanas que deseja excluir. Total: {semanas.length} semana(s) cadastrada(s).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Botão Selecionar/Desmarcar Todas */}
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={semanas.length > 0 && semanasSelecionadas.size === semanas.length}
+                  onCheckedChange={toggleSelecionarTodasSemanas}
+                />
+                <span className="font-medium text-sm">
+                  {semanasSelecionadas.size === semanas.length ? 'Desmarcar' : 'Selecionar'} Todas
+                </span>
+              </div>
+              {semanasSelecionadas.size > 0 && (
+                <span className="text-sm text-gray-600">
+                  {semanasSelecionadas.size} de {semanas.length} selecionada(s)
+                </span>
+              )}
+            </div>
+
+            {/* Lista de Semanas */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {semanas.map((semana) => (
+                <div
+                  key={semana.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                    semanasSelecionadas.has(semana.nome)
+                      ? 'bg-red-50 border-red-300'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Checkbox
+                    checked={semanasSelecionadas.has(semana.nome)}
+                    onCheckedChange={() => toggleSelecionarSemana(semana.nome)}
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{semana.nome}</div>
+                    <div className="text-xs text-gray-600">
+                      {new Date(semana.data_inicio).toLocaleDateString('pt-BR')} - {new Date(semana.data_fim).toLocaleDateString('pt-BR')}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-green-600">
+                      {formatarMoeda(semana.total_receitas)}
+                    </div>
+                    <div className="text-sm font-semibold text-red-600">
+                      {formatarMoeda(semana.total_despesas)}
+                    </div>
+                    <div className={`text-xs font-medium ${semana.saldo >= 0 ? 'text-green-700' : 'text-orange-700'}`}>
+                      Saldo: {formatarMoeda(semana.saldo)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowGerenciarSemanasDialog(false);
+                setSemanasSelecionadas(new Set());
+              }}
+            >
+              Cancelar
+            </Button>
+            {semanasSelecionadas.size > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleExcluirSemanasSelecionadas}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir {semanasSelecionadas.size} Semana(s)
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de Seleção de Semanas para Importar */}
       <Dialog open={showDialogImport} onOpenChange={setShowDialogImport}>
