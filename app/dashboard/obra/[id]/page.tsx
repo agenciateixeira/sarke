@@ -154,7 +154,7 @@ export default function ObraDetailPage() {
       router.push('/dashboard/obra')
     } catch (error: any) {
       console.error('Erro ao excluir obra:', error)
-      toast.error('Erro ao excluir obra: ' + error.message)
+      toast.error('Erro ao excluir obra', { description: error.message })
     }
   }
 
