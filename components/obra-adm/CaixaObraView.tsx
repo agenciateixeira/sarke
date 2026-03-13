@@ -205,8 +205,10 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   // Funções de seleção em massa
   const toggleSelecionarTodas = () => {
     if (movimentacoesSelecionadas.size === movimentacoes.length) {
+      console.log('[CaixaObra] Desmarcando todas as movimentações');
       setMovimentacoesSelecionadas(new Set());
     } else {
+      console.log('[CaixaObra] Marcando todas as', movimentacoes.length, 'movimentações');
       setMovimentacoesSelecionadas(new Set(movimentacoes.map(m => m.id)));
     }
   };
@@ -214,32 +216,43 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const toggleSelecionarMovimentacao = (id: string) => {
     const novasMovimentacoesSelecionadas = new Set(movimentacoesSelecionadas);
     if (novasMovimentacoesSelecionadas.has(id)) {
+      console.log('[CaixaObra] Desmarcando movimentação:', id);
       novasMovimentacoesSelecionadas.delete(id);
     } else {
+      console.log('[CaixaObra] Marcando movimentação:', id);
       novasMovimentacoesSelecionadas.add(id);
     }
     setMovimentacoesSelecionadas(novasMovimentacoesSelecionadas);
   };
 
   const handleExcluirSelecionadas = async () => {
-    if (movimentacoesSelecionadas.size === 0) return;
+    if (movimentacoesSelecionadas.size === 0) {
+      console.log('[CaixaObra] Nenhuma movimentação selecionada');
+      return;
+    }
 
     try {
+      console.log('[CaixaObra] Excluindo movimentações:', Array.from(movimentacoesSelecionadas));
+
       const { error } = await supabase
         .from('obra_caixa')
         .delete()
         .in('id', Array.from(movimentacoesSelecionadas));
 
-      if (error) throw error;
+      if (error) {
+        console.error('[CaixaObra] Erro ao excluir:', error);
+        throw error;
+      }
 
+      console.log(`[CaixaObra] ${movimentacoesSelecionadas.size} movimentação(ões) excluída(s) com sucesso`);
       toast.success(`${movimentacoesSelecionadas.size} movimentação(ões) excluída(s) com sucesso!`);
       setMovimentacoesSelecionadas(new Set());
       setShowDeleteMovDialog(false);
       carregarMovimentacoes();
       carregarSemanas();
-    } catch (error) {
-      console.error('Erro ao excluir movimentações:', error);
-      toast.error('Erro ao excluir movimentações');
+    } catch (error: any) {
+      console.error('[CaixaObra] Erro ao excluir movimentações:', error);
+      toast.error(`Erro ao excluir movimentações: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

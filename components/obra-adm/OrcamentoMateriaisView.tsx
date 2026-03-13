@@ -130,8 +130,10 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
   // Funções de seleção em massa
   const toggleSelecionarTodos = () => {
     if (itensSelecionados.size === materiais.length) {
+      console.log('[OrcamentoMateriais] Desmarcando todos os itens');
       setItensSelecionados(new Set());
     } else {
+      console.log('[OrcamentoMateriais] Marcando todos os', materiais.length, 'itens');
       setItensSelecionados(new Set(materiais.map(m => m.id)));
     }
   };
@@ -139,31 +141,42 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
   const toggleSelecionarItem = (id: string) => {
     const novosItensSelecionados = new Set(itensSelecionados);
     if (novosItensSelecionados.has(id)) {
+      console.log('[OrcamentoMateriais] Desmarcando item:', id);
       novosItensSelecionados.delete(id);
     } else {
+      console.log('[OrcamentoMateriais] Marcando item:', id);
       novosItensSelecionados.add(id);
     }
     setItensSelecionados(novosItensSelecionados);
   };
 
   const handleExcluirSelecionados = async () => {
-    if (itensSelecionados.size === 0) return;
+    if (itensSelecionados.size === 0) {
+      console.log('[OrcamentoMateriais] Nenhum item selecionado');
+      return;
+    }
 
     try {
+      console.log('[OrcamentoMateriais] Excluindo itens:', Array.from(itensSelecionados));
+
       const { error } = await supabase
         .from('obra_orcamento_materiais')
         .delete()
         .in('id', Array.from(itensSelecionados));
 
-      if (error) throw error;
+      if (error) {
+        console.error('[OrcamentoMateriais] Erro ao excluir:', error);
+        throw error;
+      }
 
+      console.log(`[OrcamentoMateriais] ${itensSelecionados.size} item(ns) excluído(s) com sucesso`);
       toast.success(`${itensSelecionados.size} item(ns) excluído(s) com sucesso!`);
       setItensSelecionados(new Set());
       setShowDeleteDialog(false);
       carregarDados();
-    } catch (error) {
-      console.error('Erro ao excluir materiais:', error);
-      toast.error('Erro ao excluir materiais');
+    } catch (error: any) {
+      console.error('[OrcamentoMateriais] Erro ao excluir materiais:', error);
+      toast.error(`Erro ao excluir materiais: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

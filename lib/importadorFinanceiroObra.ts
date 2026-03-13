@@ -320,8 +320,12 @@ function processarAbaServicos(workbook: XLSX.WorkBook, sheetName: string): any {
   let headerRow = -1
   for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
     const row = jsonData[i]
-    if (Array.isArray(row)) {
-      const rowText = row.join(' ').toLowerCase()
+    if (Array.isArray(row) && row.length > 0) {
+      const rowText = row
+        .filter(cell => cell !== null && cell !== undefined)
+        .map(cell => String(cell))
+        .join(' ')
+        .toLowerCase()
       if (rowText.includes('descrição') || rowText.includes('serviço')) {
         headerRow = i
         break
@@ -333,22 +337,47 @@ function processarAbaServicos(workbook: XLSX.WorkBook, sheetName: string): any {
     return { dados: [], total: 0, valor_total: 0 }
   }
 
-  const headers = jsonData[headerRow].map((h: any) => (h ? String(h).toLowerCase() : ''))
+  // Garantir que headers é um array válido
+  if (!Array.isArray(jsonData[headerRow])) {
+    return { dados: [], total: 0, valor_total: 0 }
+  }
+
+  const headers = jsonData[headerRow].map((h: any) => {
+    if (h === null || h === undefined || h === '') return ''
+    return String(h).toLowerCase().trim()
+  })
   const dataRows = jsonData.slice(headerRow + 1)
 
   const servicos: ServicoImportado[] = []
   let valorTotal = 0
 
   for (const row of dataRows) {
-    const descricao = headers.findIndex(h => h.includes('descrição'))
-    if (descricao >= 0 && row[descricao]) {
+    const descricaoIdx = headers.findIndex(h => {
+      if (typeof h !== 'string' || h === '') return false
+      return h.includes('descrição') || h.includes('descricao')
+    })
+
+    if (descricaoIdx >= 0 && row[descricaoIdx]) {
+      const dataIdx = headers.findIndex(h => {
+        if (typeof h !== 'string' || h === '') return false
+        return h.includes('data')
+      })
+
+      const qtdeIdx = headers.findIndex(h => {
+        if (typeof h !== 'string' || h === '') return false
+        return h.includes('qtde') || h.includes('quantidade')
+      })
+
+      const totalIdx = headers.findIndex(h => {
+        if (typeof h !== 'string' || h === '') return false
+        return h.includes('total')
+      })
+
       const servico: ServicoImportado = {
-        data: headers.findIndex(h => h.includes('data')) >= 0
-          ? parseExcelDate(row[headers.findIndex(h => h.includes('data'))])
-          : undefined,
-        descricao_material: String(row[descricao]),
-        quantidade: parseNumber(row[headers.findIndex(h => h.includes('qtde') || h.includes('quantidade'))]),
-        valor_total: parseNumber(row[headers.findIndex(h => h.includes('total'))]) || 0
+        data: dataIdx >= 0 ? parseExcelDate(row[dataIdx]) : undefined,
+        descricao_material: String(row[descricaoIdx]),
+        quantidade: qtdeIdx >= 0 ? parseNumber(row[qtdeIdx]) : undefined,
+        valor_total: totalIdx >= 0 ? (parseNumber(row[totalIdx]) || 0) : 0
       }
 
       servicos.push(servico)
