@@ -10,7 +10,6 @@ export interface AtividadeImportada {
   status?: string
   prioridade?: string
   observacao?: string
-  empresa?: string
   mes?: string
   dia_semana?: string
 }
@@ -180,49 +179,30 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
     throw new Error('Cabeçalho não encontrado no cronograma')
   }
 
-  // Garantir que temos um array válido de headers
-  if (!jsonData[headerRowIndex] || !Array.isArray(jsonData[headerRowIndex])) {
-    throw new Error('Linha de cabeçalho inválida no cronograma')
-  }
-
-  const headers = jsonData[headerRowIndex].map((h: any) => {
-    if (h === null || h === undefined) return ''
-    return String(h).toLowerCase().trim()
-  })
+  const headers = jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : ''))
   const dataRows = jsonData.slice(headerRowIndex + 1)
 
-  // Mapear índices das colunas com verificações seguras
+  // Mapear índices das colunas
   const indices = {
-    mes: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('mês') || h.includes('mes')
-    }),
-    diaSemana: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('dia') && (h.includes('semana') || h.includes('week'))
-    }),
-    data: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('data') || (h.includes('dt') && !h.includes('atualiza'))
-    }),
-    descricao: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('descrição') || h.includes('descricao') ||
-        h.includes('serviço') || h.includes('servico') ||
-        h.includes('atividade') || h.includes('tarefa')
-    }),
-    observacao: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('observação') || h.includes('observacao') || h.includes('obs')
-    }),
-    empresa: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('empresa') || h.includes('responsável') || h.includes('responsavel')
-    }),
-    status: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('status')
-    })
+    mes: headers.findIndex(h => h.includes('mês') || h.includes('mes')),
+    diaSemana: headers.findIndex(h =>
+      h.includes('dia') && (h.includes('semana') || h.includes('week'))
+    ),
+    data: headers.findIndex(h =>
+      h.includes('data') || (h.includes('dt') && !h.includes('atualiza'))
+    ),
+    descricao: headers.findIndex(h =>
+      h.includes('descrição') || h.includes('descricao') ||
+      h.includes('serviço') || h.includes('servico') ||
+      h.includes('atividade') || h.includes('tarefa')
+    ),
+    observacao: headers.findIndex(h =>
+      h.includes('observação') || h.includes('observacao') || h.includes('obs')
+    ),
+    empresa: headers.findIndex(h =>
+      h.includes('empresa') || h.includes('responsável') || h.includes('responsavel')
+    ),
+    status: headers.findIndex(h => h.includes('status'))
   }
 
   if (indices.data === -1 || indices.descricao === -1) {
@@ -235,14 +215,31 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
   let ultimoMes: string | null = null
   let ultimoDiaSemana: string | null = null
   let linhasProcessadas = 0
+  let linhasVaziasConsecutivas = 0
+  const MAX_LINHAS_VAZIAS = 10 // Permitir até 10 linhas vazias antes de parar
 
   // MUDANÇA PRINCIPAL: Processar todas as linhas, usando última data quando não houver
-  for (const row of dataRows) {
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i]
     linhasProcessadas++
 
     // Verificar se tem descrição (campo obrigatório)
     const descricao = row[indices.descricao]
-    if (!descricao || String(descricao).trim() === '') continue
+
+    // Se linha vazia ou sem descrição
+    if (!descricao || String(descricao).trim() === '') {
+      linhasVaziasConsecutivas++
+
+      // Se encontrou mais de MAX_LINHAS_VAZIAS consecutivas, parar de processar
+      if (linhasVaziasConsecutivas > MAX_LINHAS_VAZIAS) {
+        break
+      }
+
+      continue
+    }
+
+    // Reset contador de linhas vazias quando encontra conteúdo
+    linhasVaziasConsecutivas = 0
 
     // Ignorar linhas de total ou resumo
     const descStr = String(descricao).toLowerCase()
@@ -284,7 +281,7 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
       empresasEncontradas.add(empresa)
     }
 
-    // Criar atividade
+    // Criar atividade sem o campo empresa (não existe na tabela)
     atividades.push({
       data_prevista: dataPrevista,
       descricao_servico: String(descricao),
@@ -295,7 +292,6 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
       observacao: indices.observacao >= 0 && row[indices.observacao]
         ? String(row[indices.observacao])
         : '',
-      empresa: empresa,
       mes: ultimoMes || undefined,
       dia_semana: ultimoDiaSemana || undefined
     })
@@ -345,56 +341,33 @@ function processarAbaCaixaObra(workbook: XLSX.WorkBook, sheetName: string): any 
     return { materiais: [], totalLinhas: 0, totalImportado: 0 }
   }
 
-  // Garantir que temos um array válido de headers
-  if (!jsonData[headerRowIndex] || !Array.isArray(jsonData[headerRowIndex])) {
-    return { materiais: [], totalLinhas: 0, totalImportado: 0 }
-  }
-
-  const headers = jsonData[headerRowIndex].map((h: any) => {
-    if (h === null || h === undefined) return ''
-    return String(h).toLowerCase().trim()
-  })
+  const headers = jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : ''))
   const dataRows = jsonData.slice(headerRowIndex + 1)
 
   // Mapear índices das colunas
   const indices = {
-    data: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('data')
-    }),
-    servico: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('serviço') || h.includes('servico')
-    }),
-    descricao: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return (h.includes('descrição') || h.includes('descricao')) &&
-        (h.includes('material') || h.includes('item'))
-    }),
-    quantidade: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('qtde') || h.includes('qtd') || h.includes('quantidade')
-    }),
-    medida: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('medida') || h.includes('unidade') || h.includes('un')
-    }),
-    valorUnit: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('valor') && (h.includes('unit') || h.includes('un'))
-    }),
-    valorTotal: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('valor') && (h.includes('total') || !h.includes('unit'))
-    }),
-    responsavel: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('responsável') || h.includes('responsavel')
-    }),
-    status: headers.findIndex(h => {
-      if (!h || typeof h !== 'string') return false
-      return h.includes('status')
-    })
+    data: headers.findIndex(h => h.includes('data')),
+    servico: headers.findIndex(h => h.includes('serviço') || h.includes('servico')),
+    descricao: headers.findIndex(h =>
+      (h.includes('descrição') || h.includes('descricao')) &&
+      (h.includes('material') || h.includes('item'))
+    ),
+    quantidade: headers.findIndex(h =>
+      h.includes('qtde') || h.includes('qtd') || h.includes('quantidade')
+    ),
+    medida: headers.findIndex(h =>
+      h.includes('medida') || h.includes('unidade') || h.includes('un')
+    ),
+    valorUnit: headers.findIndex(h =>
+      h.includes('valor') && (h.includes('unit') || h.includes('un'))
+    ),
+    valorTotal: headers.findIndex(h =>
+      h.includes('valor') && (h.includes('total') || !h.includes('unit'))
+    ),
+    responsavel: headers.findIndex(h =>
+      h.includes('responsável') || h.includes('responsavel')
+    ),
+    status: headers.findIndex(h => h.includes('status'))
   }
 
   const materiais: MaterialServicoCaixaImportado[] = []

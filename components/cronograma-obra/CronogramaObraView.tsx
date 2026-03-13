@@ -175,12 +175,7 @@ function SortableAtividadeRow({
       <td className="p-2 border-r font-medium">{atividade.descricao_servico}</td>
 
       <td className="p-2 border-r text-xs">
-        {(atividade as any).empresa_parceira?.nome ||
-         (atividade.empresa ? (
-           <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded">
-             ⚠️ {atividade.empresa}
-           </span>
-         ) : '-')}
+        {(atividade as any).empresa_parceira?.nome || '-'}
       </td>
 
       <td className="p-2 border-r">
@@ -904,7 +899,6 @@ export function CronogramaObraView({ obraId, obraNome }: CronogramaObraViewProps
           data_prevista: ativ.data_prevista,
           descricao_servico: ativ.descricao_servico,
           observacao: ativ.observacao || null,
-          empresa: ativ.empresa || null, // Adicionar campo empresa se existir
           status: (ativ.status as AtividadeStatus) || 'pendente',
           prioridade: (ativ.prioridade as AtividadePrioridade) || 'normal',
           ordem: atividades.length + index,
