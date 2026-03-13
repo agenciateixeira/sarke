@@ -23,6 +23,7 @@ import {
 } from '@/types/obra-adm-financeiro';
 import { Plus, Pencil, Trash2, Download, Upload, Loader2 } from 'lucide-react';
 import { importarOrcamentoExcel } from '@/lib/orcamentoExcel';
+import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
 
 interface OrcamentoMateriaisViewProps {
@@ -132,33 +133,72 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
       setImporting(true);
       toast.info('Importando Excel...');
 
-      const materiaisImportados = await importarOrcamentoExcel(file);
+      // Usar o novo importador que reconhece múltiplas abas
+      const resultado = await importarFinanceiroObra(file);
 
-      // Inserir materiais no banco
-      const materiaisParaInserir = materiaisImportados.map((mat, index) => ({
-        obra_id: obraId,
-        local: mat.local || null,
-        item: mat.item,
-        descricao: mat.descricao,
-        quantidade: mat.quantidade || null,
-        medida: mat.medida || null,
-        valor_total: mat.valor_total || 0,
-        valor_pago: mat.valor_pago || 0,
-        forma_pagamento: mat.forma_pagamento || null,
-        responsavel_sarke: mat.responsavel_sarke || null,
-        status_obra: mat.status_obra || 'PENDENTE',
-        status_pagamento: mat.status_pagamento || 'A PAGAR',
-        observacoes: mat.observacoes || null,
-        ordem: materiais.length + index,
-      }));
+      // Verificar se tem materiais para importar
+      if (resultado.materiais && resultado.materiais.total > 0) {
+        const materiaisParaInserir = resultado.materiais.dados.map((mat, index) => ({
+          obra_id: obraId,
+          local: mat.local || null,
+          item: mat.item || `${index + 1}`,
+          descricao: mat.descricao,
+          quantidade: mat.quantidade || null,
+          medida: mat.medida || null,
+          valor_total: mat.valor_total || 0,
+          valor_pago: mat.valor_pago || 0,
+          forma_pagamento: mat.forma_pagamento || null,
+          responsavel_sarke: mat.responsavel_sarke || null,
+          status_obra: mat.status_obra || 'PENDENTE',
+          status_pagamento: mat.status_pagamento || 'A PAGAR',
+          observacoes: null,
+          ordem: materiais.length + index,
+        }));
 
-      const { error } = await supabase
-        .from('obra_orcamento_materiais')
-        .insert(materiaisParaInserir);
+        const { error } = await supabase
+          .from('obra_orcamento_materiais')
+          .insert(materiaisParaInserir);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(`${materiaisImportados.length} materiais importados com sucesso!`);
+        toast.success(
+          `✅ ${resultado.materiais.total} materiais importados com sucesso!`,
+          {
+            description: `Valor total: R$ ${resultado.materiais.valor_total.toLocaleString('pt-BR', {
+              minimumFractionDigits: 2
+            })}`
+          }
+        );
+      }
+
+      // Avisar sobre outras abas encontradas
+      if (resultado.caixaObra && resultado.caixaObra.total > 0) {
+        toast.info(
+          `📊 Aba CAIXA DE OBRA detectada!`,
+          {
+            description: `${resultado.caixaObra.total} movimentos encontrados. Acesse a seção "Caixa da Obra" para importá-los.`,
+            duration: 5000
+          }
+        );
+      }
+
+      if (resultado.servicos && resultado.servicos.total > 0) {
+        toast.info(
+          `🛠️ Aba SERVIÇOS detectada!`,
+          {
+            description: `${resultado.servicos.total} serviços encontrados.`,
+            duration: 5000
+          }
+        );
+      }
+
+      // Mostrar erros se houver
+      if (resultado.erros.length > 0) {
+        resultado.erros.forEach(erro => {
+          toast.error(erro);
+        });
+      }
+
       carregarDados();
     } catch (error: any) {
       console.error('Erro ao importar Excel:', error);

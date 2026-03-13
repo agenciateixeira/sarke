@@ -30,6 +30,7 @@ import {
 } from '@/types/obra-adm-financeiro';
 import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { importarCaixaExcel, detectarSemanasExcel, SemanaDetectada } from '@/lib/caixaExcel';
+import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -240,14 +241,107 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       setImporting(true);
       toast.info('Analisando Excel...');
 
-      // Detectar semanas no arquivo
-      const semanasDetectadas = await detectarSemanasExcel(file);
+      // Tentar importar com o novo importador (ADM - Prime)
+      try {
+        const resultado = await importarFinanceiroObra(file);
 
-      setSemanaDetectada(semanasDetectadas);
-      setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
-      setShowDialogImport(true);
+        // Se tem CAIXA DE OBRA, processar
+        if (resultado.caixaObra && resultado.caixaObra.total > 0) {
+          toast.success(
+            `📊 ${resultado.caixaObra.total} movimentos do CAIXA DE OBRA detectados!`,
+            {
+              description: (
+                <>
+                  💰 Entradas: R$ {resultado.caixaObra.total_entradas.toLocaleString('pt-BR')}<br />
+                  💸 Saídas: R$ {resultado.caixaObra.total_saidas.toLocaleString('pt-BR')}<br />
+                  📊 Saldo: R$ {resultado.caixaObra.saldo.toLocaleString('pt-BR')}
+                </>
+              ),
+              duration: 5000
+            }
+          );
 
-      toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
+          // Criar semana se não existir
+          let semana = semanas.find(s => s.nome.includes('IMPORTAÇÃO'));
+          if (!semana) {
+            const { data: novaSemana, error } = await supabase
+              .from('obra_caixa_semanas')
+              .insert({
+                obra_id: obraId,
+                nome: `IMPORTAÇÃO ${new Date().toLocaleDateString('pt-BR')}`,
+                data_inicio: new Date().toISOString().split('T')[0],
+                data_fim: new Date().toISOString().split('T')[0],
+                numero_semana: semanas.length + 1,
+                observacoes: 'Semana criada automaticamente para importação'
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+            semana = novaSemana;
+          }
+
+          // Inserir movimentações
+          const movimentacoesParaInserir = resultado.caixaObra.dados.map(mov => ({
+            obra_id: obraId,
+            semana_nome: semana!.nome,
+            data: mov.data,
+            descricao: mov.descricao,
+            valor: mov.valor,
+            tipo_movimento: mov.tipo_movimento,
+            categoria: mov.categoria || 'OUTROS',
+            empresa_fornecedor: mov.empresa,
+            numero_recibo: mov.recibo,
+            tipo_recibo: 'nao_fiscal',
+            status: 'pendente',
+            observacoes: mov.codigo
+          }));
+
+          const { error: errorInsert } = await supabase
+            .from('obra_caixa')
+            .insert(movimentacoesParaInserir);
+
+          if (errorInsert) throw errorInsert;
+
+          toast.success('✅ Movimentações importadas com sucesso!');
+          carregarSemanas();
+          carregarMovimentacoes();
+
+          // Avisar sobre outras abas
+          if (resultado.materiais && resultado.materiais.total > 0) {
+            toast.info(
+              `📦 Aba MATERIAIS também detectada!`,
+              {
+                description: `${resultado.materiais.total} materiais. Acesse "Orçamento/Materiais" para importá-los.`,
+                duration: 5000
+              }
+            );
+          }
+        } else {
+          // Tentar formato de semanas antigo
+          const semanasDetectadas = await detectarSemanasExcel(file);
+
+          if (semanasDetectadas.length > 0) {
+            setSemanaDetectada(semanasDetectadas);
+            setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
+            setShowDialogImport(true);
+            toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
+          } else {
+            toast.warning('Nenhum dado de caixa encontrado no arquivo');
+          }
+        }
+      } catch (error) {
+        // Se falhar, tentar formato antigo
+        const semanasDetectadas = await detectarSemanasExcel(file);
+        if (semanasDetectadas.length > 0) {
+          setSemanaDetectada(semanasDetectadas);
+          setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
+          setShowDialogImport(true);
+          toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
+        } else {
+          throw error;
+        }
+      }
     } catch (error: any) {
       console.error('Erro ao importar:', error);
       toast.error('Erro ao importar Excel', {

@@ -163,8 +163,12 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
 
   for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
     const row = jsonData[i]
-    if (Array.isArray(row)) {
-      const rowText = row.join(' ').toLowerCase()
+    if (Array.isArray(row) && row.length > 0) {
+      const rowText = row
+        .filter(cell => cell !== null && cell !== undefined)
+        .map(cell => String(cell))
+        .join(' ')
+        .toLowerCase()
       if (headerKeywords.some(keyword => rowText.includes(keyword))) {
         headerRowIndex = i
         break
@@ -176,30 +180,32 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
     throw new Error('Cabeçalho não encontrado no cronograma')
   }
 
-  const headers = jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : ''))
+  const headers = jsonData[headerRowIndex] ?
+    jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : '')) :
+    []
   const dataRows = jsonData.slice(headerRowIndex + 1)
 
-  // Mapear índices das colunas
+  // Mapear índices das colunas com verificações seguras
   const indices = {
-    mes: headers.findIndex(h => h.includes('mês') || h.includes('mes')),
+    mes: headers.findIndex(h => h && (h.includes('mês') || h.includes('mes'))),
     diaSemana: headers.findIndex(h =>
-      h.includes('dia') && (h.includes('semana') || h.includes('week'))
+      h && h.includes('dia') && (h.includes('semana') || h.includes('week'))
     ),
     data: headers.findIndex(h =>
-      h.includes('data') || (h.includes('dt') && !h.includes('atualiza'))
+      h && (h.includes('data') || (h.includes('dt') && !h.includes('atualiza')))
     ),
     descricao: headers.findIndex(h =>
-      h.includes('descrição') || h.includes('descricao') ||
+      h && (h.includes('descrição') || h.includes('descricao') ||
       h.includes('serviço') || h.includes('servico') ||
-      h.includes('atividade') || h.includes('tarefa')
+      h.includes('atividade') || h.includes('tarefa'))
     ),
     observacao: headers.findIndex(h =>
-      h.includes('observação') || h.includes('observacao') || h.includes('obs')
+      h && (h.includes('observação') || h.includes('observacao') || h.includes('obs'))
     ),
     empresa: headers.findIndex(h =>
-      h.includes('empresa') || h.includes('responsável') || h.includes('responsavel')
+      h && (h.includes('empresa') || h.includes('responsável') || h.includes('responsavel'))
     ),
-    status: headers.findIndex(h => h.includes('status'))
+    status: headers.findIndex(h => h && h.includes('status'))
   }
 
   if (indices.data === -1 || indices.descricao === -1) {
@@ -305,8 +311,12 @@ function processarAbaCaixaObra(workbook: XLSX.WorkBook, sheetName: string): any 
 
   for (let i = 0; i < Math.min(jsonData.length, 20); i++) {
     const row = jsonData[i]
-    if (Array.isArray(row)) {
-      const rowText = row.join(' ').toLowerCase()
+    if (Array.isArray(row) && row.length > 0) {
+      const rowText = row
+        .filter(cell => cell !== null && cell !== undefined)
+        .map(cell => String(cell))
+        .join(' ')
+        .toLowerCase()
       if (headerKeywords.some(keyword => rowText.includes(keyword))) {
         headerRowIndex = i
         break
