@@ -137,6 +137,27 @@ export default function ObraDetailPage() {
     loadObra()
   }
 
+  async function handleDelete() {
+    if (!confirm('Tem certeza que deseja excluir esta obra? Esta ação não pode ser desfeita.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('obras')
+        .delete()
+        .eq('id', params.id)
+
+      if (error) throw error
+
+      toast.success('Obra excluída com sucesso!')
+      router.push('/dashboard/obra')
+    } catch (error: any) {
+      console.error('Erro ao excluir obra:', error)
+      toast.error('Erro ao excluir obra: ' + error.message)
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute requiredSetor="gestao_obra">
@@ -182,7 +203,7 @@ export default function ObraDetailPage() {
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </Button>
-            <Button variant="outline" className="text-red-600 hover:text-red-700">
+            <Button variant="outline" className="text-red-600 hover:text-red-700" onClick={handleDelete}>
               <Trash2 className="mr-2 h-4 w-4" />
               Excluir
             </Button>
