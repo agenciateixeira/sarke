@@ -562,6 +562,15 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
 
   const semanaAtual = semanas.find(s => s.nome === semanaSelecionada);
 
+  // Calcular totais consolidados de TODAS as semanas
+  const totaisConsolidados = semanas.reduce((acc, semana) => {
+    return {
+      totalReceitas: acc.totalReceitas + semana.total_receitas,
+      totalDespesas: acc.totalDespesas + semana.total_despesas,
+      saldoTotal: acc.saldoTotal + semana.saldo
+    }
+  }, { totalReceitas: 0, totalDespesas: 0, saldoTotal: 0 })
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -652,8 +661,85 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
         </div>
       </div>
 
+      {/* Cards de Totais Consolidados (TODAS as semanas) */}
+      {semanas.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Totais Consolidados ({semanas.length} semana{semanas.length > 1 ? 's' : ''})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-blue-700 font-semibold">Total Receitas</div>
+                  <div className="text-2xl font-bold text-blue-900 mt-1">
+                    {formatarMoeda(totaisConsolidados.totalReceitas)}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1 font-medium">
+                    Todas as semanas
+                  </div>
+                </div>
+                <TrendingUp className="w-10 h-10 text-blue-600" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300 rounded-lg p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-red-700 font-semibold">Total Despesas</div>
+                  <div className="text-2xl font-bold text-red-900 mt-1">
+                    {formatarMoeda(totaisConsolidados.totalDespesas)}
+                  </div>
+                  <div className="text-xs text-red-700 mt-1 font-medium">
+                    Todas as semanas
+                  </div>
+                </div>
+                <TrendingDown className="w-10 h-10 text-red-600" />
+              </div>
+            </div>
+
+            <div className={`${totaisConsolidados.saldoTotal >= 0 ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300'} rounded-lg p-4 shadow-sm`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className={`text-sm ${totaisConsolidados.saldoTotal >= 0 ? 'text-green-700' : 'text-orange-700'} font-semibold`}>
+                    Saldo Total
+                  </div>
+                  <div className={`text-2xl font-bold ${totaisConsolidados.saldoTotal >= 0 ? 'text-green-900' : 'text-orange-900'} mt-1`}>
+                    {formatarMoeda(totaisConsolidados.saldoTotal)}
+                  </div>
+                  <div className={`text-xs ${totaisConsolidados.saldoTotal >= 0 ? 'text-green-700' : 'text-orange-700'} mt-1 font-medium`}>
+                    Receitas - Despesas
+                  </div>
+                </div>
+                <DollarSign className={`w-10 h-10 ${totaisConsolidados.saldoTotal >= 0 ? 'text-green-600' : 'text-orange-600'}`} />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-purple-700 font-semibold">Semanas</div>
+                  <div className="text-2xl font-bold text-purple-900 mt-1">
+                    {semanas.length}
+                  </div>
+                  <div className="text-xs text-purple-700 mt-1 font-medium">
+                    Total cadastradas
+                  </div>
+                </div>
+                <Calendar className="w-10 h-10 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cards de Resumo da Semana */}
       {semanaAtual && (
+        <>
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            {semanaAtual.nome}
+          </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
@@ -716,6 +802,8 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             )}
           </div>
         </div>
+        </div>
+        </>
       )}
 
       {/* Tabela de Movimentações */}
