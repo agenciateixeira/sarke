@@ -172,20 +172,40 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
     }
 
     try {
-      console.log('[OrcamentoMateriais] Excluindo itens:', Array.from(itensSelecionados));
+      const idsArray = Array.from(itensSelecionados);
+      console.log(`[OrcamentoMateriais] Excluindo ${idsArray.length} itens em lotes...`);
 
-      const { error } = await supabase
-        .from('obra_orcamento_materiais')
-        .delete()
-        .in('id', Array.from(itensSelecionados));
-
-      if (error) {
-        console.error('[OrcamentoMateriais] Erro ao excluir:', error);
-        throw error;
+      // Dividir em lotes de 100 para evitar limites do Supabase
+      const batchSize = 100;
+      const batches = [];
+      for (let i = 0; i < idsArray.length; i += batchSize) {
+        batches.push(idsArray.slice(i, i + batchSize));
       }
 
-      console.log(`[OrcamentoMateriais] ${itensSelecionados.size} item(ns) excluído(s) com sucesso`);
-      toast.success(`${itensSelecionados.size} item(ns) excluído(s) com sucesso!`);
+      console.log(`[OrcamentoMateriais] Total de ${batches.length} lotes`);
+      toast.info(`Excluindo ${idsArray.length} itens em ${batches.length} lote(s)...`);
+
+      let deletedCount = 0;
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`[OrcamentoMateriais] Processando lote ${i + 1}/${batches.length} (${batch.length} itens)`);
+
+        const { error } = await supabase
+          .from('obra_orcamento_materiais')
+          .delete()
+          .in('id', batch);
+
+        if (error) {
+          console.error(`[OrcamentoMateriais] Erro no lote ${i + 1}:`, error);
+          throw error;
+        }
+
+        deletedCount += batch.length;
+        console.log(`[OrcamentoMateriais] Lote ${i + 1}/${batches.length} concluído (${deletedCount}/${idsArray.length})`);
+      }
+
+      console.log(`[OrcamentoMateriais] ${deletedCount} item(ns) excluído(s) com sucesso`);
+      toast.success(`${deletedCount} item(ns) excluído(s) com sucesso!`);
       setItensSelecionados(new Set());
       setShowDeleteDialog(false);
       carregarDados();

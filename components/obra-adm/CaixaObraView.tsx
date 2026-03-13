@@ -232,20 +232,40 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
     }
 
     try {
-      console.log('[CaixaObra] Excluindo movimentações:', Array.from(movimentacoesSelecionadas));
+      const idsArray = Array.from(movimentacoesSelecionadas);
+      console.log(`[CaixaObra] Excluindo ${idsArray.length} movimentações em lotes...`);
 
-      const { error } = await supabase
-        .from('obra_caixa')
-        .delete()
-        .in('id', Array.from(movimentacoesSelecionadas));
-
-      if (error) {
-        console.error('[CaixaObra] Erro ao excluir:', error);
-        throw error;
+      // Dividir em lotes de 100 para evitar limites do Supabase
+      const batchSize = 100;
+      const batches = [];
+      for (let i = 0; i < idsArray.length; i += batchSize) {
+        batches.push(idsArray.slice(i, i + batchSize));
       }
 
-      console.log(`[CaixaObra] ${movimentacoesSelecionadas.size} movimentação(ões) excluída(s) com sucesso`);
-      toast.success(`${movimentacoesSelecionadas.size} movimentação(ões) excluída(s) com sucesso!`);
+      console.log(`[CaixaObra] Total de ${batches.length} lotes`);
+      toast.info(`Excluindo ${idsArray.length} movimentações em ${batches.length} lote(s)...`);
+
+      let deletedCount = 0;
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`[CaixaObra] Processando lote ${i + 1}/${batches.length} (${batch.length} itens)`);
+
+        const { error } = await supabase
+          .from('obra_caixa')
+          .delete()
+          .in('id', batch);
+
+        if (error) {
+          console.error(`[CaixaObra] Erro no lote ${i + 1}:`, error);
+          throw error;
+        }
+
+        deletedCount += batch.length;
+        console.log(`[CaixaObra] Lote ${i + 1}/${batches.length} concluído (${deletedCount}/${idsArray.length})`);
+      }
+
+      console.log(`[CaixaObra] ${deletedCount} movimentação(ões) excluída(s) com sucesso`);
+      toast.success(`${deletedCount} movimentação(ões) excluída(s) com sucesso!`);
       setMovimentacoesSelecionadas(new Set());
       setShowDeleteMovDialog(false);
       carregarMovimentacoes();
