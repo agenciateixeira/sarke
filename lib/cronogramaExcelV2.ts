@@ -180,32 +180,49 @@ function processarAbaCronograma(workbook: XLSX.WorkBook, sheetName: string): any
     throw new Error('Cabeçalho não encontrado no cronograma')
   }
 
-  const headers = jsonData[headerRowIndex] ?
-    jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : '')) :
-    []
+  // Garantir que temos um array válido de headers
+  if (!jsonData[headerRowIndex] || !Array.isArray(jsonData[headerRowIndex])) {
+    throw new Error('Linha de cabeçalho inválida no cronograma')
+  }
+
+  const headers = jsonData[headerRowIndex].map((h: any) => {
+    if (h === null || h === undefined) return ''
+    return String(h).toLowerCase().trim()
+  })
   const dataRows = jsonData.slice(headerRowIndex + 1)
 
   // Mapear índices das colunas com verificações seguras
   const indices = {
-    mes: headers.findIndex(h => h && (h.includes('mês') || h.includes('mes'))),
-    diaSemana: headers.findIndex(h =>
-      h && h.includes('dia') && (h.includes('semana') || h.includes('week'))
-    ),
-    data: headers.findIndex(h =>
-      h && (h.includes('data') || (h.includes('dt') && !h.includes('atualiza')))
-    ),
-    descricao: headers.findIndex(h =>
-      h && (h.includes('descrição') || h.includes('descricao') ||
-      h.includes('serviço') || h.includes('servico') ||
-      h.includes('atividade') || h.includes('tarefa'))
-    ),
-    observacao: headers.findIndex(h =>
-      h && (h.includes('observação') || h.includes('observacao') || h.includes('obs'))
-    ),
-    empresa: headers.findIndex(h =>
-      h && (h.includes('empresa') || h.includes('responsável') || h.includes('responsavel'))
-    ),
-    status: headers.findIndex(h => h && h.includes('status'))
+    mes: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('mês') || h.includes('mes')
+    }),
+    diaSemana: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('dia') && (h.includes('semana') || h.includes('week'))
+    }),
+    data: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('data') || (h.includes('dt') && !h.includes('atualiza'))
+    }),
+    descricao: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('descrição') || h.includes('descricao') ||
+        h.includes('serviço') || h.includes('servico') ||
+        h.includes('atividade') || h.includes('tarefa')
+    }),
+    observacao: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('observação') || h.includes('observacao') || h.includes('obs')
+    }),
+    empresa: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('empresa') || h.includes('responsável') || h.includes('responsavel')
+    }),
+    status: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('status')
+    })
   }
 
   if (indices.data === -1 || indices.descricao === -1) {
@@ -328,33 +345,56 @@ function processarAbaCaixaObra(workbook: XLSX.WorkBook, sheetName: string): any 
     return { materiais: [], totalLinhas: 0, totalImportado: 0 }
   }
 
-  const headers = jsonData[headerRowIndex].map((h: any) => (h ? String(h).toLowerCase() : ''))
+  // Garantir que temos um array válido de headers
+  if (!jsonData[headerRowIndex] || !Array.isArray(jsonData[headerRowIndex])) {
+    return { materiais: [], totalLinhas: 0, totalImportado: 0 }
+  }
+
+  const headers = jsonData[headerRowIndex].map((h: any) => {
+    if (h === null || h === undefined) return ''
+    return String(h).toLowerCase().trim()
+  })
   const dataRows = jsonData.slice(headerRowIndex + 1)
 
   // Mapear índices das colunas
   const indices = {
-    data: headers.findIndex(h => h.includes('data')),
-    servico: headers.findIndex(h => h.includes('serviço') || h.includes('servico')),
-    descricao: headers.findIndex(h =>
-      (h.includes('descrição') || h.includes('descricao')) &&
-      (h.includes('material') || h.includes('item'))
-    ),
-    quantidade: headers.findIndex(h =>
-      h.includes('qtde') || h.includes('qtd') || h.includes('quantidade')
-    ),
-    medida: headers.findIndex(h =>
-      h.includes('medida') || h.includes('unidade') || h.includes('un')
-    ),
-    valorUnit: headers.findIndex(h =>
-      h.includes('valor') && (h.includes('unit') || h.includes('un'))
-    ),
-    valorTotal: headers.findIndex(h =>
-      h.includes('valor') && (h.includes('total') || !h.includes('unit'))
-    ),
-    responsavel: headers.findIndex(h =>
-      h.includes('responsável') || h.includes('responsavel')
-    ),
-    status: headers.findIndex(h => h.includes('status'))
+    data: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('data')
+    }),
+    servico: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('serviço') || h.includes('servico')
+    }),
+    descricao: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return (h.includes('descrição') || h.includes('descricao')) &&
+        (h.includes('material') || h.includes('item'))
+    }),
+    quantidade: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('qtde') || h.includes('qtd') || h.includes('quantidade')
+    }),
+    medida: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('medida') || h.includes('unidade') || h.includes('un')
+    }),
+    valorUnit: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('valor') && (h.includes('unit') || h.includes('un'))
+    }),
+    valorTotal: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('valor') && (h.includes('total') || !h.includes('unit'))
+    }),
+    responsavel: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('responsável') || h.includes('responsavel')
+    }),
+    status: headers.findIndex(h => {
+      if (!h || typeof h !== 'string') return false
+      return h.includes('status')
+    })
   }
 
   const materiais: MaterialServicoCaixaImportado[] = []

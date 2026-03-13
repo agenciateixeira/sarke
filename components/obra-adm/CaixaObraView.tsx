@@ -284,7 +284,7 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
           // Inserir movimentações
           const movimentacoesParaInserir = resultado.caixaObra.dados.map(mov => ({
             obra_id: obraId,
-            semana_nome: semana!.nome,
+            semana: semana!.nome,
             data: mov.data,
             descricao: mov.descricao,
             valor: mov.valor,
