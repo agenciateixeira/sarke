@@ -241,12 +241,21 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       setImporting(true);
       toast.info('Analisando Excel...');
 
-      // Tentar importar com o novo importador (ADM - Prime)
-      try {
-        const resultado = await importarFinanceiroObra(file);
+      // Tentar primeiro o novo importador financeiro (ADM - Prime)
+      let resultadoFinanceiro = null;
+      let erroPrincipal = null;
 
-        // Se tem CAIXA DE OBRA, processar
-        if (resultado.caixaObra && resultado.caixaObra.total > 0) {
+      try {
+        console.log('[CaixaObra] Tentando importador financeiro...');
+        resultadoFinanceiro = await importarFinanceiroObra(file);
+      } catch (error: any) {
+        console.log('[CaixaObra] Erro no importador financeiro:', error.message);
+        erroPrincipal = error;
+      }
+
+      // Se conseguiu ler o arquivo e tem CAIXA DE OBRA, processar
+      if (resultadoFinanceiro && resultadoFinanceiro.caixaObra && resultadoFinanceiro.caixaObra.total > 0) {
+        const resultado = resultadoFinanceiro;
           toast.success(
             `📊 ${resultado.caixaObra.total} movimentos do CAIXA DE OBRA detectados!`,
             {
@@ -317,29 +326,46 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               }
             );
           }
-        } else {
-          // Tentar formato de semanas antigo
-          const semanasDetectadas = await detectarSemanasExcel(file);
 
+        // Se não conseguiu ler com o importador financeiro ou não tem caixa de obra,
+        // só tentar o formato antigo se houver indicação de que é esse formato
+      } else if (resultadoFinanceiro && resultadoFinanceiro.avisos && resultadoFinanceiro.avisos.length > 0) {
+        // Se o importador financeiro funcionou mas não encontrou caixa de obra
+        toast.warning('Aba CAIXA DE OBRA não encontrada na planilha', {
+          description: resultadoFinanceiro.avisos.join('. ')
+        });
+
+        // Avisar sobre outras abas detectadas
+        if (resultadoFinanceiro.materiais && resultadoFinanceiro.materiais.total > 0) {
+          toast.info(
+            `📦 Aba MATERIAIS detectada!`,
+            {
+              description: `${resultadoFinanceiro.materiais.total} materiais encontrados. Use a página "Orçamento/Materiais" para importá-los.`,
+              duration: 5000
+            }
+          );
+        }
+      } else {
+        // Só tentar formato antigo se o erro indicar que pode ser esse formato
+        console.log('[CaixaObra] Tentando formato de semanas...');
+        try {
+          const semanasDetectadas = await detectarSemanasExcel(file);
           if (semanasDetectadas.length > 0) {
             setSemanaDetectada(semanasDetectadas);
             setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
             setShowDialogImport(true);
             toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
           } else {
-            toast.warning('Nenhum dado de caixa encontrado no arquivo');
+            // Se não detectou semanas, informar melhor o usuário
+            toast.error('Formato não reconhecido', {
+              description: 'A planilha deve ter uma aba "CAIXA DE OBRA" ou títulos com "SEMANA X"'
+            });
           }
-        }
-      } catch (error) {
-        // Se falhar, tentar formato antigo
-        const semanasDetectadas = await detectarSemanasExcel(file);
-        if (semanasDetectadas.length > 0) {
-          setSemanaDetectada(semanasDetectadas);
-          setSemanasParaImportar(semanasDetectadas.map(s => s.nome));
-          setShowDialogImport(true);
-          toast.success(`${semanasDetectadas.length} semana(s) detectada(s) no arquivo!`);
-        } else {
-          throw error;
+        } catch (error2: any) {
+          // Se falhou nos dois formatos, dar mensagem clara
+          toast.error('Erro ao importar planilha', {
+            description: erroPrincipal?.message || 'Verifique o formato do arquivo'
+          });
         }
       }
     } catch (error: any) {
