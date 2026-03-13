@@ -222,15 +222,25 @@ export function detectarSemanasExcel(file: File): Promise<SemanaDetectada[]> {
             }
 
             if (movimentacoes.length > 0) {
-              semanas.push({
-                nome: cellStr,
-                startCol,
-                endCol,
-                headerRow: headerRowIndex,
-                movimentacoes,
-              })
+              // Verificar se já existe uma semana com este número
+              const semanaExistente = semanas.find(s => s.nome === `SEMANA ${semanaNumero}`)
 
-              console.log(`✅ ${cellStr} - ${movimentacoes.length} movimentações (${categoria})`)
+              if (semanaExistente) {
+                // Mesclar movimentações na semana existente
+                console.log(`🔄 Mesclando movimentações em SEMANA ${semanaNumero} (${categoria})`)
+                semanaExistente.movimentacoes.push(...movimentacoes)
+              } else {
+                // Criar nova semana
+                semanas.push({
+                  nome: `SEMANA ${semanaNumero}`,
+                  startCol,
+                  endCol,
+                  headerRow: headerRowIndex,
+                  movimentacoes,
+                })
+              }
+
+              console.log(`✅ SEMANA ${semanaNumero} (${categoria}) - ${movimentacoes.length} movimentações`)
             } else {
               console.warn(`⚠️ ${cellStr} - Nenhuma movimentação encontrada`)
             }
