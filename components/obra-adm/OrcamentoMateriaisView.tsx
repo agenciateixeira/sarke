@@ -48,6 +48,12 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
     carregarDados();
   }, [obraId]);
 
+  // Debug: monitorar mudanças no dialog de exclusão
+  useEffect(() => {
+    console.log('[OrcamentoMateriais] showDeleteDialog mudou para:', showDeleteDialog);
+    console.log('[OrcamentoMateriais] Itens selecionados:', itensSelecionados.size);
+  }, [showDeleteDialog]);
+
   const carregarDados = async () => {
     try {
       setLoading(true);
@@ -363,7 +369,10 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
           </button>
           {itensSelecionados.size > 0 && (
             <button
-              onClick={() => setShowDeleteDialog(true)}
+              onClick={() => {
+                console.log('[OrcamentoMateriais] Botão "Excluir Selecionados" clicado. Itens selecionados:', itensSelecionados.size);
+                setShowDeleteDialog(true);
+              }}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
               <Trash2 className="w-4 h-4" />
@@ -760,7 +769,10 @@ function FormularioMaterial({ material, obraId, onSalvar, onCancelar }: Formular
       </AlertDialog>
 
       {/* Dialog de Exclusão em Massa */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
+        console.log('[OrcamentoMateriais] Dialog onOpenChange chamado com:', open);
+        setShowDeleteDialog(open);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir {itensSelecionados.size} item(ns)?</AlertDialogTitle>
@@ -769,9 +781,16 @@ function FormularioMaterial({ material, obraId, onSalvar, onCancelar }: Formular
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              console.log('[OrcamentoMateriais] Botão Cancelar clicado');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleExcluirSelecionados}
+              onClick={() => {
+                console.log('[OrcamentoMateriais] Botão "Excluir Todos" clicado no dialog');
+                handleExcluirSelecionados();
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir Todos

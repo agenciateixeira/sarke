@@ -355,11 +355,14 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             valor: mov.valor,
             tipo_movimento: mov.tipo_movimento,
             categoria: mov.categoria || 'OUTROS',
-            empresa_fornecedor: mov.empresa,
-            numero_recibo: mov.recibo,
+            empresa: mov.empresa,
+            codigo_recibo: mov.recibo,
             tipo_recibo: 'nao_fiscal',
             status: 'pendente',
-            observacoes: mov.codigo
+            observacoes: mov.codigo,
+            is_marketplace: false,
+            tem_comprovante: false,
+            comprovante_aprovado: false
           }));
 
           const { error: errorInsert } = await supabase
