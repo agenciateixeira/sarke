@@ -29,135 +29,225 @@ export function detectarSemanasExcel(file: File): Promise<SemanaDetectada[]> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result
-        const workbook = XLSX.read(data, { type: 'binary' })
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true })
 
-        const sheetName = workbook.SheetNames[0]
+        // MELHORIA 1: Procurar pela aba correta (CAIXA DE OBRA)
+        let sheetName = workbook.SheetNames.find(name =>
+          name.toUpperCase().includes('CAIXA') ||
+          name.toUpperCase().includes('OBRA')
+        )
+
+        // Se não encontrar, usar primeira aba como fallback
+        if (!sheetName) {
+          sheetName = workbook.SheetNames[0]
+          console.warn(`⚠️ Aba "CAIXA DE OBRA" não encontrada. Usando: ${sheetName}`)
+        } else {
+          console.log(`✅ Usando aba: ${sheetName}`)
+        }
+
         const worksheet = workbook.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, {
+          header: 1,
+          defval: null,
+          blankrows: true
+        })
 
         const semanas: SemanaDetectada[] = []
+
+        // MELHORIA 2: Regex melhorados para capturar padrões corretos
+        const regexPatterns = [
+          /CAIXA\s+DE\s+OBRA.*?SEMANA\s+(\d{1,2})/i,
+          /CAIXA\s+DE\s+EL[ÉE]TRICA.*?SEMANA\s+(\d{1,2})/i,
+        ]
 
         // Procurar linhas que indicam início de semana
         for (let rowIdx = 0; rowIdx < jsonData.length; rowIdx++) {
           const row = jsonData[rowIdx]
+          if (!row) continue
 
-          // Procurar células que contenham "SEMANA" ou "CAIXA"
+          // Verificar cada célula da linha
           for (let colIdx = 0; colIdx < row.length; colIdx++) {
             const cell = row[colIdx]
             if (!cell) continue
 
-            const cellStr = String(cell).toUpperCase()
+            const cellStr = String(cell).trim()
 
-            // Detectar título da semana (ex: "CAIXA DE OBRA - ITEM 14 - SEMANA 01")
-            if (cellStr.includes('SEMANA') && (cellStr.includes('CAIXA') || cellStr.includes('ITEM'))) {
-              // Extrair nome da semana
-              const semanaMatch = cellStr.match(/SEMANA\s*(\d+)/)
-              const semanaNumero = semanaMatch ? semanaMatch[1] : String(semanas.length + 1)
+            // Testar todos os padrões
+            let matchFound = false
+            let semanaNumero = ''
 
-              // Título completo
-              const tituloCompleto = cellStr.trim()
+            for (const pattern of regexPatterns) {
+              const match = cellStr.match(pattern)
+              if (match) {
+                matchFound = true
+                semanaNumero = match[1].padStart(2, '0') // Garantir 2 dígitos
+                break
+              }
+            }
 
-              // Procurar linha de cabeçalho (próximas 3 linhas)
-              let headerRowIndex = -1
-              let startCol = colIdx
+            if (!matchFound) continue
 
-              for (let i = rowIdx + 1; i < Math.min(rowIdx + 4, jsonData.length); i++) {
-                const headerRow = jsonData[i]
-                if (headerRow[colIdx] && String(headerRow[colIdx]).toLowerCase().includes('item')) {
-                  headerRowIndex = i
+            console.log(`🔍 Encontrado: ${cellStr} na linha ${rowIdx + 1}, coluna ${colIdx + 1}`)
+
+            // MELHORIA 3: Estrutura correta - cabeçalhos sempre 2 linhas abaixo
+            const headerRowIndex = rowIdx + 2
+
+            if (headerRowIndex >= jsonData.length) {
+              console.warn(`⚠️ Sem espaço para cabeçalho após linha ${rowIdx + 1}`)
+              continue
+            }
+
+            const headerRow = jsonData[headerRowIndex]
+            if (!headerRow) {
+              console.warn(`⚠️ Linha de cabeçalho vazia em ${headerRowIndex + 1}`)
+              continue
+            }
+
+            // MELHORIA 4: Detectar início e fim das colunas dinamicamente
+            let startCol = colIdx
+            let endCol = colIdx
+
+            // Encontrar primeira coluna com "ITEM" no cabeçalho
+            for (let c = Math.max(0, colIdx - 2); c < Math.min(colIdx + 10, headerRow.length); c++) {
+              if (headerRow[c] && String(headerRow[c]).toLowerCase().includes('item')) {
+                startCol = c
+                break
+              }
+            }
+
+            // Mapear colunas do cabeçalho
+            const headers: string[] = []
+            for (let c = startCol; c < headerRow.length; c++) {
+              const header = headerRow[c]
+              if (header && String(header).trim()) {
+                headers.push(String(header).toLowerCase().trim())
+                endCol = c
+              } else if (headers.length > 0) {
+                // Parar quando encontrar coluna vazia após ter começado
+                break
+              }
+            }
+
+            console.log(`📋 Cabeçalhos detectados (${headers.length}):`, headers.join(', '))
+
+            // Identificar índices das colunas
+            const columnMap = {
+              item: headers.findIndex(h => h.includes('item')),
+              data: headers.findIndex(h => h.includes('data')),
+              descricao: headers.findIndex(h => h.includes('descrição') || h.includes('descricao')),
+              empresa: headers.findIndex(h => h.includes('empresa')),
+              valor: headers.findIndex(h => h.includes('valor')),
+              recibo: headers.findIndex(h => h.includes('recibo')),
+              codigo: headers.findIndex(h => h.includes('codigo') || h.includes('código')),
+              status: headers.findIndex(h => h.includes('status'))
+            }
+
+            // Validar colunas essenciais
+            if (columnMap.data === -1 || columnMap.descricao === -1 || columnMap.valor === -1) {
+              console.warn(`⚠️ Semana ${semanaNumero}: Colunas essenciais não encontradas`)
+              console.warn(`   DATA: ${columnMap.data}, DESC: ${columnMap.descricao}, VALOR: ${columnMap.valor}`)
+              continue
+            }
+
+            // MELHORIA 5: Ler movimentações até encontrar próxima semana ou linha vazia
+            const movimentacoes: MovimentacaoImportada[] = []
+
+            for (let dataRowIdx = headerRowIndex + 1; dataRowIdx < jsonData.length; dataRowIdx++) {
+              const dataRow = jsonData[dataRowIdx]
+              if (!dataRow) continue
+
+              // Parar se encontrar outra semana em qualquer coluna
+              let foundNextWeek = false
+              for (let c = 0; c < dataRow.length; c++) {
+                const cellValue = dataRow[c]
+                if (cellValue && String(cellValue).toUpperCase().includes('SEMANA')) {
+                  foundNextWeek = true
                   break
                 }
               }
-
-              if (headerRowIndex === -1) continue
-
-              // Mapear colunas deste bloco
-              const headers = jsonData[headerRowIndex]
-                .slice(startCol)
-                .map((h: any) => h ? String(h).toLowerCase() : '')
-
-              const itemIndex = headers.findIndex(h => h && h.includes('item'))
-              const dataIndex = headers.findIndex(h => h && h.includes('data'))
-              const descIndex = headers.findIndex(h => h && (h.includes('descrição') || h.includes('descricao')))
-              const empresaIndex = headers.findIndex(h => h && h.includes('empresa'))
-              const valorIndex = headers.findIndex(h => h && h.includes('valor'))
-              const reciboIndex = headers.findIndex(h => h && h.includes('recibo'))
-              const codigoIndex = headers.findIndex(h => h && (h.includes('codigo') || h.includes('código')))
-              const statusIndex = headers.findIndex(h => h && h.includes('status'))
-
-              if (dataIndex === -1 || descIndex === -1 || valorIndex === -1) continue
-
-              // Determinar coluna final (próxima coluna vazia ou fim)
-              let endCol = startCol
-              for (let c = startCol; c < headers.length + startCol; c++) {
-                if (headers[c - startCol]) {
-                  endCol = c
-                } else {
-                  break
-                }
+              if (foundNextWeek) {
+                console.log(`🛑 Encontrada próxima semana na linha ${dataRowIdx + 1}`)
+                break
               }
 
-              // Ler movimentações deste bloco
-              const movimentacoes: MovimentacaoImportada[] = []
+              // Extrair valores
+              const item = dataRow[startCol + columnMap.item]
+              const data = dataRow[startCol + columnMap.data]
+              const descricao = dataRow[startCol + columnMap.descricao]
+              const valor = dataRow[startCol + columnMap.valor]
 
-              for (let dataRowIdx = headerRowIndex + 1; dataRowIdx < jsonData.length; dataRowIdx++) {
-                const dataRow = jsonData[dataRowIdx]
+              // Pular linhas sem dados essenciais
+              if (!data || !descricao || valor === null || valor === undefined) continue
 
-                // Parar se encontrar outra semana
-                const firstCell = dataRow[startCol]
-                if (firstCell && String(firstCell).toUpperCase().includes('SEMANA')) {
-                  break
-                }
-
-                // Extrair valores com offset da coluna inicial
-                const data = dataRow[startCol + dataIndex]
-                const descricao = dataRow[startCol + descIndex]
-                const valor = dataRow[startCol + valorIndex]
-
-                // Pular linhas vazias
-                if (!data || !descricao || !valor) continue
-
-                // Pular totais
-                const descStr = String(descricao).toLowerCase()
-                if (descStr.includes('total') || descStr.includes('soma') || descStr.includes('saldo')) continue
-
-                const dataMovimentacao = parseExcelDate(data)
-                if (!dataMovimentacao) continue
-
-                const valorNum = parseNumber(valor)
-                if (valorNum === undefined) continue
-
-                movimentacoes.push({
-                  semana: `SEMANA ${semanaNumero}`,
-                  data: dataMovimentacao,
-                  descricao: String(descricao),
-                  empresa: empresaIndex >= 0 ? String(dataRow[startCol + empresaIndex] || '') : '',
-                  valor: valorNum,
-                  tipo_recibo: reciboIndex >= 0 ? mapTipoRecibo(String(dataRow[startCol + reciboIndex] || '')) : 'SEM NF',
-                  codigo_recibo: codigoIndex >= 0 ? String(dataRow[startCol + codigoIndex] || '') : '',
-                  status: statusIndex >= 0 ? mapStatus(String(dataRow[startCol + statusIndex] || '')) : 'PENDENTE',
-                })
+              // Pular linhas de total
+              const descStr = String(descricao).toLowerCase()
+              if (descStr.includes('total') ||
+                  descStr.includes('soma') ||
+                  descStr.includes('saldo') ||
+                  descStr.includes('parcial')) {
+                console.log(`⏭️ Pulando linha de total: ${descricao}`)
+                continue
               }
 
-              if (movimentacoes.length > 0) {
-                semanas.push({
-                  nome: tituloCompleto,
-                  startCol,
-                  endCol,
-                  headerRow: headerRowIndex,
-                  movimentacoes,
-                })
+              // MELHORIA 6: Parse melhorado de data
+              const dataMovimentacao = parseExcelDate(data)
+              if (!dataMovimentacao) {
+                console.warn(`⚠️ Data inválida na linha ${dataRowIdx + 1}:`, data)
+                continue
               }
+
+              // MELHORIA 7: Parse melhorado de valor
+              const valorNum = parseNumber(valor)
+              if (valorNum === undefined) {
+                console.warn(`⚠️ Valor inválido na linha ${dataRowIdx + 1}:`, valor)
+                continue
+              }
+
+              // MELHORIA 8: Determinar categoria baseada no título
+              const categoria = cellStr.toUpperCase().includes('ELÉTRICA') || cellStr.toUpperCase().includes('ELETRICA')
+                ? 'ELÉTRICA'
+                : 'OBRA'
+
+              movimentacoes.push({
+                semana: `SEMANA ${semanaNumero}`,
+                categoria: categoria,
+                data: dataMovimentacao,
+                descricao: String(descricao).trim(),
+                empresa: columnMap.empresa >= 0 ? String(dataRow[startCol + columnMap.empresa] || '').trim() : '',
+                valor: valorNum,
+                tipo_recibo: columnMap.recibo >= 0 ? mapTipoRecibo(String(dataRow[startCol + columnMap.recibo] || '')) : 'SEM NF',
+                codigo_recibo: columnMap.codigo >= 0 ? String(dataRow[startCol + columnMap.codigo] || '').trim() : '',
+                status: columnMap.status >= 0 ? mapStatus(String(dataRow[startCol + columnMap.status] || '')) : 'PENDENTE',
+              })
+            }
+
+            if (movimentacoes.length > 0) {
+              semanas.push({
+                nome: cellStr,
+                startCol,
+                endCol,
+                headerRow: headerRowIndex,
+                movimentacoes,
+              })
+
+              console.log(`✅ ${cellStr} - ${movimentacoes.length} movimentações (${categoria})`)
+            } else {
+              console.warn(`⚠️ ${cellStr} - Nenhuma movimentação encontrada`)
             }
           }
         }
 
         if (semanas.length === 0) {
-          throw new Error('Nenhuma semana detectada. Certifique-se de que o arquivo tem o formato correto com títulos contendo "SEMANA".')
+          throw new Error('Nenhuma semana detectada. Verifique se o arquivo possui a aba "CAIXA DE OBRA" com o formato esperado (títulos contendo "SEMANA XX").')
         }
+
+        console.log(`\n📊 Total de semanas detectadas: ${semanas.length}`)
+        const totalMov = semanas.reduce((acc, s) => acc + s.movimentacoes.length, 0)
+        console.log(`💰 Total de movimentações: ${totalMov}`)
 
         resolve(semanas)
       } catch (error: any) {
+        console.error('❌ Erro ao detectar semanas:', error)
         reject(error)
       }
     }
