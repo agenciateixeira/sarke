@@ -28,7 +28,7 @@ import {
   calcularDiasRestantes,
   getStatusComprovanteCor,
 } from '@/types/obra-adm-financeiro';
-import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Calendar, DollarSign, TrendingUp, TrendingDown, Upload, FileText, AlertTriangle, CheckCircle, Clock, Loader2, X } from 'lucide-react';
 import { importarCaixaExcel, detectarSemanasExcel, SemanaDetectada } from '@/lib/caixaExcel';
 import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
@@ -70,6 +70,8 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
   const [semanasParaImportar, setSemanasParaImportar] = useState<string[]>([]);
   const [semanaToDelete, setSemanaToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [movimentacoesSelecionadas, setMovimentacoesSelecionadas] = useState<Set<string>>(new Set());
+  const [showDeleteMovDialog, setShowDeleteMovDialog] = useState(false);
 
   // Carregar semanas
   useEffect(() => {
@@ -197,6 +199,47 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
       carregarSemanas();
     } catch (error) {
       console.error('Erro ao excluir movimentação:', error);
+    }
+  };
+
+  // Funções de seleção em massa
+  const toggleSelecionarTodas = () => {
+    if (movimentacoesSelecionadas.size === movimentacoes.length) {
+      setMovimentacoesSelecionadas(new Set());
+    } else {
+      setMovimentacoesSelecionadas(new Set(movimentacoes.map(m => m.id)));
+    }
+  };
+
+  const toggleSelecionarMovimentacao = (id: string) => {
+    const novasMovimentacoesSelecionadas = new Set(movimentacoesSelecionadas);
+    if (novasMovimentacoesSelecionadas.has(id)) {
+      novasMovimentacoesSelecionadas.delete(id);
+    } else {
+      novasMovimentacoesSelecionadas.add(id);
+    }
+    setMovimentacoesSelecionadas(novasMovimentacoesSelecionadas);
+  };
+
+  const handleExcluirSelecionadas = async () => {
+    if (movimentacoesSelecionadas.size === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('obra_caixa')
+        .delete()
+        .in('id', Array.from(movimentacoesSelecionadas));
+
+      if (error) throw error;
+
+      toast.success(`${movimentacoesSelecionadas.size} movimentação(ões) excluída(s) com sucesso!`);
+      setMovimentacoesSelecionadas(new Set());
+      setShowDeleteMovDialog(false);
+      carregarMovimentacoes();
+      carregarSemanas();
+    } catch (error) {
+      console.error('Erro ao excluir movimentações:', error);
+      toast.error('Erro ao excluir movimentações');
     }
   };
 
@@ -555,6 +598,15 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
                 <Plus className="w-4 h-4" />
                 Nova Movimentação
               </button>
+              {movimentacoesSelecionadas.size > 0 && (
+                <button
+                  onClick={() => setShowDeleteMovDialog(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir Selecionadas ({movimentacoesSelecionadas.size})
+                </button>
+              )}
               <button
                 onClick={() => setSemanaToDelete(semanaSelecionada)}
                 className="flex items-center gap-2 px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
@@ -640,6 +692,12 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-3 text-center w-12">
+                    <Checkbox
+                      checked={movimentacoes.length > 0 && movimentacoesSelecionadas.size === movimentacoes.length}
+                      onCheckedChange={toggleSelecionarTodas}
+                    />
+                  </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
@@ -655,13 +713,19 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {movimentacoes.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
                       Nenhuma movimentação nesta semana. Clique em "Nova Movimentação" para adicionar.
                     </td>
                   </tr>
                 ) : (
                   movimentacoes.map((mov, index) => (
                     <tr key={mov.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-3 text-center">
+                        <Checkbox
+                          checked={movimentacoesSelecionadas.has(mov.id)}
+                          onCheckedChange={() => toggleSelecionarMovimentacao(mov.id)}
+                        />
+                      </td>
                       <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
                       <td className="px-3 py-3 text-sm text-gray-900">
                         {new Date(mov.data).toLocaleDateString()}
@@ -797,6 +861,27 @@ export default function CaixaObraView({ obraId }: CaixaObraViewProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Exclusão em Massa de Movimentações */}
+      <AlertDialog open={showDeleteMovDialog} onOpenChange={setShowDeleteMovDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {movimentacoesSelecionadas.size} movimentação(ões)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir as {movimentacoesSelecionadas.size} movimentações selecionadas? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluirSelecionadas}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Todas
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,10 +21,11 @@ import {
   STATUS_OBRA_LABELS,
   getStatusPagamentoCor,
 } from '@/types/obra-adm-financeiro';
-import { Plus, Pencil, Trash2, Download, Upload, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Upload, Loader2, X } from 'lucide-react';
 import { importarOrcamentoExcel } from '@/lib/orcamentoExcel';
 import { importarFinanceiroObra } from '@/lib/importadorFinanceiroObra';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface OrcamentoMateriaisViewProps {
   obraId: string;
@@ -39,6 +40,8 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [itensSelecionados, setItensSelecionados] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Carregar dados
   useEffect(() => {
@@ -121,6 +124,46 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
       carregarDados();
     } catch (error) {
       console.error('Erro ao excluir material:', error);
+    }
+  };
+
+  // Funções de seleção em massa
+  const toggleSelecionarTodos = () => {
+    if (itensSelecionados.size === materiais.length) {
+      setItensSelecionados(new Set());
+    } else {
+      setItensSelecionados(new Set(materiais.map(m => m.id)));
+    }
+  };
+
+  const toggleSelecionarItem = (id: string) => {
+    const novosItensSelecionados = new Set(itensSelecionados);
+    if (novosItensSelecionados.has(id)) {
+      novosItensSelecionados.delete(id);
+    } else {
+      novosItensSelecionados.add(id);
+    }
+    setItensSelecionados(novosItensSelecionados);
+  };
+
+  const handleExcluirSelecionados = async () => {
+    if (itensSelecionados.size === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('obra_orcamento_materiais')
+        .delete()
+        .in('id', Array.from(itensSelecionados));
+
+      if (error) throw error;
+
+      toast.success(`${itensSelecionados.size} item(ns) excluído(s) com sucesso!`);
+      setItensSelecionados(new Set());
+      setShowDeleteDialog(false);
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao excluir materiais:', error);
+      toast.error('Erro ao excluir materiais');
     }
   };
 
@@ -305,6 +348,15 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
               </>
             )}
           </button>
+          {itensSelecionados.size > 0 && (
+            <button
+              onClick={() => setShowDeleteDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir Selecionados ({itensSelecionados.size})
+            </button>
+          )}
           <button
             onClick={() => {
               setEditando(null);
@@ -324,6 +376,12 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-3 py-3 text-center w-12">
+                  <Checkbox
+                    checked={materiais.length > 0 && itensSelecionados.size === materiais.length}
+                    onCheckedChange={toggleSelecionarTodos}
+                  />
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Local</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
@@ -341,13 +399,19 @@ export default function OrcamentoMateriaisView({ obraId }: OrcamentoMateriaisVie
             <tbody className="bg-white divide-y divide-gray-200">
               {materiais.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={13} className="px-3 py-8 text-center text-gray-500">
                     Nenhum item no orçamento. Clique em "Adicionar Item" para começar.
                   </td>
                 </tr>
               ) : (
                 materiais.map((material) => (
                   <tr key={material.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-3 py-3 text-center">
+                      <Checkbox
+                        checked={itensSelecionados.has(material.id)}
+                        onCheckedChange={() => toggleSelecionarItem(material.id)}
+                      />
+                    </td>
                     <td className="px-3 py-3 text-sm text-gray-900">{material.local || '-'}</td>
                     <td className="px-3 py-3 text-sm font-medium text-gray-900">{material.item}</td>
                     <td className="px-3 py-3 text-sm text-gray-900 max-w-xs truncate" title={material.descricao}>
@@ -677,6 +741,27 @@ function FormularioMaterial({ material, obraId, onSalvar, onCancelar }: Formular
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Exclusão em Massa */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {itensSelecionados.size} item(ns)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir os {itensSelecionados.size} itens selecionados? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluirSelecionados}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Todos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
