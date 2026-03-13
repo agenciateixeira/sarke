@@ -547,7 +547,24 @@ function parseNumber(value: any): number | undefined {
 }
 
 /**
- * Mapear status
+ * Status válidos no banco de dados
+ */
+const STATUS_VALIDOS = ['pendente', 'realizado', 'em_andamento', 'atrasado', 'cancelado']
+
+/**
+ * Validar se status é válido
+ */
+function validarStatus(status: string): string {
+  if (!STATUS_VALIDOS.includes(status)) {
+    console.warn(`[ImportadorV2] Status inválido '${status}', usando 'pendente'`)
+    return 'pendente'
+  }
+  return status
+}
+
+/**
+ * Mapear status - usar apenas valores válidos do banco
+ * Valores permitidos: pendente, realizado, em_andamento, atrasado, cancelado
  */
 function mapStatus(status: string): string {
   const statusLower = status.toLowerCase().trim()
@@ -556,18 +573,36 @@ function mapStatus(status: string): string {
     'pendente': 'pendente',
     'em andamento': 'em_andamento',
     'andamento': 'em_andamento',
-    'concluída': 'concluida',
-    'concluida': 'concluida',
-    'finalizado': 'concluida',
-    'finalizada': 'concluida',
-    'atrasada': 'atrasada',
-    'pausada': 'pausada',
-    'cancelada': 'cancelada',
-    'não foi': 'cancelada',
-    'nao foi': 'cancelada'
+    'concluída': 'realizado',
+    'concluida': 'realizado',
+    'finalizado': 'realizado',
+    'finalizada': 'realizado',
+    'ok': 'realizado',
+    'feito': 'realizado',
+    'completo': 'realizado',
+    'atrasada': 'atrasado',
+    'atrasado': 'atrasado',
+    'atraso': 'atrasado',
+    'pausada': 'pendente', // Pausada -> Pendente (mais próximo)
+    'pausado': 'pendente',
+    'cancelada': 'cancelado',
+    'cancelado': 'cancelado',
+    'não foi': 'cancelado',
+    'nao foi': 'cancelado'
   }
 
-  return statusMap[statusLower] || 'pendente'
+  const mapped = statusMap[statusLower] || 'pendente'
+
+  // Validar que o status mapeado é válido
+  const validated = validarStatus(mapped)
+
+  if (mapped !== validated) {
+    console.warn(`[ImportadorV2] Status '${status}' mapeou para '${mapped}' inválido, usando '${validated}'`)
+  } else {
+    console.log(`[ImportadorV2] Mapeando status '${status}' -> '${validated}'`)
+  }
+
+  return validated
 }
 
 /**
