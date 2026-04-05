@@ -122,53 +122,85 @@ export function usePipeline() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuário não autenticado')
 
-      console.log('📤 Tentando criar deal com dados:', dealData)
+      // Sanitiza campos opcionais: converte strings vazias em null
+      const sanitized: Record<string, any> = {
+        ...dealData,
+        owner_id: user.id,
+        client_id: dealData.client_id || null,
+        expected_close_date: dealData.expected_close_date || null,
+        next_follow_up_date: dealData.next_follow_up_date || null,
+        decision_deadline: dealData.decision_deadline || null,
+        lead_source_detail: dealData.lead_source_detail || null,
+        competitors: dealData.competitors || null,
+        description: dealData.description || null,
+        notes: dealData.notes || null,
+      }
+
+      // Remove campos undefined para não poluir o insert
+      Object.keys(sanitized).forEach(k => sanitized[k] === undefined && delete sanitized[k])
+
+      console.log('📤 Criando deal:', JSON.stringify(sanitized))
 
       const { data, error } = await supabase
         .from('deals')
-        .insert({
-          ...dealData,
-          owner_id: user.id,
-        })
+        .insert(sanitized)
         .select()
         .single()
 
       if (error) {
-        console.error('❌ Erro do Supabase:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        })
-        throw error
+        const errStr = JSON.stringify(error, Object.getOwnPropertyNames(error))
+        console.error('❌ Erro Supabase ao criar deal:', errStr)
+        throw new Error(error.message || errStr)
       }
 
-      console.log('✅ Deal criado com sucesso:', data)
       toast.success('Negócio criado com sucesso!')
       await fetchDeals()
       return data
     } catch (error: any) {
-      console.error('Error creating deal:', error)
-      console.error('Error details:', {
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-        hint: error?.hint,
-      })
-      toast.error('Erro ao criar negócio')
-      throw error
+      const msg = error?.message || JSON.stringify(error, Object.getOwnPropertyNames(error)) || String(error)
+      console.error('❌ createDeal falhou:', msg)
+      toast.error(`Erro ao criar negócio: ${msg}`)
+      throw new Error(msg)
     }
   }
 
   // Atualizar deal
   const updateDeal = async (dealId: string, updates: Partial<DealFormData>) => {
     try {
+      const sanitized: Record<string, any> = {
+        ...updates,
+        client_id: updates.client_id || null,
+        expected_close_date: updates.expected_close_date || null,
+        next_follow_up_date: updates.next_follow_up_date || null,
+        decision_deadline: updates.decision_deadline || null,
+        lead_source_detail: updates.lead_source_detail || null,
+        competitors: updates.competitors || null,
+        description: updates.description || null,
+        notes: updates.notes || null,
+        updated_at: new Date().toISOString(),
+      }
+
+      Object.keys(sanitized).forEach(k => sanitized[k] === undefined && delete sanitized[k])
+
+      // Backward-compat: renomeações de enum conhecidas
+      if (sanitized.business_type === 'industrial') sanitized.business_type = 'corporativo'
+
+      // Nulifica enums com valores inválidos para evitar violação de constraint no banco
+      const VALID_BUSINESS_TYPES = ['residencial', 'comercial', 'corporativo', 'publico']
+      const VALID_SERVICE_TYPES = ['projeto_arquitetonico', 'projeto_arquitetonico_completo', 'projeto_interiores', 'gestao_obra', 'consultoria', 'regularizacao', 'reformas', 'acompanhamento', 'outros']
+      const VALID_LEAD_SOURCES = ['website', 'indicacao', 'instagram', 'facebook', 'linkedin', 'google_ads', 'facebook_ads', 'evento', 'cold_call', 'email_marketing', 'parceria', 'retorno', 'outros']
+      const VALID_TEMPERATURES = ['quente', 'morno', 'frio']
+      const VALID_URGENCIES = ['alta', 'media', 'baixa']
+
+      if (sanitized.business_type && !VALID_BUSINESS_TYPES.includes(sanitized.business_type)) sanitized.business_type = null
+      if (sanitized.service_type && !VALID_SERVICE_TYPES.includes(sanitized.service_type)) sanitized.service_type = null
+      if (sanitized.lead_source && !VALID_LEAD_SOURCES.includes(sanitized.lead_source)) sanitized.lead_source = null
+      if (sanitized.temperature && !VALID_TEMPERATURES.includes(sanitized.temperature)) sanitized.temperature = null
+      if (sanitized.urgency && !VALID_URGENCIES.includes(sanitized.urgency)) sanitized.urgency = null
+
       const { error } = await supabase
         .from('deals')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
+        .update(sanitized)
         .eq('id', dealId)
 
       if (error) throw error

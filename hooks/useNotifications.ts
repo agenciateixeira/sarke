@@ -70,9 +70,10 @@ export function useNotifications() {
       setNotifications(data || [])
       setUnreadCount(data?.filter((n) => !n.read).length || 0)
     } catch (err: any) {
-      // Não logar erro se a tabela não existe
-      if (err.code !== '42P01' && !err.message?.includes('does not exist')) {
-        console.error('Error fetching notifications:', err)
+      const combined = `${err?.code ?? ''} ${err?.message ?? ''} ${err?.details ?? ''}`.toLowerCase()
+      const isTableMissing = combined.includes('42p01') || combined.includes('does not exist')
+      if (!isTableMissing) {
+        console.error('Error fetching notifications:', err?.code, err?.message)
       }
     } finally {
       setLoading(false)
@@ -115,9 +116,10 @@ export function useNotifications() {
 
       setAccessRequests(requests)
     } catch (err: any) {
-      // Não logar erro se a tabela não existe
-      if (err.code !== '42P01' && !err.message?.includes('does not exist')) {
-        console.error('Error fetching access requests:', err)
+      const combined = `${err?.code ?? ''} ${err?.message ?? ''} ${err?.details ?? ''}`.toLowerCase()
+      const isTableMissing = combined.includes('42p01') || combined.includes('does not exist')
+      if (!isTableMissing) {
+        console.error('Error fetching access requests:', err?.code, err?.message)
       }
     }
   }, [currentUserId, isAdmin])
@@ -304,9 +306,10 @@ export function useNotifications() {
       setAccessCache({ hasAccess, timestamp: now })
       return hasAccess
     } catch (err: any) {
-      // Não logar erro se a função não existe
-      if (err.code !== '42883' && !err.message?.includes('does not exist')) {
-        console.error('Error checking approved access:', err)
+      const combined = `${err?.code ?? ''} ${err?.message ?? ''} ${err?.details ?? ''}`.toLowerCase()
+      const isMissing = combined.includes('42p01') || combined.includes('42883') || combined.includes('does not exist')
+      if (!isMissing) {
+        console.error('Error checking approved access:', err?.code, err?.message)
       }
       setAccessCache({ hasAccess: false, timestamp: now })
       return false

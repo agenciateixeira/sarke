@@ -59,12 +59,14 @@ const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
 const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
   { value: 'residencial', label: 'Residencial' },
   { value: 'comercial', label: 'Comercial' },
-  { value: 'industrial', label: 'Industrial' },
+  { value: 'corporativo', label: 'Corporativo' },
   { value: 'publico', label: 'Público' },
 ]
 
 const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: 'projeto_arquitetonico', label: 'Projeto Arquitetônico' },
+  { value: 'projeto_arquitetonico_completo', label: 'Projeto Arquitetônico Completo' },
+  { value: 'projeto_interiores', label: 'Projeto Interiores' },
   { value: 'gestao_obra', label: 'Gestão de Obra' },
   { value: 'consultoria', label: 'Consultoria' },
   { value: 'regularizacao', label: 'Regularização' },
@@ -203,14 +205,14 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
         .from('clients')
         .insert({
           ...clientData,
-          owner_id: user.id,
+          created_by: user.id,
           status: clientData.status || 'prospect'
         })
         .select()
         .single()
 
       if (error) {
-        console.error('Error creating client:', error)
+        console.error('Error creating client:', error.code, error.message, error.details, error.hint)
         return { error: error.message }
       }
 
@@ -245,8 +247,9 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
     try {
       await onSave(formData)
       onOpenChange(false)
-    } catch (error) {
-      console.error('Error saving deal:', error)
+    } catch (error: any) {
+      const msg = error?.message || JSON.stringify(error, Object.getOwnPropertyNames(error)) || String(error)
+      console.error('❌ handleSubmit falhou:', msg)
     } finally {
       setLoading(false)
     }
@@ -271,6 +274,16 @@ export function DealDialog({ open, onOpenChange, deal, stages, onSave }: DealDia
 
             {/* ABA 1: INFORMAÇÕES BÁSICAS */}
             <TabsContent value="basico" className="space-y-4">
+              {/* Código da oportunidade (read-only, gerado automaticamente) */}
+              {deal?.opportunity_cod && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                  <span className="text-xs text-muted-foreground">Código da oportunidade:</span>
+                  <Badge variant="secondary" className="font-mono text-sm">
+                    {deal.opportunity_cod}
+                  </Badge>
+                </div>
+              )}
+
               {/* Título */}
               <div>
                 <Label htmlFor="title">Título *</Label>

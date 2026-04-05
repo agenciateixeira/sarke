@@ -53,4 +53,4 @@ CREATE POLICY "Users can delete their own avatar"
   );
 
 -- Comentários
-COMMENT ON TABLE storage.buckets IS 'Buckets de armazenamento do Supabase Storage';
+

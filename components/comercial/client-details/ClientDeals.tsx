@@ -118,6 +118,9 @@ export function ClientDeals({ deals, clientId, refetch }: ClientDealsProps) {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
+                    {deal.opportunity_cod && (
+                      <span className="font-mono text-xs text-muted-foreground block mb-0.5">{deal.opportunity_cod}</span>
+                    )}
                     <CardTitle className="text-base">{deal.title}</CardTitle>
                     {deal.description && (
                       <p className="text-sm text-muted-foreground mt-1">
