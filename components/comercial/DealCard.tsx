@@ -27,6 +27,10 @@ interface DealCardProps {
 }
 
 export function DealCard({ deal, onClick, isDragging, onArchive, onDelete, onMarkAsWonLost }: DealCardProps) {
+  const isOverdue = deal.expected_close_date
+    ? new Date(deal.expected_close_date) < new Date(new Date().toDateString())
+    : false
+
   const formatCurrency = (value?: number) => {
     if (!value) return 'Valor não definido'
     return new Intl.NumberFormat('pt-BR', {
@@ -58,6 +62,9 @@ export function DealCard({ deal, onClick, isDragging, onArchive, onDelete, onMar
         {/* Título e Cliente com Menu de Ações */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
+            {deal.opportunity_cod && (
+              <span className="font-mono text-xs text-muted-foreground">{deal.opportunity_cod}</span>
+            )}
             <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
               {deal.title}
             </h4>
@@ -129,12 +136,16 @@ export function DealCard({ deal, onClick, isDragging, onArchive, onDelete, onMar
           </div>
         </div>
 
-        {/* Data esperada de fechamento */}
+        {/* Data prevista de avanço de estágio */}
         {deal.expected_close_date && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className={cn(
+            'flex items-center gap-1.5 text-xs',
+            isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'
+          )}>
             <Calendar className="h-3 w-3" />
             <span>
               Prev. {new Date(deal.expected_close_date).toLocaleDateString('pt-BR')}
+              {isOverdue && ' (atrasado)'}
             </span>
           </div>
         )}

@@ -201,9 +201,22 @@ export function useChat() {
 
       setConversations(allConversations)
     } catch (err: any) {
-      console.error('Error fetching conversations:', err)
-      // Não mostrar erro se as tabelas ainda não existem
-      if (!err.message?.includes('does not exist')) {
+      // Tabelas de chat ainda não foram criadas — ignorar silenciosamente
+      // O erro do Supabase tem propriedades não-enumeráveis (por isso aparece como {}),
+      // então verificamos todas as formas possíveis de acessar a mensagem de erro.
+      const errCode = err?.code ?? ''
+      const errMsg = err?.message ?? err?.error_description ?? err?.toString() ?? ''
+      const errDetails = err?.details ?? ''
+      const combined = `${errCode} ${errMsg} ${errDetails}`.toLowerCase()
+
+      const isTableMissing =
+        combined.includes('does not exist') ||
+        combined.includes('42p01') ||
+        combined.includes('relation') ||
+        combined.includes('undefined_table')
+
+      if (!isTableMissing) {
+        console.error('Error fetching conversations:', errCode, errMsg)
         toast.error('Erro ao carregar conversas')
       }
     } finally {

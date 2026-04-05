@@ -61,7 +61,14 @@ export function useDocuments(dealId?: string) {
 
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        const combined = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+        if (combined.includes('42p01') || combined.includes('does not exist')) {
+          setDocuments([])
+          return
+        }
+        throw error
+      }
 
       const docs: DealDocument[] = (data || []).map((doc: any) => ({
         ...doc,
@@ -74,7 +81,7 @@ export function useDocuments(dealId?: string) {
 
       setDocuments(docs)
     } catch (err: any) {
-      console.error('Error fetching documents:', err)
+      console.error('Error fetching documents:', err.code, err.message, err.details)
       toast.error('Erro ao carregar documentos')
     } finally {
       setLoading(false)

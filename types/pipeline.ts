@@ -17,10 +17,12 @@ export type LeadSource =
   | 'retorno'
   | 'outros'
 
-export type BusinessType = 'residencial' | 'comercial' | 'industrial' | 'publico'
+export type BusinessType = 'residencial' | 'comercial' | 'corporativo' | 'publico'
 
 export type ServiceType =
   | 'projeto_arquitetonico'
+  | 'projeto_arquitetonico_completo'
+  | 'projeto_interiores'
   | 'gestao_obra'
   | 'consultoria'
   | 'regularizacao'
@@ -94,6 +96,9 @@ export interface Deal {
   // Extras
   competitors?: string
   decision_deadline?: string
+
+  // Código da oportunidade (gerado automaticamente: EST00001, EST00002, ...)
+  opportunity_cod: string
 
   // Metadados
   created_at: string
